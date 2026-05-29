@@ -16,3 +16,7 @@ grid_init(Page * page, uint16_t pagesz, GridType type, uint16_t rowsz) {
     return g;
 }
 
+Row *
+grid_get_row(Grid *grid, uint16_t i) {
+    return grid->datum + grid->rowsz * i;
+}

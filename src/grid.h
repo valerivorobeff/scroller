@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 typedef void *Page;
+typedef void *Row;
 
 typedef enum GridType : uint16_t {
     GT_FIXED = 1
@@ -20,6 +21,7 @@ typedef struct Grid {
 } Grid;
 
 Grid *grid_init(Page * page, uint16_t pagesz, GridType type, uint16_t rowsz);
+Row *grid_get_row(Grid *grid, uint16_t i);
 
 #endif /* _GRID_H_ */
 
