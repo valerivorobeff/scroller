@@ -1,7 +1,6 @@
 #include "grid.h"
 #include <assert.h>
 
-#include <malloc.h>
 #include <string.h>
 
 Grid *
@@ -58,39 +57,5 @@ hgrid_get_row_size(Grid *grid) {
         return hc->offs + hc->size;
     } else
        return 0;
-}
-
-int
-main() {
-    Page *hp = malloc(8096), *p = malloc(8096);
-    Grid *hg = grid_init(hp, 8096, GT_FIXED, sizeof(HColumn)), *g;
-    Row row;
-
-    /* CREATE TABLE HEADER */
-    /* ALTER TABLE ADD COLUMN */
-    if (!hgrid_add_column(hg, "id_user", 4)) {
-
-    }
-    /* ALTER TABLE ADD COLUMN */
-    if (!hgrid_add_column(hg, "name", 12)) {
-
-    }
-
-    /* CREATE TABLE DATA */
-    g = grid_init(p, 8096, GT_FIXED, hgrid_get_row_size(hg));
-
-    /* INSERT ROW INTO TABLE */
-    row = grid_alloc_row(g);    /* alloc row */
-    if (row) {
-        HColumn *hc = grid_get_row(hg, 0);
-        Column c = row + hc->offs;
-        strncpy(c, "123", hc->size);
-
-        hc = grid_get_row(hg, 1);
-        c = row + hc->offs;
-        strncpy(c, "12345678", hc->size);
-    }
-
-    return 0;
 }
 
