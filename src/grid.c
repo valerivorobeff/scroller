@@ -24,6 +24,14 @@ grid_get_row(Grid *grid, uint16_t n) {
     return grid->datum + grid->rowsz * n;
 }
 
+Column
+grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
+    Row r = grid_get_row(grid, row);
+    HColumn *hc = hgrid_get_column(hgrid, column);
+
+    return r + hc->offs;
+}
+
 Row
 grid_alloc_row(Grid *grid) {
     if (grid->occupied < grid->rown)

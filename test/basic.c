@@ -36,35 +36,60 @@ TEST(basic)
 
         TEST_CASE(test_1) {
             Page *hp = malloc(8096), *p = malloc(8096);
-            Grid *hg = grid_init(hp, 8096, GT_FIXED, sizeof(HColumn)), *g;
+            Grid *hg = hgrid_init(hp, 8096, GT_FIXED), *g;
+            HColumn *hc;
             Row row;
 
             /* CREATE TABLE HEADER */
             /* ALTER TABLE ADD COLUMN */
             if (!hgrid_add_column(hg, "id_user", 4)) {
-
+                TEST_FAIL();
             }
+            TEST_CHECK(hg->occupied == 1);
+
             /* ALTER TABLE ADD COLUMN */
             if (!hgrid_add_column(hg, "name", 12)) {
-
+                TEST_FAIL();
             }
+            TEST_CHECK(hg->occupied == 2);
+
+            /* Check the 1st row of hgrid */
+            hc = hgrid_get_column(hg, 0);
+            TEST_CHECK(!strcmp(hc->name, "id_user"));
+            TEST_CHECK(hc->size == 4);
+
+            /* Check the 2nd row of hgrid */
+            hc = hgrid_get_column(hg, 1);
+            TEST_CHECK(!strcmp(hc->name, "name"));
+            TEST_CHECK(hc->size == 12);
 
             /* CREATE TABLE DATA */
-            g = grid_init(p, 8096, GT_FIXED, hgrid_get_row_size(hg));
+            g = dgrid_init(p, 8096, GT_FIXED, hg);
 
             /* INSERT ROW INTO TABLE */
-            row = grid_alloc_row(g);    /* alloc row */
+            row = dgrid_alloc_row(g);    /* alloc row */
             if (row) {
-                HColumn *hc = grid_get_row(hg, 0);
-                Column c = row + hc->offs;
-                strncpy(c, "123", hc->size);
+                Column c;
 
-                hc = grid_get_row(hg, 1);
-                c = row + hc->offs;
-                strncpy(c, "12345678", hc->size);
-            }
+                TEST_CHECK(g->occupied == 1);
 
-            TEST_REQUIRE(1);
+                c = dgrid_get_column(hg, g, 0, 0);
+                strncpy(c, "123", hgrid_get_column(hg, 0)->size);
+
+                c = dgrid_get_column(hg, g, 0, 1);
+                strncpy(c, "12345678", hgrid_get_column(hg, 1)->size);
+
+                /* Check data we have just inserted */
+                c = dgrid_get_column(hg, g, 0, 0);
+                TEST_CHECK(!strcmp(c, "123"));
+
+                c = dgrid_get_column(hg, g, 0, 1);
+                TEST_CHECK(!strcmp(c, "12345678"));
+            } else
+                TEST_FAIL();
+
+            free(hp);
+            free(p);
         }
  
     TEST_SUITE_END()

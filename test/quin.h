@@ -95,9 +95,12 @@ int qu_failed;
 }
 #endif
 
-#define TEST_CASE(name) ++_total; _test_case_name = #name;
+#define TEST_CASE(name) _test_case_name = #name;
 
-#define TEST_REQUIRE(test) do { if (!(test)) { qu_printf("- Error in '%s'\n", _test_case_name); ++_failed; }} while (0)
+#define TEST_REQUIRE(test) do { if (!(test)) { qu_printf("- Error in '%s'\n", _test_case_name); ++_failed; } ++_total; } while (0)
+#define TEST_CHECK(test) TEST_REQUIRE(test)
+#define TEST_FAIL() do { ++_failed; ++_total; } while (0)
+#define TEST_OK() do { ++_total; } while (0)
 
 #endif /* _QUIN_H_ */
 
