@@ -70,7 +70,10 @@ typedef struct Grid {
     char        datum[];     /** Flexible array member containing row data */
 } Grid;
 
-#define NAMESZ  16  /** Maximum length for column names including null terminator */
+/**
+ * @brief Maximum length for column names including null terminator
+ */
+#define NAMESZ  16
 
 /**
  * @brief Column definition structure for header grids.
