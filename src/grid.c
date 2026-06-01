@@ -1,7 +1,14 @@
 #include "grid.h"
 #include <assert.h>
-
 #include <string.h>
+
+Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
+Row grid_get_row(Grid *grid, uint16_t n);
+Column grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+Row grid_alloc_row(Grid *grid);
+
+HColumn *hgrid_add_column(Grid *grid, const char *name, size_t size);
+size_t hgrid_get_row_size(Grid *grid);
 
 Grid *
 grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
