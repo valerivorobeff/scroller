@@ -1,7 +1,35 @@
+/**
+ * @file grid.c
+ * @brief Implementation of grid-based data storage system
+ *
+ * This file contains the implementation of functions for working with grid-based
+ * data structures that support both fixed-size row storage and columnar storage
+ * with dynamically defined schemas.
+ *
+ * The system supports two types of grids:
+ * - Header grid (hgrid): stores column definitions (HColumn structures)
+ * - Data grid (dgrid): stores actual row data with fixed-size rows
+ *
+ * Memory Layout:
+ * ```
+ * [Grid header][Row 0][Row 1][Row 2]...[Row N-1]
+ * ```
+ *
+ * @note Memory pages must be pre-allocated by the caller
+ * @warning All pages are zeroed during initialization for data security
+ *
+ * @see grid.h
+ */
+
 #include "grid.h"
 #include <assert.h>
 #include <string.h>
 
+/**
+ * @cond PRIVATE
+ * Forward declarations of public functions (implementation details)
+ * @endcond
+ */
 Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
 Column grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
@@ -15,9 +43,10 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
     static const char magic[] = { 's', 'c', 'r', ' ' };
     Grid *g = (Grid *)page;
 
+    /* Compile-time/debug check for magic array size consistency */
     assert(sizeof(g->magic) == sizeof(magic));
 
-    memset(page, 0, pagesz); /* We must zero the page due to sequrity reasons */
+    memset(page, 0, pagesz); /* We must zero the page due to security reasons */
     g->size = pagesz;
     g->type = type;
     g->rowsz = rowsz;
@@ -55,6 +84,7 @@ hgrid_add_column(Grid *grid, const char *name, size_t size) {
         strncpy(hc->name, name, NAMESZ);
         hc->size = size;
 
+        /* Calculate byte offset based on the previous column */
         if (grid->occupied > 1)
             hc->offs = (hc - 1)->offs + size;
         else
