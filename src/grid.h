@@ -8,6 +8,14 @@
  * memory pages.
  */
 
+/**
+ * @todo:
+ * 1. Make an allignment for rows.
+ * 2. Make it an option to allocate new rows in strict order (like in vector)
+ *      or not.
+ * 3. Make it an option to store data in foxed or flexible size rows.
+ */
+
 #ifndef _GRID_H_
 #define _GRID_H_
 
