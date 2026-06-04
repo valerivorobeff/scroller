@@ -30,6 +30,7 @@
 
 #include "quin.h"
 #include "grid.h"
+#include "ihash.h"
 #include <malloc.h>
 #include <string.h>
 
@@ -115,6 +116,41 @@ TEST(basic)
         }
  
     TEST_SUITE_END()  /* End of grid test suite */
+
+    TEST_SUITE(ihash)
+
+        TEST_CASE(test1) {
+            typedef struct hentry {
+                ssize_t key;
+                int value;
+                ssize_t next;
+            } hentry;
+
+            hentry  *he = ihash_create(he, 5, 6);
+            ihash *h = (ihash *)he;
+            hentry *tmp;
+            int v = 9;
+
+            TEST_CHECK(h->size == 5);
+            TEST_CHECK(h->cap == 6);
+
+            tmp = ihash_put(he, 5, v);
+            TEST_CHECK(tmp);
+            TEST_CHECK(tmp->key == 5);
+            TEST_CHECK(tmp->value == 9);
+
+            tmp = ihash_get(he, 4);
+            TEST_CHECK(tmp == NULL);
+
+            tmp = ihash_get(he, 5);
+            TEST_CHECK(tmp);
+            TEST_CHECK(tmp->key == 5);
+            TEST_CHECK(tmp->value == 9);
+
+            ihash_free(he);
+        }
+
+    TEST_SUITE_END()  /* End of ihash test suite */
 
 TEST_END()  /* End of basic test unit */
 
