@@ -119,29 +119,33 @@ TEST(basic)
 
     TEST_SUITE(ihash)
 
-        TEST_CASE(test1) {
+        TEST_CASE(basic) {
             typedef struct hentry {
                 ssize_t key;
                 int value;
                 ssize_t next;
             } hentry;
 
+            /* Create hash */
             hentry  *he = ihash_create(he, 5, 6);
-            ihash *h = (ihash *)he;
+            ihash *hash = (ihash *)he;
             hentry *tmp;
-            int v = 9;
 
-            TEST_CHECK(h->size == 5);
-            TEST_CHECK(h->cap == 6);
+            /* Test inner structure */
+            TEST_CHECK(hash->size == 5);
+            TEST_CHECK(hash->cap == 6);
 
-            tmp = ihash_put(he, 5, v);
+            /* Put a new node into hash */
+            tmp = ihash_put(he, 5, 9);
             TEST_CHECK(tmp);
             TEST_CHECK(tmp->key == 5);
             TEST_CHECK(tmp->value == 9);
 
+            /* Get a node that doesn't exist */
             tmp = ihash_get(he, 4);
             TEST_CHECK(tmp == NULL);
 
+            /* Get the previously inserted node */
             tmp = ihash_get(he, 5);
             TEST_CHECK(tmp);
             TEST_CHECK(tmp->key == 5);

@@ -211,8 +211,16 @@ void ihash_free(void *hash);
  * @see ihash_put_fn()
  */
 #define ihash_put(h, key_, value_) \
-    (typeof(h))ihash_put_fn((ihash *)h, key_, offsetof(typeof(*h), key), offsetof(typeof(*h), next), \
-            offsetof(typeof(*h), value), sizeof(value_), (void *)&value_, sizeof(*h));
+    ({ \
+        typeof(value_) _ihash_val = (value_); \
+        (typeof(h))ihash_put_fn((ihash *)h, key_, \
+            offsetof(typeof(*h), key), \
+            offsetof(typeof(*h), next), \
+            offsetof(typeof(*h), value), \
+            sizeof(_ihash_val), \
+            (void *)&_ihash_val, \
+            sizeof(*h)); \
+    })
 
 /**
  * @cond PRIVATE
