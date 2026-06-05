@@ -77,7 +77,7 @@ void ihash_free(void *hash);
 ihash *ihash_create_fn(size_t size, size_t cap,
     size_t keyoffs, size_t nextoffs, size_t entrysz);
 void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
-void *ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t valueoffs, size_t valuesz, void *value, size_t entrysz);
+void *ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 
 /**
  * @cond PRIVATE
@@ -196,7 +196,7 @@ ihash_create_fn(size_t size, size_t cap,
  */
 void *
 ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
-    size_t idx = hash_fn(key) % hash->size;          /* Compute hash bucket */
+    size_t idx = hash_fn(key) % hash->size;         /* Compute hash bucket */
     void *e = ihash_get_tab(hash) + idx * entrysz;  /* Primary slot entry */
     void *nodes = ihash_get_nodes(hash);            /* Overflow node pool */
 
@@ -235,9 +235,6 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
  * @param key       Key to insert/update
  * @param keyoffs   Byte offset of 'key' field within entry
  * @param nextoffs  Byte offset of 'next' field within entry
- * @param valueoffs Byte offset of 'value' field within entry
- * @param valuesz   Size of the value data to copy
- * @param value     Pointer to the value data
  * @param entrysz   Total size of each entry
  * @return          Pointer to entry (existing or new), or NULL if no free nodes
  *
@@ -248,12 +245,11 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
  * @retval non-NULL Pointer to the entry (inserted or updated)
  * @retval NULL     Node pool exhausted (cap reached with no free nodes)
  *
- * @note Updates existing entry by copying new value via memcpy()
- * @warning The value is copied byte-by-byte; ensure value type is trivial
- * @see ihash_put macro for type-safe usage
+ * @note This function does NOT copy any value - only manages key and next links
+ * @note The value field is left untouched (caller must fill it)
  */
 void *
-ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t valueoffs, size_t valuesz, void *value, size_t entrysz) {
+ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
     size_t idx = hash_fn(key) % hash->size;         /* Compute hash bucket */
     void *e = ihash_get_tab(hash) + idx * entrysz;  /* Primary slot entry */
     void *nodes = ihash_get_nodes(hash);            /* Overflow node pool */
@@ -262,7 +258,6 @@ ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t v
     if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs)) {
         *(ssize_t *)(e + keyoffs) = key;
         *(ssize_t *)(e + nextoffs) = IHASH_UNDEF;
-        memcpy(e + valueoffs, value, valuesz);
         return e;
     }
 
@@ -277,12 +272,15 @@ ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t v
                 return NULL;  /* No free nodes available */
 
             /* Allocate from freelist */
-            void *phead_node = nodes + hash->head_node * entrysz;
+            void *new_node = nodes + hash->head_node * entrysz;
             *(ssize_t *)(e + nextoffs) = hash->head_node;  /* Link to new node */
-            hash->head_node = *(ssize_t *)(phead_node + nextoffs);  /* Update freelist head */
+            hash->head_node = *(ssize_t *)(new_node + nextoffs);  /* Update freelist head */
 
             /* Initialize the new node */
-            return nodes + *(ssize_t *)(e + nextoffs) * entrysz;
+            *(ssize_t *)(new_node + keyoffs) = key;
+            *(ssize_t *)(new_node + nextoffs) = IHASH_UNDEF;
+
+            return new_node;
         }
 
         /* Move to next node in chain */

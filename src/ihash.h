@@ -212,14 +212,14 @@ void ihash_free(void *hash);
  */
 #define ihash_put(h, key_, value_) \
     ({ \
-        typeof(value_) _ihash_val = (value_); \
-        (typeof(h))ihash_put_fn((ihash *)h, key_, \
+        typeof(h) _e = (typeof(h))ihash_put_fn((ihash *)h, key_, \
             offsetof(typeof(*h), key), \
             offsetof(typeof(*h), next), \
-            offsetof(typeof(*h), value), \
-            sizeof(_ihash_val), \
-            (void *)&_ihash_val, \
             sizeof(*h)); \
+        if (_e) { \
+            _e->value = (value_); \
+        } \
+        _e; \
     })
 
 /**
@@ -263,13 +263,10 @@ void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, si
  * @param key       Key to insert/update
  * @param keyoffs   Byte offset of 'key' field
  * @param nextoffs  Byte offset of 'next' field
- * @param valueoffs Byte offset of 'value' field
- * @param valuesz   Size of value to copy
- * @param value     Pointer to value data
  * @param entrysz   Total size of each entry
  * @return          Pointer to entry, or NULL if node pool exhausted
  */
-void *ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t valueoffs, size_t valuesz, void *value, size_t entrysz);
+void *ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 
 #endif /* _IHASH_H_ */
 
