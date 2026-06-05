@@ -208,11 +208,11 @@ void ihash_free(void *hash);
  *
  * @note The entry's 'value' field is updated via memcpy()
  * @warning Returns NULL if the node pool is exhausted
- * @see ihash_put_fn()
+ * @see ihash_touch_fn()
  */
 #define ihash_put(h, key_, value_) \
     ({ \
-        typeof(h) _e = (typeof(h))ihash_put_fn((ihash *)h, key_, \
+        typeof(h) _e = (typeof(h))ihash_touch_fn((ihash *)h, key_, \
             offsetof(typeof(*h), key), \
             offsetof(typeof(*h), next), \
             sizeof(*h)); \
@@ -266,7 +266,7 @@ void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, si
  * @param entrysz   Total size of each entry
  * @return          Pointer to entry, or NULL if node pool exhausted
  */
-void *ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
+void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 
 #endif /* _IHASH_H_ */
 

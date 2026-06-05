@@ -77,7 +77,7 @@ void ihash_free(void *hash);
 ihash *ihash_create_fn(size_t buckersz, size_t chainsz,
     size_t keyoffs, size_t nextoffs, size_t entrysz);
 void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
-void *ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
+void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 
 /**
  * @cond PRIVATE
@@ -249,7 +249,7 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
  * @note The value field is left untouched (caller must fill it)
  */
 void *
-ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
+ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
     size_t idx = hash_fn(key) % hash->bucketsz;     /* Compute hash bucket index */
     void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
     void *nodes = ihash_get_chains(hash);            /* chains */
