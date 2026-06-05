@@ -33,6 +33,14 @@
  * @see ihash.h
  */
 
+/**
+ * @todo:
+ * 1. Remove next variable from mandatory members of hash entry struct.
+ *      It is possible to make in invisible and post it at the tail of each hash entry.
+ * 2. Investigate if it makes more sence to move all the entries including the first one
+ *      into the chains pool and store in the buckets only the index of the first entry.
+ */
+
 #include "ihash.h"
 #include <malloc.h>
 #include <string.h>
@@ -78,6 +86,7 @@ ihash *ihash_create_fn(size_t buckersz, size_t chainsz,
     size_t keyoffs, size_t nextoffs, size_t entrysz);
 void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
+int ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 
 /**
  * @cond PRIVATE
@@ -198,7 +207,7 @@ void *
 ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
     size_t idx = hash_fn(key) % hash->bucketsz;         /* Compute hash bucket index */
     void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
-    void *nodes = ihash_get_chains(hash);                /* chains */
+    void *nodes = ihash_get_chains(hash);               /* chains */
 
     /* Empty slot - key definitely not present */
     if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs))
@@ -250,9 +259,9 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
  */
 void *
 ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
-    size_t idx = hash_fn(key) % hash->bucketsz;     /* Compute hash bucket index */
+    size_t idx = hash_fn(key) % hash->bucketsz;         /* Compute hash bucket index */
     void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
-    void *nodes = ihash_get_chains(hash);            /* chains */
+    void *nodes = ihash_get_chains(hash);               /* chains */
 
     /* Case 1: Primary slot is empty - insert here */
     if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs)) {
@@ -285,6 +294,94 @@ ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t
 
         /* Move to next node in chain */
         e = nodes + *(ssize_t *)(e + nextoffs) * entrysz;
+    }
+}
+
+/**
+ * @brief Removes an entry from the hash table
+ *
+ * Algorithm:
+ * 1. Find the bucket index
+ * 2. Traverse the chain keeping track of previous node
+ * 3. When found, unlink the node from the chain
+ * 4. Add the freed node to the freelist
+ *
+ * Cases handled:
+ * - Removing from the beginning of chain (bucket slot)
+ * - Removing from middle of chain
+ * - Removing from end of chain
+ * - Key not found (returns 0)
+ *
+ * @param hash     Pointer to hash table
+ * @param key      Key to remove
+ * @param keyoffs  Offset of 'key' field
+ * @param nextoffs Offset of 'next' field
+ * @param entrysz  Total entry size
+ * @return         1 if removed successfully, 0 if key not found
+ *
+ * @note The removed node is added to the freelist for reuse
+ * @warning Does NOT call any destructor on the value field
+ */
+int
+ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
+    size_t idx = hash_fn(key) % hash->bucketsz;         /* Compute hash bucket index */
+    void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
+    void *nodes = ihash_get_chains(hash);               /* chains */
+
+    /* Case 1: Primary slot is empty - nothing to erase */
+    if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs))
+        return 0;
+
+    /* Case 2: Key is in bucket slot */
+    if (key == *(ssize_t *)(e + keyoffs)) {
+        ssize_t next_idx = *(ssize_t *)(e + nextoffs);
+
+        if (IHASH_UNDEF == next_idx) {
+            /* There is no chain, just clear the bucket */
+            *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
+            *(ssize_t *)(e + nextoffs) = IHASH_UNDEF;
+        } else {
+            void *first_node = nodes + next_idx * entrysz;
+            /* Move the first node from chain to bucket */
+            memcpy(e, first_node, entrysz);
+
+            /* Move the previous node to top of free chain */
+            *(ssize_t *)(first_node + keyoffs) = IHASH_UNDEF;
+            *(ssize_t *)(first_node + nextoffs) = hash->chain_head;
+
+            hash->chain_head = next_idx;
+        }
+
+        return 1;
+    } else {
+        /* Case 3: Traverse chain to find key or end */
+        ssize_t cur_idx = *(ssize_t *)(e + nextoffs);
+
+        while (IHASH_UNDEF != cur_idx) {
+            void *prev = e;                 /* Remember previous node */
+            e = nodes + cur_idx * entrysz;  /* Move to next node in chain */
+
+            if (key == *(ssize_t *)(e + keyoffs)) {
+                /* Key exists */
+
+                /* Unlink current node (e) from the chain */
+                ssize_t next_idx = *(ssize_t *)(e + nextoffs);
+                *(ssize_t *)(prev + nextoffs) = next_idx;
+
+                /* Move current node (e) to top of free chain */
+                *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
+                *(ssize_t *)(e + nextoffs) = hash->chain_head;
+
+                hash->chain_head = cur_idx;
+
+                return 1;
+            }
+
+            cur_idx = *(ssize_t *)(e + nextoffs);
+        }
+
+        /* We get here if no key was found, nothing to erase */
+        return 0;
     }
 }
 

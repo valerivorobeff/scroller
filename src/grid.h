@@ -2,6 +2,9 @@
  * @file grid.h
  * @brief Grid-based data storage system with fixed-size rows and columnar access
  *
+ * @note This code uses GNU extensions (void* arithmetic) and requires
+ *  GCC, Clang, or compatible compiler.
+ *
  * This module provides a flexible grid storage system that supports both
  * header grids (for column definitions) and data grids (for actual data).
  * It is designed for efficient row and column operations on fixed-size

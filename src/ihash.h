@@ -2,6 +2,9 @@
  * @file ihash.h
  * @brief Index-based hash table implementation with fixed-size entries
  *
+ * @note This code uses GNU extensions (void* arithmetic) and requires
+ *  GCC, Clang, or compatible compiler.
+ *
  * This module provides a lightweight, memory-efficient hash table that stores
  * entries in a contiguous memory block. Unlike traditional hash tables that
  * use pointers, this implementation uses indices for next-node references,
@@ -223,6 +226,32 @@ void ihash_free(void *hash);
     })
 
 /**
+ * @def ihash_erase(h, key_)
+ * @brief Removes an entry from the hash table by key
+ *
+ * @param h      Pointer to the hash table
+ * @param key_   Key to remove
+ * @return       1 if entry was found and removed, 0 if key not found
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     ssize_t next;
+ *     int value;
+ * };
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ *
+ * ihash_put(hash, 42, 100);
+ * ihash_erase(hash, 42);  // Removes the entry
+ * @endcode
+ */
+#define ihash_erase(h, key_) \
+    ihash_erase_fn((ihash *)h, key_, \
+        offsetof(typeof(*h), key), \
+        offsetof(typeof(*h), next), \
+        sizeof(*h))
+
+/**
  * @cond PRIVATE
  * Inner functions and macros - implementation details
  * @endcond
@@ -267,6 +296,19 @@ void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, si
  * @return          Pointer to entry, or NULL if node pool exhausted
  */
 void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
+
+/**
+ * @brief Erases an entry from the hash table by key
+ *
+ * @param hash     Pointer to hash table
+ * @param key      Key to remove
+ * @param keyoffs  Offset of 'key' field in entry
+ * @param nextoffs Offset of 'next' field in entry
+ * @param entrysz  Total size of each entry
+ * @return         1 if entry was found and removed, 0 if key not found
+ */
+int
+ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 
 #endif /* _IHASH_H_ */
 
