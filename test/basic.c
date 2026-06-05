@@ -132,8 +132,8 @@ TEST(basic)
             hentry *tmp;
 
             /* Test inner structure */
-            TEST_CHECK(hash->size == 5);
-            TEST_CHECK(hash->cap == 6);
+            TEST_CHECK(hash->bucketsz == 5);
+            TEST_CHECK(hash->chainsz == 6);
 
             /* Put a new node into hash */
             tmp = ihash_put(he, 5, 9);

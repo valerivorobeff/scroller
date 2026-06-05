@@ -9,22 +9,22 @@
  * @section algorithm Hash Table Algorithm
  *
  * The hash table uses separate chaining with:
- * 1. A fixed-size array of primary slots (size)
- * 2. A pool of overflow nodes (cap)
+ * 1. A fixed-size array of primary slots (bucketsz)
+ * 2. A pool of overflow nodes (chainsz)
  * 3. A freelist for node management
  *
  * Memory Layout:
  * ```
  * +-------------+
- * | ihash       | Header (size, cap, head_node)
+ * | ihash       | Header (bucketsz, chainsz, chain_head)
  * +-------------+
  * | Slot 0      | Primary hash slots
- * | Slot 1      | (size entries)
+ * | Slot 1      | (bucket entries)
  * | ...         |
  * | Slot N-1    |
  * +-------------+
  * | Node 0      | Node pool entries
- * | Node 1      | (cap entries)
+ * | Node 1      | (chain entries)
  * | ...         |
  * | Node M-1    |
  * +-------------+
@@ -44,18 +44,18 @@
  */
 
 /**
- * @brief Internal helper to get pointer to hash table slots
+ * @brief Internal helper to get pointer to hash table primary buckets
  * @param h Pointer to hash table header
- * @return Pointer to the start of primary hash slots
+ * @return Pointer to the start of primary hash buckets
  */
-#define ihash_get_tab(h)   ((void *)((char *)h + sizeof(ihash)))
+#define ihash_get_buckets(h)   ((void *)((char *)h + sizeof(ihash)))
 
 /**
- * @brief Internal helper to get pointer to node pool
+ * @brief Internal helper to get pointer to chain pool
  * @param h Pointer to hash table header
- * @return Pointer to the start of overflow node pool
+ * @return Pointer to the start of chain pool
  */
-#define ihash_get_nodes(h) (ihash_get_tab(h) + sizeof(h) * ((ihash*)(h))->size)
+#define ihash_get_chains(h) (ihash_get_buckets(h) + sizeof(h) * ((ihash*)(h))->bucketsz)
 
 /**
  * @brief Hash function for integer keys
@@ -74,7 +74,7 @@ static ssize_t hash_fn(ssize_t key);
  */
 
 void ihash_free(void *hash);
-ihash *ihash_create_fn(size_t size, size_t cap,
+ihash *ihash_create_fn(size_t buckersz, size_t chainsz,
     size_t keyoffs, size_t nextoffs, size_t entrysz);
 void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
 void *ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
@@ -114,57 +114,57 @@ ihash_free(void *hash) {
  *
  * Memory allocation:
  * - Header: sizeof(ihash) bytes
- * - Primary slots: entrysz * size bytes
- * - Node pool: entrysz * cap bytes
+ * - Primary slots: entrysz * bucketsz bytes
+ * - Node pool: entrysz * chainsz bytes
  *
  * Initialization:
  * 1. All primary slot entries have key = IHASH_UNDEF, next = IHASH_UNDEF
  * 2. Node pool entries form a linked list via 'next' indices
- * 3. head_node points to first free node (0)
+ * 3. chain_heade points to first free node (0)
  * 4. Last node's next = IHASH_UNDEF
  *
- * @param size     Number of primary hash slots (must be > 0)
- * @param cap      Capacity of overflow node pool (can be 0)
+ * @param bucketsz Number of primary hash slots (must be > 0)
+ * @param chainsz  Size of overflow node pool (can be 0)
  * @param keyoffs  Byte offset of 'key' field within entry
  * @param nextoffs Byte offset of 'next' field within entry
  * @param entrysz  Total size of each entry in bytes
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
- * @pre size > 0
+ * @pre bucketsz > 0
  * @pre entrysz >= max(keyoffs, nextoffs) + sizeof(ssize_t)
  *
  * @post All slots are marked as empty (IHASH_UNDEF)
  * @post Node pool is initialized as a freelist
- * @post head_node == 0 (first node is free)
+ * @post chain_head == 0 (first node is free)
  *
  * @note The table is relocatable - all references are indices, not pointers
  */
 ihash *
-ihash_create_fn(size_t size, size_t cap,
+ihash_create_fn(size_t bucketsz, size_t chainsz,
     size_t keyoffs, size_t nextoffs, size_t entrysz) {
     void *e;
 
     /* Allocate contiguous memory for header + slots + node pool */
-    ihash *hash = malloc(sizeof(ihash) + entrysz * (size + cap));
-    hash->size = size;
-    hash->cap = cap;
-    hash->head_node = 0;
-    e = ihash_get_tab(hash);
+    ihash *hash = malloc(sizeof(ihash) + entrysz * (bucketsz + chainsz));
+    hash->bucketsz = bucketsz;
+    hash->chainsz = chainsz;
+    hash->chain_head = 0;
+    e = ihash_get_buckets(hash);
 
     /* Initialize primary hash slots to empty state */
-    for (size_t i = 0; i != size; ++i, e += entrysz) {
+    for (size_t i = 0; i != bucketsz; ++i, e += entrysz) {
         *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
         *(ssize_t *)(e + nextoffs) = IHASH_UNDEF;
     }
 
     /* Initialize node pool as a linked list of free nodes */
-    for (size_t i = 0; i != cap; ++i, e += entrysz) {
+    for (size_t i = 0; i != chainsz; ++i, e += entrysz) {
         *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
         *(ssize_t *)(e + nextoffs) = i + 1;  /* Point to next free node */
     }
 
     /* Mark the end of the freelist */
-    if (cap > 0) {
+    if (chainsz > 0) {
         *(ssize_t *)(e - entrysz + nextoffs) = IHASH_UNDEF;
     }
 
@@ -175,7 +175,7 @@ ihash_create_fn(size_t size, size_t cap,
  * @brief Retrieves an entry by key
  *
  * Algorithm:
- * 1. Compute hash index = key % size
+ * 1. Compute hash index = key % bucketsz 
  * 2. Check the primary slot at that index
  * 3. If key matches, return entry
  * 4. If next = IHASH_UNDEF, key not found
@@ -196,9 +196,9 @@ ihash_create_fn(size_t size, size_t cap,
  */
 void *
 ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
-    size_t idx = hash_fn(key) % hash->size;         /* Compute hash bucket */
-    void *e = ihash_get_tab(hash) + idx * entrysz;  /* Primary slot entry */
-    void *nodes = ihash_get_nodes(hash);            /* Overflow node pool */
+    size_t idx = hash_fn(key) % hash->bucketsz;         /* Compute hash bucket index */
+    void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
+    void *nodes = ihash_get_chains(hash);                /* chains */
 
     /* Empty slot - key definitely not present */
     if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs))
@@ -243,16 +243,16 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
  * @pre hash is properly initialized
  *
  * @retval non-NULL Pointer to the entry (inserted or updated)
- * @retval NULL     Node pool exhausted (cap reached with no free nodes)
+ * @retval NULL     Node pool exhausted (chains reached with no free nodes)
  *
  * @note This function does NOT copy any value - only manages key and next links
  * @note The value field is left untouched (caller must fill it)
  */
 void *
 ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
-    size_t idx = hash_fn(key) % hash->size;         /* Compute hash bucket */
-    void *e = ihash_get_tab(hash) + idx * entrysz;  /* Primary slot entry */
-    void *nodes = ihash_get_nodes(hash);            /* Overflow node pool */
+    size_t idx = hash_fn(key) % hash->bucketsz;     /* Compute hash bucket index */
+    void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
+    void *nodes = ihash_get_chains(hash);            /* chains */
 
     /* Case 1: Primary slot is empty - insert here */
     if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs)) {
@@ -268,13 +268,13 @@ ihash_put_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
 
         if (IHASH_UNDEF == *(ssize_t *)(e + nextoffs)) {
             /* Case 3: End of chain - need to allocate new node */
-            if (hash->head_node == IHASH_UNDEF)
+            if (hash->chain_head == IHASH_UNDEF)
                 return NULL;  /* No free nodes available */
 
             /* Allocate from freelist */
-            void *new_node = nodes + hash->head_node * entrysz;
-            *(ssize_t *)(e + nextoffs) = hash->head_node;  /* Link to new node */
-            hash->head_node = *(ssize_t *)(new_node + nextoffs);  /* Update freelist head */
+            void *new_node = nodes + hash->chain_head * entrysz;
+            *(ssize_t *)(e + nextoffs) = hash->chain_head;          /* Link to new node */
+            hash->chain_head = *(ssize_t *)(new_node + nextoffs);   /* Update freelist head */
 
             /* Initialize the new node */
             *(ssize_t *)(new_node + keyoffs) = key;

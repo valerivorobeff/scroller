@@ -72,7 +72,7 @@
  * @code
  * // Create hash table in shared memory for IPC
  * int shm_fd = shm_open("/my_hash", O_CREAT | O_RDWR, 0666);
- * size_t total_size = sizeof(ihash) + entrysz * (size + cap);
+ * size_t total_size = sizeof(ihash) + entrysz * (bucketsz + chainsz);
  * ftruncate(shm_fd, total_size);
  *
  * struct CacheEntry *shared_hash = mmap(NULL, total_size, 
@@ -117,33 +117,33 @@
  * [ihash header][hash table entries][node pool entries]
  * ```
  *
- * @var ihash::size
+ * @var ihash::bucketsz
  *      Number of slots in the hash table (primary bucket array)
- * @var ihash::cap
- *      Capacity of the node pool (maximum number of overflow nodes)
- * @var ihash::head_node
- *      Index of the first free node in the freelist, or IHASH_UNDEF if empty
+ * @var ihash::chainsz
+ *      Number of slots in the node pool chain
+ * @var ihash::vhain_head
+ *      Index of the first free node in the free node list, or IHASH_UNDEF if empty
  *
  * @note The actual entries follow this header in memory
  * @see ihash_create_fn()
  */
 typedef struct ihash {
-    size_t size;         /** Number of primary hash slots */
-    size_t cap;          /** Maximum number of overflow nodes */
-    ssize_t head_node;   /** Head index of free node list */
+    size_t bucketsz;     /** Number of primary hash buckets */
+    size_t chainsz;      /** Maximum number of overflow nodes in all the chains */
+    ssize_t chain_head;  /** Head index of free node list (chains )*/
 } ihash;
 
 /**
- * @def ihash_create(h, size_, cap_)
+ * @def ihash_create(h, bucketsz_, chainsz_)
  * @brief Creates a new hash table for a specific entry type
  *
  * This macro automatically computes field offsets using typeof() and
  * offsetof(), eliminating the need for manual offset calculation.
  *
- * @param h      Pointer to a variable that will receive the hash table pointer
- * @param size_  Number of slots in the hash table (primary bucket count)
- * @param cap_   Capacity of the node pool (overflow nodes)
- * @return       Pointer to the created hash table (cast to type of h)
+ * @param h         Pointer to a variable that will receive the hash table pointer
+ * @param bucketsz_ Number of slots in the hash table (primary bucket count)
+ * @param chainsz_  Number of slots in the chains table (overflow nodes)
+ * @return          Pointer to the created hash table (cast to type of h)
  *
  * @pre The entry structure must have 'key' and 'next' fields
  * @pre 'key' field must be of type ssize_t
@@ -160,9 +160,9 @@ typedef struct ihash {
  *
  * @see ihash_create_fn()
  */
-#define ihash_create(h, size_, cap_) \
+#define ihash_create(h, bucketsz_, chainsz_) \
     (typeof(h))ihash_create_fn( \
-        size_, cap_, \
+        bucketsz_, chainsz_, \
         offsetof(typeof(*h), key), \
         offsetof(typeof(*h), next), \
         sizeof(*h))
@@ -231,17 +231,17 @@ void ihash_free(void *hash);
 /**
  * @brief Internal function for hash table creation
  *
- * @param size     Number of primary hash slots
- * @param cap      Node pool capacity
+ * @param bucketsz Number of primary hash slots
+ * @param chainsz  Number of chain hash slots
  * @param keyoffs  Byte offset of 'key' field within entry
  * @param nextoffs Byte offset of 'next' field within entry
  * @param entrysz  Total size of each entry in bytes
  * @return         Pointer to initialized hash table
  *
- * @note Allocates memory: sizeof(ihash) + entrysz * (size + cap)
+ * @note Allocates memory: sizeof(ihash) + entrysz * (bucketsz + chainsz)
  * @see ihash_create macro
  */
-ihash *ihash_create_fn(size_t size, size_t cap, size_t keyoffs,
+ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs,
         size_t nextoffs, size_t entrysz);
 
 /**
