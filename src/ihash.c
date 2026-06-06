@@ -35,9 +35,17 @@
 
 /**
  * @todo:
- * 1. Remove next variable from mandatory members of hash entry struct.
- *      It is possible to make in invisible and post it at the tail of each hash entry.
- * 2. Investigate if it makes more sence to move all the entries including the first one
+ * 1. make ihash_getpv() to get pointer to value
+ * 2. make ihash_getv() to get value (risky!)
+ * 3. make ihash_putk() to add/update just the key
+ * 4. make ihash_puts() to add/update the whole user's struct
+ * 5. make ihash_exists() to check existence of a node
+ * 6. make ihash_clear() to clear all the hash structures
+ * 7. add variables keyoffs, usersz (or nodesz) to ihash struct and
+ *      delete them from the following function arguments:
+ *      ihash_get_fn, ihash_touch_fn, ihash_erase_fn
+ * 8. make ihash_foreach()
+ * 9. Investigate if it makes more sence to move all the entries including the first one
  *      into the chains pool and store in the buckets only the index of the first entry.
  */
 
