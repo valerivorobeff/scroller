@@ -77,7 +77,7 @@
  * size_t total_size = sizeof(ihash) + entrysz * (bucketsz + chainsz);
  * ftruncate(shm_fd, total_size);
  *
- * struct CacheEntry *shared_hash = mmap(NULL, total_size, 
+ * struct CacheEntry *shared_hash = mmap(NULL, total_size,
  *                                        PROT_READ | PROT_WRITE,
  *                                        MAP_SHARED, shm_fd, 0);
  *
@@ -167,6 +167,38 @@ typedef struct ihash {
         sizeof(*h))
 
 /**
+ * @def ihash_init(h, bucketsz_, chainsz_)
+ * @brief Initializes a new hash table for a specific entry type
+ *
+ * This macro automatically computes field offsets using typeof() and
+ * offsetof(), eliminating the need for manual offset calculation.
+ *
+ * @param p         Previously allocated pointer where ihash is going to be initialized
+ * @param h         Pointer to a variable that will receive the hash table pointer
+ * @param bucketsz_ Number of slots in the hash table (primary bucket count)
+ * @param chainsz_  Number of slots in the chains table (overflow nodes)
+ * @return          Pointer to the created hash table (cast to type of h)
+ *
+ * @pre The entry structure must have 'key' field
+ * @pre 'key' field must be of type ssize_t
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ * };
+ * struct MyEntry *hash = ihash_init(hash, 16, 32);
+ * @endcode
+ *
+ * @see ihash_init_fn()
+ */
+#define ihash_init(p, h, bucketsz_, chainsz_) \
+    (typeof(h))ihash_init_fn( \
+        p, bucketsz_, chainsz_, \
+        offsetof(typeof(*h), key), \
+        sizeof(*h))
+
+/**
  * @brief Frees a hash table created with ihash_create()
  *
  * @param hash Pointer to the hash table to free
@@ -200,7 +232,7 @@ void ihash_free(void *hash);
  * @param h      Pointer to the hash table
  * @param key_   Key to insert/update (ssize_t)
  * @param value_ Value to store (by copy, size determined by sizeof(value_))
- * @return       Pointer to the entry (existing or newly allocated), 
+ * @return       Pointer to the entry (existing or newly allocated),
  *               or NULL if no free nodes available
  *
  * @pre value_ must be of the same type as the 'value' field in the entry
@@ -251,12 +283,41 @@ void ihash_free(void *hash);
  */
 
 /**
+ * @brief Internal type of ihash index
+ */
+typedef ssize_t ihash_idx_t;
+
+/**
+ * @def ihash_get_required_memory_size
+ * @brief Utility macro to find out the number of bytes required for hash.
+ *
+ * @param bucketsz  Number of slots in the hash table (primary bucket count)
+ * @param chainsz   Number of slots in the chains table (overflow nodes)
+ * @param usersz   Total size of each user's entry in bytes
+ *
+ * @return          Number of bytes
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ * };
+ * size_t size = ihash_get_required_memory_size(16, 32, sizeof(MyEntry));
+ * MyEntry *hash = malloc(size);
+ * hash = hash_init(hash, hash, 16, 32);
+ * ihash_put(hash, 42, 100);
+ * @endcode
+ */
+#define ihash_get_required_memory_size(bucketsz, chainsz, usersz) \
+    (sizeof(ihash) + (usersz + sizeof(ihash_idx_t)) * (bucketsz + chainsz))
+
+/**
  * @brief Internal function for hash table creation
  *
  * @param bucketsz Number of primary hash slots
  * @param chainsz  Number of chain hash slots
  * @param keyoffs  Byte offset of 'key' field within entry
- * @param nodesz   Total size of each user's entry in bytes
+ * @param usersz   Total size of each user's entry in bytes
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
  * @note Allocates memory with malloc
@@ -265,13 +326,30 @@ void ihash_free(void *hash);
 ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
 
 /**
+ * @brief Internal function for hash table initialization
+ *
+ * @param p        Previously allocated pointer where ihash is going to be initialized
+ * @param bucketsz Number of primary hash slots
+ * @param chainsz  Number of chain hash slots
+ * @param keyoffs  Byte offset of 'key' field within entry
+ * @param usersz   Total size of each user's entry in bytes
+ * @return         Pointer to initialized hash table, or NULL on allocation failure
+ *
+ * @see ihash_init macro
+ * @note Use ihash_get_required_memory_size macro to know number of bytes required for hash.
+ */
+ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
+
+/**
  * @brief Internal function for key lookup
  *
  * @param hash     Pointer to hash table
  * @param key      Key to search for
  * @param keyoffs  Byte offset of 'key' field within entry
- * @param nodesz   Total size of each user's entry in bytes
+ * @param usersz   Total size of each user's entry in bytes
  * @return         Pointer to entry, or NULL if not found
+ *
+ * @note It doesn't allocate memory, user should have make it him/herself before
  */
 void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
 
@@ -281,7 +359,7 @@ void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
  * @param hash      Pointer to hash table
  * @param key       Key to insert/update
  * @param keyoffs   Byte offset of 'key' field
- * @param nodesz   Total size of each user's entry in bytes
+ * @param usersz   Total size of each user's entry in bytes
  * @return          Pointer to entry, or NULL if node pool exhausted
  */
 void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
@@ -292,7 +370,7 @@ void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
  * @param hash     Pointer to hash table
  * @param key      Key to remove
  * @param keyoffs  Offset of 'key' field in entry
- * @param nodesz   Total size of each user's entry in bytes
+ * @param usersz   Total size of each user's entry in bytes
  * @return         1 if entry was found and removed, 0 if key not found
  */
 int ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);

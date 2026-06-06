@@ -51,9 +51,6 @@
  * @endcond
  */
 
-/** @brief Internal type of ihash index */
-typedef ssize_t ihash_idx_t;
-
 /**
  * @brief Internal helper to get pointer to hash table primary buckets
  * @param h Pointer to hash table header
@@ -86,6 +83,7 @@ static ssize_t hash_fn(ssize_t key);
 
 void ihash_free(void *hash);
 ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
+ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
 void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
 void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
 int ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
@@ -152,13 +150,51 @@ ihash_free(void *hash) {
 ihash *
 ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) {
     size_t nodesz = usersz + sizeof(ihash_idx_t);
+
+    /* Allocate contiguous memory */
+    ihash *hash = malloc(ihash_get_required_memory_size(bucketsz, chainsz, usersz));
+
+    return hash ? ihash_init_fn(hash, bucketsz, chainsz, keyoffs, usersz) : NULL;
+}
+
+/**
+ * @brief Initializes (doesn't alloc) a new hash table
+ *
+ * Memory usage:
+ * - Header: sizeof(ihash) bytes
+ * - Primary slots: entrysz * bucketsz bytes
+ * - Node pool: entrysz * chainsz bytes
+ *
+ * Initialization:
+ * 1. All primary slot entries have key = IHASH_UNDEF, next = IHASH_UNDEF
+ * 2. Node pool entries form a linked list via 'next' indices
+ * 3. chain_head points to first free node (0)
+ * 4. Last node's next = IHASH_UNDEF
+ *
+ * @param p        Previously allocated pointer where ihash is going to be initialized
+ * @param bucketsz Number of primary hash slots (must be > 0)
+ * @param chainsz  Size of overflow node pool (can be 0)
+ * @param keyoffs  Byte offset of 'key' field within entry
+ * @param usersz   Total size of each user's entry in bytes
+ * @return         Pointer to initialized hash table, or NULL on allocation failure
+ *
+ * @pre bucketsz > 0
+ * @pre nodesz >= max(keyoffs, nextoffs) + sizeof(ssize_t)
+ *
+ * @post All slots are marked as empty (IHASH_UNDEF)
+ * @post Node pool is initialized as a freelist
+ * @post chain_head == 0 (first node is free)
+ *
+ * @note The table is relocatable - all references are indices, not pointers
+ * @note It doesn't allocate memory, user should have made it him/herself before.
+ * @note Use ihash_get_required_memory_size macro to know number of bytes required for hash.
+ */
+ihash *
+ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) {
+    ihash *hash = p;
+    size_t nodesz = usersz + sizeof(ihash_idx_t);
     size_t nextoffs = usersz;
     void *e;
-
-    /* Allocate contiguous memory for header + slots + node pool */
-    ihash *hash = malloc(sizeof(ihash) + nodesz * (bucketsz + chainsz));
-    if (!hash)
-        return NULL;
 
     hash->bucketsz = bucketsz;
     hash->chainsz = chainsz;
@@ -189,7 +225,7 @@ ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) 
  * @brief Retrieves an entry by key
  *
  * Algorithm:
- * 1. Compute hash index = key % bucketsz 
+ * 1. Compute hash index = key % bucketsz
  * 2. Check the primary slot at that index
  * 3. If key matches, return entry
  * 4. If next = IHASH_UNDEF, key not found

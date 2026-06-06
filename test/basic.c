@@ -153,6 +153,18 @@ TEST(basic)
             ihash_free(he);
         }
 
+        TEST_CASE(ihash_init) {
+            size_t size = ihash_get_required_memory_size(16, 32, sizeof(hentry));
+            hentry *hash = malloc(size), *tmp;
+            hash = ihash_init(hash, hash, 16, 32);
+
+            ihash_put(hash, 10, 100);
+            tmp = ihash_get(hash, 10);
+
+            TEST_CHECK(tmp->key == 10);
+            TEST_CHECK(tmp->value == 100);
+        }
+
         TEST_CASE(ihash_erase) {
             hentry *hash = ihash_create(hash, 4, 8);
 
