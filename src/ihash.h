@@ -123,7 +123,7 @@
  *      Number of slots in the hash table (primary bucket array)
  * @var ihash::chainsz
  *      Number of slots in the node pool chain
- * @var ihash::vhain_head
+ * @var ihash::chain_head
  *      Index of the first free node in the free node list, or IHASH_UNDEF if empty
  *
  * @note The actual entries follow this header in memory
@@ -132,7 +132,9 @@
 typedef struct ihash {
     size_t bucketsz;     /** Number of primary hash buckets */
     size_t chainsz;      /** Maximum number of overflow nodes in all the chains */
-    ssize_t chain_head;  /** Head index of free node list (chains )*/
+    ssize_t chain_head;  /** Head index of free node list (chains) */
+    size_t keyoffs;      /** Offset of 'key' field within full entry */
+    size_t nodesz;       /** Total size of full entry (incl. internal next) */
 } ihash;
 
 /**
@@ -220,7 +222,7 @@ void ihash_free(void *hash);
  * @see ihash_get_fn()
  */
 #define ihash_get(h, key_) \
-    (typeof(h))ihash_get_fn((ihash *)h, key_, offsetof(typeof(*h), key), sizeof(*h))
+    (typeof(h))ihash_get_fn((ihash *)h, key_)
 
 /**
  * @def ihash_put(h, key_, value_)
@@ -243,9 +245,7 @@ void ihash_free(void *hash);
  */
 #define ihash_put(h, key_, value_) \
     ({ \
-        typeof(h) _e = (typeof(h))ihash_touch_fn((ihash *)h, key_, \
-            offsetof(typeof(*h), key), \
-            sizeof(*h)); \
+        typeof(h) _e = (typeof(h))ihash_touch_fn((ihash *)h, key_); \
         if (_e) { \
             _e->value = (value_); \
         } \
@@ -272,9 +272,7 @@ void ihash_free(void *hash);
  * @endcode
  */
 #define ihash_erase(h, key_) \
-    ihash_erase_fn((ihash *)h, key_, \
-        offsetof(typeof(*h), key), \
-        sizeof(*h))
+    ihash_erase_fn((ihash *)h, key_)
 
 /**
  * @cond PRIVATE
@@ -336,7 +334,7 @@ ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t u
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
  * @see ihash_init macro
- * @note Use ihash_get_required_memory_size macro to know number of bytes required for hash.
+ * @see ihash_get_required_memory_size
  */
 ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
 
@@ -345,35 +343,29 @@ ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, s
  *
  * @param hash     Pointer to hash table
  * @param key      Key to search for
- * @param keyoffs  Byte offset of 'key' field within entry
- * @param usersz   Total size of each user's entry in bytes
  * @return         Pointer to entry, or NULL if not found
  *
- * @note It doesn't allocate memory, user should have make it him/herself before
+ * @note It does not allocate memory, the caller must provide a pre-allocated buffer.
  */
-void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
+void *ihash_get_fn(ihash *hash, ssize_t key);
 
 /**
  * @brief Internal function for key insertion/update
  *
  * @param hash      Pointer to hash table
  * @param key       Key to insert/update
- * @param keyoffs   Byte offset of 'key' field
- * @param usersz   Total size of each user's entry in bytes
  * @return          Pointer to entry, or NULL if node pool exhausted
  */
-void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
+void *ihash_touch_fn(ihash *hash, ssize_t key);
 
 /**
  * @brief Erases an entry from the hash table by key
  *
  * @param hash     Pointer to hash table
  * @param key      Key to remove
- * @param keyoffs  Offset of 'key' field in entry
- * @param usersz   Total size of each user's entry in bytes
  * @return         1 if entry was found and removed, 0 if key not found
  */
-int ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
+int ihash_erase_fn(ihash *hash, ssize_t key);
 
 #endif /* _IHASH_H_ */
 
