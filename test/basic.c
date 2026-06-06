@@ -119,13 +119,13 @@ TEST(basic)
 
     TEST_SUITE(ihash)
 
-        TEST_CASE(basic) {
-            typedef struct hentry {
-                ssize_t key;
-                int value;
-                ssize_t next;
-            } hentry;
+        typedef struct hentry {
+            ssize_t key;
+            int value;
+            ssize_t next;
+        } hentry;
 
+        TEST_CASE(basic) {
             /* Create hash */
             hentry  *he = ihash_create(he, 5, 6);
             ihash *hash = (ihash *)he;
@@ -152,6 +152,20 @@ TEST(basic)
             TEST_CHECK(tmp->value == 9);
 
             ihash_free(he);
+        }
+
+        TEST_CASE(ihash_erase) {
+            hentry *hash = ihash_create(hash, 4, 8);
+
+            /* Insert some values */
+            ihash_put(hash, 10, 100);
+            ihash_put(hash, 20, 200);
+            ihash_put(hash, 30, 300);
+            ihash_put(hash, 40, 400);
+
+            TEST_CHECK(ihash_erase(hash, 20));  /* erase existent node */
+            TEST_CHECK(!ihash_erase(hash, 25)); /* erase non-existent node */
+            TEST_CHECK(!ihash_erase(hash, 20)); /* erase erased node */
         }
 
     TEST_SUITE_END()  /* End of ihash test suite */
