@@ -51,6 +51,9 @@
  * @endcond
  */
 
+/** @brief Internal type of ihash index */
+typedef ssize_t ihash_idx_t;
+
 /**
  * @brief Internal helper to get pointer to hash table primary buckets
  * @param h Pointer to hash table header
@@ -82,11 +85,10 @@ static ssize_t hash_fn(ssize_t key);
  */
 
 void ihash_free(void *hash);
-ihash *ihash_create_fn(size_t buckersz, size_t chainsz,
-    size_t keyoffs, size_t nextoffs, size_t entrysz);
-void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
-void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
-int ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz);
+ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
+void *ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
+void *ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
+int ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz);
 
 /**
  * @cond PRIVATE
@@ -129,18 +131,17 @@ ihash_free(void *hash) {
  * Initialization:
  * 1. All primary slot entries have key = IHASH_UNDEF, next = IHASH_UNDEF
  * 2. Node pool entries form a linked list via 'next' indices
- * 3. chain_heade points to first free node (0)
+ * 3. chain_head points to first free node (0)
  * 4. Last node's next = IHASH_UNDEF
  *
  * @param bucketsz Number of primary hash slots (must be > 0)
  * @param chainsz  Size of overflow node pool (can be 0)
  * @param keyoffs  Byte offset of 'key' field within entry
- * @param nextoffs Byte offset of 'next' field within entry
- * @param entrysz  Total size of each entry in bytes
+ * @param usersz   Total size of each user's entry in bytes
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
  * @pre bucketsz > 0
- * @pre entrysz >= max(keyoffs, nextoffs) + sizeof(ssize_t)
+ * @pre nodesz >= max(keyoffs, nextoffs) + sizeof(ssize_t)
  *
  * @post All slots are marked as empty (IHASH_UNDEF)
  * @post Node pool is initialized as a freelist
@@ -149,32 +150,36 @@ ihash_free(void *hash) {
  * @note The table is relocatable - all references are indices, not pointers
  */
 ihash *
-ihash_create_fn(size_t bucketsz, size_t chainsz,
-    size_t keyoffs, size_t nextoffs, size_t entrysz) {
+ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) {
+    size_t nodesz = usersz + sizeof(ihash_idx_t);
+    size_t nextoffs = usersz;
     void *e;
 
     /* Allocate contiguous memory for header + slots + node pool */
-    ihash *hash = malloc(sizeof(ihash) + entrysz * (bucketsz + chainsz));
+    ihash *hash = malloc(sizeof(ihash) + nodesz * (bucketsz + chainsz));
+    if (!hash)
+        return NULL;
+
     hash->bucketsz = bucketsz;
     hash->chainsz = chainsz;
     hash->chain_head = 0;
     e = ihash_get_buckets(hash);
 
     /* Initialize primary hash slots to empty state */
-    for (size_t i = 0; i != bucketsz; ++i, e += entrysz) {
+    for (size_t i = 0; i != bucketsz; ++i, e += nodesz) {
         *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
         *(ssize_t *)(e + nextoffs) = IHASH_UNDEF;
     }
 
     /* Initialize node pool as a linked list of free nodes */
-    for (size_t i = 0; i != chainsz; ++i, e += entrysz) {
+    for (size_t i = 0; i != chainsz; ++i, e += nodesz) {
         *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
         *(ssize_t *)(e + nextoffs) = i + 1;  /* Point to next free node */
     }
 
     /* Mark the end of the freelist */
     if (chainsz > 0) {
-        *(ssize_t *)(e - entrysz + nextoffs) = IHASH_UNDEF;
+        *(ssize_t *)(e - nodesz + nextoffs) = IHASH_UNDEF;
     }
 
     return hash;
@@ -193,8 +198,7 @@ ihash_create_fn(size_t bucketsz, size_t chainsz,
  * @param hash     Pointer to hash table
  * @param key      Key to search for (must not be IHASH_UNDEF)
  * @param keyoffs  Byte offset of 'key' field within entry
- * @param nextoffs Byte offset of 'next' field within entry
- * @param entrysz  Total size of each entry
+ * @param usersz   Total size of each user's entry in bytes
  * @return         Pointer to entry if found, NULL otherwise
  *
  * @pre key != IHASH_UNDEF
@@ -204,9 +208,11 @@ ihash_create_fn(size_t bucketsz, size_t chainsz,
  * @warning Returns NULL if key is not present in the table
  */
 void *
-ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
+ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz) {
+    size_t nodesz = usersz + sizeof(ihash_idx_t);
+    size_t nextoffs = usersz;
     size_t idx = hash_fn(key) % hash->bucketsz;         /* Compute hash bucket index */
-    void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
+    void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
     void *nodes = ihash_get_chains(hash);               /* chains */
 
     /* Empty slot - key definitely not present */
@@ -222,7 +228,7 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
             return NULL;  /* End of chain, key not found */
 
         /* Move to next node in the chain */
-        e = nodes + *(ssize_t *)(e + nextoffs) * entrysz;
+        e = nodes + *(ssize_t *)(e + nextoffs) * nodesz;
     }
 }
 
@@ -243,8 +249,7 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
  * @param hash      Pointer to hash table
  * @param key       Key to insert/update
  * @param keyoffs   Byte offset of 'key' field within entry
- * @param nextoffs  Byte offset of 'next' field within entry
- * @param entrysz   Total size of each entry
+ * @param usersz   Total size of each user's entry in bytes
  * @return          Pointer to entry (existing or new), or NULL if no free nodes
  *
  * @pre key != IHASH_UNDEF
@@ -258,9 +263,11 @@ ihash_get_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t e
  * @note The value field is left untouched (caller must fill it)
  */
 void *
-ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
+ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz) {
+    size_t nodesz = usersz + sizeof(ihash_idx_t);
+    size_t nextoffs = usersz;
     size_t idx = hash_fn(key) % hash->bucketsz;         /* Compute hash bucket index */
-    void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
+    void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
     void *nodes = ihash_get_chains(hash);               /* chains */
 
     /* Case 1: Primary slot is empty - insert here */
@@ -281,7 +288,7 @@ ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t
                 return NULL;  /* No free nodes available */
 
             /* Allocate from freelist */
-            void *new_node = nodes + hash->chain_head * entrysz;
+            void *new_node = nodes + hash->chain_head * nodesz;
             *(ssize_t *)(e + nextoffs) = hash->chain_head;          /* Link to new node */
             hash->chain_head = *(ssize_t *)(new_node + nextoffs);   /* Update freelist head */
 
@@ -293,7 +300,7 @@ ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t
         }
 
         /* Move to next node in chain */
-        e = nodes + *(ssize_t *)(e + nextoffs) * entrysz;
+        e = nodes + *(ssize_t *)(e + nextoffs) * nodesz;
     }
 }
 
@@ -315,17 +322,18 @@ ihash_touch_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t
  * @param hash     Pointer to hash table
  * @param key      Key to remove
  * @param keyoffs  Offset of 'key' field
- * @param nextoffs Offset of 'next' field
- * @param entrysz  Total entry size
+ * @param usersz   Total size of each user's entry in bytes
  * @return         1 if removed successfully, 0 if key not found
  *
  * @note The removed node is added to the freelist for reuse
  * @warning Does NOT call any destructor on the value field
  */
 int
-ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t entrysz) {
+ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t usersz) {
+    size_t nodesz = usersz + sizeof(ihash_idx_t);
+    size_t nextoffs = usersz;
     size_t idx = hash_fn(key) % hash->bucketsz;         /* Compute hash bucket index */
-    void *e = ihash_get_buckets(hash) + idx * entrysz;  /* buckets */
+    void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
     void *nodes = ihash_get_chains(hash);               /* chains */
 
     /* Case 1: Primary slot is empty - nothing to erase */
@@ -341,9 +349,9 @@ ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t
             *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
             *(ssize_t *)(e + nextoffs) = IHASH_UNDEF;
         } else {
-            void *first_node = nodes + next_idx * entrysz;
+            void *first_node = nodes + next_idx * nodesz;
             /* Move the first node from chain to bucket */
-            memcpy(e, first_node, entrysz);
+            memcpy(e, first_node, nodesz);
 
             /* Move the previous node to top of free chain */
             *(ssize_t *)(first_node + keyoffs) = IHASH_UNDEF;
@@ -359,7 +367,7 @@ ihash_erase_fn(ihash *hash, ssize_t key, size_t keyoffs, size_t nextoffs, size_t
 
         while (IHASH_UNDEF != cur_idx) {
             void *prev = e;                 /* Remember previous node */
-            e = nodes + cur_idx * entrysz;  /* Move to next node in chain */
+            e = nodes + cur_idx * nodesz;   /* Move to next node in chain */
 
             if (key == *(ssize_t *)(e + keyoffs)) {
                 /* Key exists */

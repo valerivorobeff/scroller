@@ -122,7 +122,6 @@ TEST(basic)
         typedef struct hentry {
             ssize_t key;
             int value;
-            ssize_t next;
         } hentry;
 
         TEST_CASE(basic) {
