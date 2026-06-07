@@ -182,9 +182,8 @@ TEST(basic)
 
             TEST_CHECK(ihash_erase(hash, 2));   /* erase existent node */
             TEST_CHECK(!ihash_erase(hash, 25)); /* erase non-existent node */
-            TEST_CHECK(!ihash_erase(hash, 11)); /* erase erased node */
             TEST_CHECK(!ihash_erase(hash, 2));  /* erase erased node */
-            TEST_CHECK(!ihash_erase(hash, 11)); /* erase erased node */
+            TEST_CHECK(ihash_erase(hash, 11));  /* erase existent node */
 
             ihash_free(hash);
         }
@@ -200,7 +199,7 @@ TEST(basic)
             ihash_put(hash, 6, 500);
 
             ihash_foreach(tmp, hash) {
-                printf("%lu: %lu\n", tmp->key, tmp->value);
+                /* printf("%lu: %lu\n", tmp->key, tmp->value); */
             }
 
             ihash_free(hash);

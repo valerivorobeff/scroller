@@ -421,13 +421,15 @@ void *ihash_first_node_fn(ihash *hash, size_t *bucket_idx);
  */
 void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
 
+#ifndef NDEBUG
+
 /**
  * @brief Prints a simple summary of the hash table
  *
  * Displays each bucket and its chain of keys in a human-readable format.
  * Empty buckets are marked as EMPTY.
  *
- * @param hash Pointer to hash table
+ * @param h Pointer to hash table
  *
  * @code
  * === HASH TABLE (buckets=4, chains=8, freelist=3) ===
@@ -441,7 +443,7 @@ void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
  * @see ihash_dump_debug()
  * @see ihash_dump_freelist()
  */
-void ihash_dump_simple(ihash *hash);
+void ihash_dump_simple(void *h);
 
 /**
  * @brief Prints detailed debug information about the hash table
@@ -450,13 +452,13 @@ void ihash_dump_simple(ihash *hash);
  * showing internal indices and freelist state. Useful for debugging
  * hash table corruption or freelist issues.
  *
- * @param hash Pointer to hash table
+ * @param h Pointer to hash table
  *
  * @note Output includes key offsets, node sizes, and complete freelist chain
  * @see ihash_dump_simple()
  * @see ihash_dump_freelist()
  */
-void ihash_dump_debug(ihash *hash);
+void ihash_dump_debug(void *h);
 
 /**
  * @brief Prints the freelist chain of the hash table
@@ -464,7 +466,7 @@ void ihash_dump_debug(ihash *hash);
  * Displays the linked list of free nodes available for reuse,
  * along with the total count of free nodes.
  *
- * @param hash Pointer to hash table
+ * @param h Pointer to hash table
  *
  * @note Valid freelist indices are in range [0, chainsz-1]
  * @warning If an index is out of range, prints an error message
@@ -476,7 +478,15 @@ void ihash_dump_debug(ihash *hash);
  * @see ihash_dump_simple()
  * @see ihash_dump_debug()
  */
-void ihash_dump_freelist(ihash *hash);
+void ihash_dump_freelist(void *h);
+
+#else
+
+#define ihash_dump_simple(h)    ((void)0)
+#define ihash_dump_debug(h)     ((void)0)
+#define ihash_dump_freelist(h)  ((void)0)
+
+#endif /* NDEBUG */
 
 #endif /* _IHASH_H_ */
 

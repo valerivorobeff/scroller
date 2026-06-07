@@ -97,6 +97,12 @@ int ihash_erase_fn(ihash *hash, ssize_t key);
 void *ihash_first_node_fn(ihash *hash, size_t *bucket_idx);
 void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
 
+#ifndef NDEBUG
+void ihash_dump_simple(void *h);
+void ihash_dump_debug(void *h);
+void ihash_dump_freelist(void *h);
+#endif /* NDEBUG */
+
 /**
  * @cond PRIVATE
  * Implementation
@@ -502,9 +508,9 @@ ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx) {
         return NULL;
 
     for(;;) {
-        if (IHASH_UNDEF != *(ssize_t *)(node + nextoffs)) { puts("a");
+        if (IHASH_UNDEF != *(ssize_t *)(node + nextoffs))
             return buckets + *(ssize_t *)(node + nextoffs) * nodesz; /* Return next node in chain */
-        } else { puts("b");
+        else {
             ++*bucket_idx;                                      /* Move to the next bucket */
             if (*bucket_idx >= bucketsz)
                 return NULL;                                    /* No more buckets */
@@ -527,13 +533,15 @@ ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx) {
     }
 }
 
+#ifndef NDEBUG
+
 /**
  * @brief Prints a simple summary of the hash table
  *
  * Displays each bucket and its chain of keys in a human-readable format.
  * Empty buckets are marked as EMPTY.
  *
- * @param hash Pointer to hash table
+ * @param h Pointer to hash table
  *
  * @code
  * === HASH TABLE (buckets=4, chains=8, freelist=3) ===
@@ -548,7 +556,8 @@ ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx) {
  * @see ihash_dump_freelist()
  */
 void
-ihash_dump_simple(ihash *hash) {
+ihash_dump_simple(void *h) {
+    ihash *hash = h;
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
@@ -590,14 +599,15 @@ ihash_dump_simple(ihash *hash) {
  * showing internal indices and freelist state. Useful for debugging
  * hash table corruption or freelist issues.
  *
- * @param hash Pointer to hash table
+ * @param h Pointer to hash table
  *
  * @note Output includes key offsets, node sizes, and complete freelist chain
  * @see ihash_dump_simple()
  * @see ihash_dump_freelist()
  */
 void
-ihash_dump_debug(ihash *hash) {
+ihash_dump_debug(void *h) {
+    ihash *hash = h;
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
@@ -650,7 +660,7 @@ ihash_dump_debug(ihash *hash) {
  * Displays the linked list of free nodes available for reuse,
  * along with the total count of free nodes.
  *
- * @param hash Pointer to hash table
+ * @param h Pointer to hash table
  *
  * @note Valid freelist indices are in range [0, chainsz-1]
  * @warning If an index is out of range, prints an error message
@@ -662,7 +672,8 @@ ihash_dump_debug(ihash *hash) {
  * @see ihash_dump_simple()
  * @see ihash_dump_debug()
  */
-void ihash_dump_freelist(ihash *hash) {
+void ihash_dump_freelist(void *h) {
+    ihash *hash = h;
     ssize_t count = 0;
     ssize_t idx = hash->chain_head;
     const size_t nodesz = hash->nodesz;
@@ -684,4 +695,6 @@ void ihash_dump_freelist(ihash *hash) {
     printf("IHASH_UNDEF, ");
     printf("Freelist contains %zd nodes\n", count);
 }
+
+#endif /* NDEBUG */
 
