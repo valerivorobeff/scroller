@@ -201,6 +201,18 @@ typedef struct ihash {
         sizeof(*h))
 
 /**
+ * @brief Clears all entries from the hash table
+ *
+ * Resets the hash table to empty state, as if it was just initialized.
+ *
+ * @param p Pointer to hash table to clear
+ *
+ * @warning All previously returned pointers become invalid
+ * @see ihash_clear()
+ */
+void ihash_clear(void *p);
+
+/**
  * @brief Frees a hash table created with ihash_create()
  *
  * @param hash Pointer to the hash table to free
@@ -223,6 +235,134 @@ void ihash_free(void *hash);
  */
 #define ihash_get(h, key_) \
     (typeof(h))ihash_get_fn((ihash *)h, key_)
+
+/**
+ * @def ihash_exists(h, key_)
+ * @brief Checks if a key exists in the hash table
+ *
+ * @param h      Pointer to the hash table
+ * @param key_   Key to check
+ * @return       1 if key exists, 0 otherwise
+ *
+ * @code
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ * ihash_put(hash, 42, 100);
+ *
+ * if (ihash_exists(hash, 42)) {
+ *     printf("Key 42 exists\n");
+ * }
+ * @endcode
+ */
+#define ihash_exists(h, key_) \
+    (ihash_get(h, key_) != NULL)
+
+/**
+ * @def ihash_get_member_ptr(h, key_, member)
+ * @brief Retrieves a pointer to a specific member of an entry by key
+ *
+ * @param h      Pointer to the hash table
+ * @param key_   Key to search for (ssize_t)
+ * @param member Member name within the entry struct (e.g., value, data, etc.)
+ * @return       Pointer to the specified member, or NULL if key not found
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ *     char name[32];
+ * };
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ * ihash_put(hash, 42, 100);
+ *
+ * int *val = ihash_get_member_ptr(hash, 42, value);
+ * if (val) printf("value: %d\n", *val);
+ * @endcode
+ */
+#define ihash_get_member_ptr(h, key_, member) \
+    ({ \
+        typeof(h) _e = ihash_get(h, key_); \
+        _e ? &_e->member : NULL; \
+    })
+
+/**
+ * @def ihash_get_member(h, key_, member)
+ * @brief Retrieves a copy of a specific member value by key
+ *
+ * @param h      Pointer to the hash table
+ * @param key_   Key to search for (ssize_t)
+ * @param member Member name within the entry struct
+ * @return       Copy of the member, or zero-initialized if not found
+ *
+ * @warning Returns a copy, not a pointer. For large structs, use ihash_get_member_ptr()
+ * @warning If key not found, returns zero-initialized value (may be indistinguishable from actual zero)
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ * };
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ * ihash_put(hash, 42, 100);
+ *
+ * int val = ihash_get_member(hash, 42, value);
+ * printf("value: %d\n", val);
+ * @endcode
+ */
+#define ihash_get_member(h, key_, member) \
+    ({ \
+        typeof(h) _e = ihash_get(h, key_); \
+        _e ? _e->member : (typeof(_e->member)){0}; \
+    })
+
+/**
+ * @def ihash_get_value_ptr(h, key_)
+ * @brief Retrieves a pointer to value of an entry by key
+ *
+ * @param h      Pointer to the hash table
+ * @param key_   Key to search for (ssize_t)
+ * @return       Pointer to the value, or NULL if key not found
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ *     char name[32];
+ * };
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ * ihash_put(hash, 42, 100);
+ *
+ * int *val = ihash_get_value_ptr(hash, 42);
+ * if (val) printf("value: %d\n", *val);
+ * @endcode
+ */
+#define ihash_get_value_ptr(h, key_) \
+    ihash_get_memer_ptr(h, key_, value)
+
+/**
+ * @def ihash_get_value(h, key_)
+ * @brief Retrieves a copy of value by key
+ *
+ * @param h      Pointer to the hash table
+ * @param key_   Key to search for (ssize_t)
+ * @return       Copy of the value, or zero-initialized if not found
+ *
+ * @warning Returns a copy, not a pointer. For large structs, use ihash_get_value_ptr()
+ * @warning If key not found, returns zero-initialized value (may be indistinguishable from actual zero)
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ * };
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ * ihash_put(hash, 42, 100);
+ *
+ * int val = ihash_get_value(hash, 42);
+ * printf("value: %d\n", val);
+ * @endcode
+ */
+#define ihash_get_value(h, key_) \
+    ihash_get_member(h, key_, value)
 
 /**
  * @def ihash_put(h, key_, value_)
@@ -248,6 +388,65 @@ void ihash_free(void *hash);
         typeof(h) _e = (typeof(h))ihash_touch_fn((ihash *)h, key_); \
         if (_e) { \
             _e->value = (value_); \
+        } \
+        _e; \
+    })
+
+/**
+ * @def ihash_put_key(h, key_)
+ * @brief Inserts a key without initializing the value (useful for sets)
+ *
+ * @param h      Pointer to the hash table
+ * @param key_   Key to insert
+ * @return       Pointer to the entry, or NULL if no free nodes available
+ *
+ * @note The entry's value field is left uninitialized
+ * @warning Useful for hash sets where only keys matter
+ *
+ * @code
+ * struct SetEntry {
+ *     ssize_t key;
+ *     // no value field!
+ * };
+ * struct SetEntry *set = ihash_create(set, 16, 32);
+ * ihash_put_key(set, 42);
+ *
+ * if (ihash_get(set, 42)) {
+ *     printf("Key exists in set\n");
+ * }
+ * @endcode
+ */
+#define ihash_put_key(h, key_) \
+    (typeof(h))ihash_touch_fn((ihash *)h, key_)
+
+/**
+ * @def ihash_put_struct(h, struct_ptr)
+ * @brief Inserts or updates an entry by copying entire user struct
+ *
+ * @param h          Pointer to the hash table
+ * @param struct_ptr Pointer to user struct to copy
+ * @return           Pointer to the entry, or NULL if no free nodes available
+ *
+ * @note Copies the entire user struct (including key) into the entry
+ * @warning There must be The key field of type size_t in struct_ptr
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ *     char name[32];
+ * };
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ *
+ * struct MyEntry data = {42, 100, "Alice"};
+ * ihash_put_struct(hash, &data);
+ * @endcode
+ */
+#define ihash_put_struct(h, struct_ptr) \
+    ({ \
+        typeof(h) _e = ihash_put_key(h, struct_ptr->key); \
+        if (_e) { \
+            *_e = *(struct_ptr); \
         } \
         _e; \
     })

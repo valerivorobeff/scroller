@@ -35,15 +35,10 @@
 
 /**
  * @todo:
- * 1. make ihash_getpv() to get pointer to value
- * 2. make ihash_getv() to get value (risky!)
- * 3. make ihash_putk() to add/update just the key
- * 4. make ihash_puts() to add/update the whole user's struct
- * 5. make ihash_exists() to check existence of a node
- * 6. make ihash_clear() to clear all the hash structures
- * 7. correct ihash_foreach()
- * 8. add tests
- * 9. Investigate if it makes more sence to move all the entries including the first one
+ * 1. Allow the user define his/her own hash function when initializing the hash
+ * 2. correct ihash_foreach()
+ * 3. add tests
+ * 4. Investigate if it makes more sence to move all the entries including the first one
  *      into the chains pool and store in the buckets only the index of the first entry.
  */
 
@@ -91,6 +86,7 @@ static ssize_t hash_fn(ssize_t key);
 void ihash_free(void *hash);
 ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
 ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
+void ihash_clear(void *p);
 void *ihash_get_fn(ihash *hash, ssize_t key);
 void *ihash_touch_fn(ihash *hash, ssize_t key);
 int ihash_erase_fn(ihash *hash, ssize_t key);
@@ -206,19 +202,59 @@ ihash *
 ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) {
     ihash *hash = p;
     const size_t nodesz = usersz + sizeof(ihash_idx_t);
-    const size_t nextoffs = usersz;
-    void *e;
 
     hash->bucketsz = bucketsz;
     hash->chainsz = chainsz;
-    hash->chain_head = 0;
     hash->keyoffs = keyoffs;
     hash->nodesz = nodesz;
 
-    e = ihash_get_buckets(hash);
+    ihash_clear(p);
+
+    return hash;
+}
+
+/**
+ * @brief Clears all entries from the hash table
+ *
+ * Resets the hash table to empty state, as if it was just initialized.
+ * All nodes are moved to the freelist for reuse.
+ *
+ * @param hash Pointer to hash table to clear
+ *
+ * @pre hash must be a valid, initialized hash table
+ *
+ * @post All slots are marked as empty (IHASH_UNDEF)
+ * @post Node pool is reinitialized as a freelist
+ * @post chain_head points to first free node (bucketsz)
+ *
+ * @note Time complexity: O(bucketsz + chainsz)
+ * @warning Does NOT call any destructor on stored values
+ * @warning All previously returned pointers become invalid
+ *
+ * @code
+ * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ * ihash_put(hash, 42, 100);
+ * ihash_put(hash, 43, 200);
+ *
+ * ihash_clear(hash);  // hash becomes empty
+ *
+ * assert(ihash_get(hash, 42) == NULL);
+ * @endcode
+ */
+void
+ihash_clear(void *p) {
+    ihash *hash = p;
+    const size_t bucketsz = hash->bucketsz;
+    const size_t chainsz = hash->chainsz;
+    const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
+    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
+    void *e = ihash_get_buckets(hash);
+
+    hash->chain_head = 0;
 
     /* Initialize primary hash slots to empty state */
-    for (size_t i = 0; i != bucketsz; ++i, e += hash->nodesz) {
+    for (size_t i = 0; i != bucketsz; ++i, e += nodesz) {
         *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
         *(ssize_t *)(e + nextoffs) = IHASH_UNDEF;
     }
@@ -233,8 +269,6 @@ ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t u
     if (chainsz > 0) {
         *(ssize_t *)(e - nodesz + nextoffs) = IHASH_UNDEF;
     }
-
-    return hash;
 }
 
 /**
@@ -463,7 +497,6 @@ ihash_first_node_fn(ihash *hash, size_t *bucket_idx) {
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
     const size_t bucketsz = hash->bucketsz;
-    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     void *e = ihash_get_buckets(hash);
 
     for (size_t i = 0; i != bucketsz; ++i, e += nodesz) {
