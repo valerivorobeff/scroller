@@ -126,7 +126,7 @@ TEST(basic)
 
         TEST_CASE(basic) {
             /* Create hash */
-            hentry  *he = ihash_create(he, 5, 6);
+            hentry  *he = ihash_create(he, 5, 6, NULL);
             ihash *hash = (ihash *)he;
             hentry *tmp;
 
@@ -156,7 +156,7 @@ TEST(basic)
         TEST_CASE(ihash_init) {
             size_t size = ihash_get_required_memory_size(16, 32, sizeof(hentry));
             hentry *hash = malloc(size), *tmp;
-            hash = ihash_init(hash, hash, 16, 32);
+            hash = ihash_init(hash, hash, 16, 32, NULL);
 
             ihash_put(hash, 10, 100);
             tmp = ihash_get(hash, 10);
@@ -168,7 +168,7 @@ TEST(basic)
         }
 
         TEST_CASE(ihash_erase) {
-            hentry *hash = ihash_create(hash, 4, 8);
+            hentry *hash = ihash_create(hash, 4, 8, NULL);
 
             /* Insert some values */
             ihash_put(hash, 1, 100);
@@ -189,7 +189,7 @@ TEST(basic)
         }
 
         TEST_CASE(ihash_foreach) {
-            hentry *hash = ihash_create(hash, 4, 8), *tmp;
+            hentry *hash = ihash_create(hash, 4, 8, NULL), *tmp;
 
             ihash_put(hash, 1, 100);
             ihash_put(hash, 2, 200);

@@ -68,14 +68,14 @@
 #define ihash_get_chains(h) ((char *)ihash_get_buckets(h) + ((ihash *)(h))->nodesz * ((ihash*)(h))->bucketsz)
 
 /**
- * @brief Hash function for integer keys
+ * @brief Default hash function for integer keys
  * @param key Input key value
  * @return Hash value (identity function)
  *
  * @note Currently uses identity hashing (key -> key)
  * @todo Consider using a more sophisticated hash function for better distribution
  */
-static ssize_t hash_fn(ssize_t key);
+static size_t ihash_default_hash_fn(size_t key);
 
 /**
  * @cond PRIVATE
@@ -84,9 +84,9 @@ static ssize_t hash_fn(ssize_t key);
  */
 
 void ihash_free(void *hash);
-ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
-ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
-void ihash_clear(void *p);
+ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
+ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
+void ihash_clear(void *p, ihash_hash_fn hash_fn);
 void *ihash_get_fn(ihash *hash, ssize_t key);
 void *ihash_touch_fn(ihash *hash, ssize_t key);
 int ihash_erase_fn(ihash *hash, ssize_t key);
@@ -106,15 +106,15 @@ void ihash_dump_freelist(void *h);
  */
 
 /**
- * @brief Hash function implementation
+ * @brief Default hash function implementation
  * @param key Key to hash
- * @return Hashed value (currently just returns key)
+ * @return Hashed value (by default just returns key)
  *
  * @note This identity hash is simple but may cause poor distribution
  *       for non-consecutive keys.
  */
-static ssize_t
-hash_fn(ssize_t key) {
+static size_t
+ihash_default_hash_fn(size_t key) {
     return key;
 }
 
@@ -147,6 +147,8 @@ ihash_free(void *hash) {
  * @param chainsz  Size of overflow node pool (can be 0)
  * @param keyoffs  Byte offset of 'key' field within entry
  * @param usersz   Total size of each user's entry in bytes
+ * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
+ *                 NULL to use default function
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
  * @pre bucketsz > 0
@@ -159,11 +161,11 @@ ihash_free(void *hash) {
  * @note The table is relocatable - all references are indices, not pointers
  */
 ihash *
-ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) {
+ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
     /* Allocate contiguous memory */
     ihash *hash = malloc(ihash_get_required_memory_size(bucketsz, chainsz, usersz));
 
-    return hash ? ihash_init_fn(hash, bucketsz, chainsz, keyoffs, usersz) : NULL;
+    return hash ? ihash_init_fn(hash, bucketsz, chainsz, keyoffs, usersz, hash_fn) : NULL;
 }
 
 /**
@@ -185,6 +187,8 @@ ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) 
  * @param chainsz  Size of overflow node pool (can be 0)
  * @param keyoffs  Byte offset of 'key' field within entry
  * @param usersz   Total size of each user's entry in bytes
+ * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
+ *                 NULL to use default function
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
  * @pre bucketsz > 0
@@ -199,7 +203,7 @@ ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) 
  * @note Use ihash_get_required_memory_size macro to know number of bytes required for hash.
  */
 ihash *
-ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz) {
+ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
     ihash *hash = p;
     const size_t nodesz = usersz + sizeof(ihash_idx_t);
 
@@ -208,7 +212,7 @@ ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t u
     hash->keyoffs = keyoffs;
     hash->nodesz = nodesz;
 
-    ihash_clear(p);
+    ihash_clear(p, hash_fn);
 
     return hash;
 }
@@ -219,7 +223,9 @@ ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t u
  * Resets the hash table to empty state, as if it was just initialized.
  * All nodes are moved to the freelist for reuse.
  *
- * @param hash Pointer to hash table to clear
+ * @param p         Pointer to hash table to clear
+ * @param hash_fn   Pointer to user defined hash function of type ihash_hash_fn or
+ *                  NULL to use default function
  *
  * @pre hash must be a valid, initialized hash table
  *
@@ -242,7 +248,7 @@ ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t u
  * @endcode
  */
 void
-ihash_clear(void *p) {
+ihash_clear(void *p, ihash_hash_fn hash_fn) {
     ihash *hash = p;
     const size_t bucketsz = hash->bucketsz;
     const size_t chainsz = hash->chainsz;
@@ -252,6 +258,7 @@ ihash_clear(void *p) {
     void *e = ihash_get_buckets(hash);
 
     hash->chain_head = 0;
+    hash->hash_fn = hash_fn ? hash_fn : ihash_default_hash_fn;
 
     /* Initialize primary hash slots to empty state */
     for (size_t i = 0; i != bucketsz; ++i, e += nodesz) {
@@ -296,7 +303,7 @@ ihash_get_fn(ihash *hash, ssize_t key) {
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
-    const size_t idx = hash_fn(key) % hash->bucketsz;   /* Compute hash bucket index */
+    const size_t idx = hash->hash_fn(key) % hash->bucketsz;   /* Compute hash bucket index */
     void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
     void *chains = ihash_get_chains(hash);              /* chains */
 
@@ -350,9 +357,9 @@ ihash_touch_fn(ihash *hash, ssize_t key) {
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
-    const size_t idx = hash_fn(key) % hash->bucketsz;   /* Compute hash bucket index */
-    void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
-    void *chains = ihash_get_chains(hash);              /* chains */
+    const size_t idx = hash->hash_fn(key) % hash->bucketsz; /* Compute hash bucket index */
+    void *e = ihash_get_buckets(hash) + idx * nodesz;       /* buckets */
+    void *chains = ihash_get_chains(hash);                  /* chains */
 
     /* Case 1: Primary slot is empty - insert here */
     if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs)) {
@@ -417,9 +424,9 @@ ihash_erase_fn(ihash *hash, ssize_t key) {
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
-    const size_t idx = hash_fn(key) % hash->bucketsz;   /* Compute hash bucket index */
-    void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
-    void *chains = ihash_get_chains(hash);              /* chains */
+    const size_t idx = hash->hash_fn(key) % hash->bucketsz; /* Compute hash bucket index */
+    void *e = ihash_get_buckets(hash) + idx * nodesz;       /* buckets */
+    void *chains = ihash_get_chains(hash);                  /* chains */
 
     /* Case 1: Primary slot is empty - nothing to erase */
     if (IHASH_UNDEF == *(ssize_t *)(e + keyoffs))

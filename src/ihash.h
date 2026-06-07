@@ -110,6 +110,17 @@
 #define IHASH_UNDEF (ssize_t)-1
 
 /**
+ * @brief ihash hash function prototype
+ *
+ * User can define his/her own hash function of this type when
+ * initializing the hash
+ *
+ * @param key   Key
+ * @return      Hash sum
+ */
+typedef size_t (*ihash_hash_fn)(size_t key);
+
+/**
  * @struct ihash
  * @brief Header structure for the index-based hash table
  *
@@ -130,15 +141,16 @@
  * @see ihash_create_fn()
  */
 typedef struct ihash {
-    size_t bucketsz;     /** Number of primary hash buckets */
-    size_t chainsz;      /** Maximum number of overflow nodes in all the chains */
-    ssize_t chain_head;  /** Head index of free node list (chains) */
-    size_t keyoffs;      /** Offset of 'key' field within full entry */
-    size_t nodesz;       /** Total size of full entry (incl. internal next) */
+    size_t bucketsz;        /** Number of primary hash buckets */
+    size_t chainsz;         /** Maximum number of overflow nodes in all the chains */
+    ssize_t chain_head;     /** Head index of free node list (chains) */
+    size_t keyoffs;         /** Offset of 'key' field within full entry */
+    size_t nodesz;          /** Total size of full entry (incl. internal next) */
+    ihash_hash_fn hash_fn;  /** Pointer to hash function */
 } ihash;
 
 /**
- * @def ihash_create(h, bucketsz_, chainsz_)
+ * @def ihash_create(h, bucketsz_, chainsz_, hash_fn_)
  * @brief Creates a new hash table for a specific entry type
  *
  * This macro automatically computes field offsets using typeof() and
@@ -147,6 +159,8 @@ typedef struct ihash {
  * @param h         Pointer to a variable that will receive the hash table pointer
  * @param bucketsz_ Number of slots in the hash table (primary bucket count)
  * @param chainsz_  Number of slots in the chains table (overflow nodes)
+ * @param hash_fn_  Pointer to user defined hash function of type ihash_hash_fn or
+ *                  NULL to use default function
  * @return          Pointer to the created hash table (cast to type of h)
  *
  * @pre The entry structure must have 'key' field
@@ -157,19 +171,20 @@ typedef struct ihash {
  *     ssize_t key;
  *     int value;
  * };
- * struct MyEntry *hash = ihash_create(hash, 16, 32);
+ * struct MyEntry *hash = ihash_create(hash, 16, 32, NULL);
  * @endcode
  *
  * @see ihash_create_fn()
  */
-#define ihash_create(h, bucketsz_, chainsz_) \
+#define ihash_create(h, bucketsz_, chainsz_, hash_fn_) \
     (typeof(h))ihash_create_fn( \
         bucketsz_, chainsz_, \
         offsetof(typeof(*h), key), \
-        sizeof(*h))
+        sizeof(*h), \
+        hash_fn_)
 
 /**
- * @def ihash_init(h, bucketsz_, chainsz_)
+ * @def ihash_init(h, bucketsz_, chainsz_, hash_fn_)
  * @brief Initializes a new hash table for a specific entry type
  *
  * This macro automatically computes field offsets using typeof() and
@@ -179,6 +194,8 @@ typedef struct ihash {
  * @param h         Pointer to a variable that will receive the hash table pointer
  * @param bucketsz_ Number of slots in the hash table (primary bucket count)
  * @param chainsz_  Number of slots in the chains table (overflow nodes)
+ * @param hash_fn_  Pointer to user defined hash function of type ihash_hash_fn or
+ *                  NULL to use default function
  * @return          Pointer to the created hash table (cast to type of h)
  *
  * @pre The entry structure must have 'key' field
@@ -189,28 +206,30 @@ typedef struct ihash {
  *     ssize_t key;
  *     int value;
  * };
- * struct MyEntry *hash = ihash_init(hash, 16, 32);
+ * struct MyEntry *hash = ihash_init(hash, 16, 32, NULL);
  * @endcode
  *
  * @see ihash_init_fn()
  */
-#define ihash_init(p, h, bucketsz_, chainsz_) \
+#define ihash_init(p, h, bucketsz_, chainsz_, hash_fn_) \
     (typeof(h))ihash_init_fn( \
         p, bucketsz_, chainsz_, \
         offsetof(typeof(*h), key), \
-        sizeof(*h))
+        sizeof(*h), \
+        hash_fn_)
 
 /**
  * @brief Clears all entries from the hash table
  *
  * Resets the hash table to empty state, as if it was just initialized.
  *
- * @param p Pointer to hash table to clear
+ * @param p         Pointer to hash table to clear
+ * @param hash_fn   Pointer to user defined hash function of type ihash_hash_fn or
+ *                  NULL to use default function
  *
  * @warning All previously returned pointers become invalid
- * @see ihash_clear()
  */
-void ihash_clear(void *p);
+void ihash_clear(void *p, ihash_hash_fn hash_fn);
 
 /**
  * @brief Frees a hash table created with ihash_create()
@@ -544,12 +563,14 @@ typedef ssize_t ihash_idx_t;
  * @param chainsz  Number of chain hash slots
  * @param keyoffs  Byte offset of 'key' field within entry
  * @param usersz   Total size of each user's entry in bytes
+ * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
+ *                 NULL to use default function
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
  * @note Allocates memory with malloc
  * @see ihash_create macro
  */
-ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
+ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
 
 /**
  * @brief Internal function for hash table initialization
@@ -559,12 +580,14 @@ ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t u
  * @param chainsz  Number of chain hash slots
  * @param keyoffs  Byte offset of 'key' field within entry
  * @param usersz   Total size of each user's entry in bytes
+ * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
+ *                 NULL to use default function
  * @return         Pointer to initialized hash table, or NULL on allocation failure
  *
  * @see ihash_init macro
  * @see ihash_get_required_memory_size
  */
-ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz);
+ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
 
 /**
  * @brief Internal function for key lookup
