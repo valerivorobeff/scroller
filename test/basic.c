@@ -121,7 +121,7 @@ TEST(basic)
 
         typedef struct hentry {
             ssize_t key;
-            int value;
+            size_t value;
         } hentry;
 
         TEST_CASE(basic) {
@@ -163,22 +163,48 @@ TEST(basic)
 
             TEST_CHECK(tmp->key == 10);
             TEST_CHECK(tmp->value == 100);
+
+            free(hash);
         }
 
         TEST_CASE(ihash_erase) {
             hentry *hash = ihash_create(hash, 4, 8);
 
             /* Insert some values */
-            ihash_put(hash, 10, 100);
-            ihash_put(hash, 20, 200);
-            ihash_put(hash, 30, 300);
-            ihash_put(hash, 40, 400);
+            ihash_put(hash, 1, 100);
+            ihash_put(hash, 2, 200);
+            ihash_put(hash, 3, 300);
+            ihash_put(hash, 4, 400);
+            ihash_put(hash, 5, 500);
+            ihash_put(hash, 11, 700);
+            ihash_put(hash, 7, 200);
+            ihash_erase(hash, 5);
 
-            TEST_CHECK(ihash_erase(hash, 20));  /* erase existent node */
+            TEST_CHECK(ihash_erase(hash, 2));   /* erase existent node */
             TEST_CHECK(!ihash_erase(hash, 25)); /* erase non-existent node */
-            TEST_CHECK(!ihash_erase(hash, 20)); /* erase erased node */
+            TEST_CHECK(!ihash_erase(hash, 11)); /* erase erased node */
+            TEST_CHECK(!ihash_erase(hash, 2));  /* erase erased node */
+            TEST_CHECK(!ihash_erase(hash, 11)); /* erase erased node */
+
+            ihash_free(hash);
         }
 
+        TEST_CASE(ihash_foreach) {
+            hentry *hash = ihash_create(hash, 4, 8), *tmp;
+
+            ihash_put(hash, 1, 100);
+            ihash_put(hash, 2, 200);
+            ihash_put(hash, 30, 300);
+            ihash_put(hash, 40, 400);
+            ihash_put(hash, 1, 150);
+            ihash_put(hash, 6, 500);
+
+            ihash_foreach(tmp, hash) {
+                printf("%lu: %lu\n", tmp->key, tmp->value);
+            }
+
+            ihash_free(hash);
+        }
     TEST_SUITE_END()  /* End of ihash test suite */
 
 TEST_END()  /* End of basic test unit */

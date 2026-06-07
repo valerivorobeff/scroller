@@ -41,10 +41,8 @@
  * 4. make ihash_puts() to add/update the whole user's struct
  * 5. make ihash_exists() to check existence of a node
  * 6. make ihash_clear() to clear all the hash structures
- * 7. add variables keyoffs, usersz (or nodesz) to ihash struct and
- *      delete them from the following function arguments:
- *      ihash_get_fn, ihash_touch_fn, ihash_erase_fn
- * 8. make ihash_foreach()
+ * 7. correct ihash_foreach()
+ * 8. add tests
  * 9. Investigate if it makes more sence to move all the entries including the first one
  *      into the chains pool and store in the buckets only the index of the first entry.
  */
@@ -52,6 +50,7 @@
 #include "ihash.h"
 #include <malloc.h>
 #include <string.h>
+#include <assert.h>
 
 /**
  * @cond PRIVATE
@@ -71,7 +70,7 @@
  * @param h Pointer to hash table header
  * @return Pointer to the start of chain pool
  */
-#define ihash_get_chains(h) ((char *)ihash_get_buckets(h) + sizeof((ihash *)h) * ((ihash*)(h))->bucketsz)
+#define ihash_get_chains(h) ((char *)ihash_get_buckets(h) + ((ihash *)(h))->nodesz * ((ihash*)(h))->bucketsz)
 
 /**
  * @brief Hash function for integer keys
@@ -95,6 +94,8 @@ ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, s
 void *ihash_get_fn(ihash *hash, ssize_t key);
 void *ihash_touch_fn(ihash *hash, ssize_t key);
 int ihash_erase_fn(ihash *hash, ssize_t key);
+void *ihash_first_node_fn(ihash *hash, size_t *bucket_idx);
+void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
 
 /**
  * @cond PRIVATE
@@ -252,8 +253,8 @@ ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t u
  */
 void *
 ihash_get_fn(ihash *hash, ssize_t key) {
-    const size_t keyoffs = hash->keyoffs;
     const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     const size_t idx = hash_fn(key) % hash->bucketsz;   /* Compute hash bucket index */
     void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
@@ -306,8 +307,8 @@ ihash_get_fn(ihash *hash, ssize_t key) {
  */
 void *
 ihash_touch_fn(ihash *hash, ssize_t key) {
-    const size_t keyoffs = hash->keyoffs;
     const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     const size_t idx = hash_fn(key) % hash->bucketsz;   /* Compute hash bucket index */
     void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
@@ -373,8 +374,8 @@ ihash_touch_fn(ihash *hash, ssize_t key) {
  */
 int
 ihash_erase_fn(ihash *hash, ssize_t key) {
-    const size_t keyoffs = hash->keyoffs;
     const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     const size_t idx = hash_fn(key) % hash->bucketsz;   /* Compute hash bucket index */
     void *e = ihash_get_buckets(hash) + idx * nodesz;   /* buckets */
@@ -435,5 +436,252 @@ ihash_erase_fn(ihash *hash, ssize_t key) {
         /* We get here if no key was found, nothing to erase */
         return 0;
     }
+}
+
+/**
+ * @brief Returns the first occupied entry in the hash table
+ *
+ * Scans buckets sequentially from index 0 and returns the first
+ * slot that contains a valid key (not IHASH_UNDEF).
+ *
+ * @param hash       Pointer to hash table
+ * @param bucket_idx Pointer to store the bucket index of the found entry
+ * @return           Pointer to the first occupied entry, or NULL if table is empty
+ *
+ * @post bucket_idx is set to the index of the found bucket, or bucketsz if empty
+ * @see ihash_next_node_fn()
+ * @see ihash_foreach
+ */
+void *
+ihash_first_node_fn(ihash *hash, size_t *bucket_idx) {
+    const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
+    const size_t bucketsz = hash->bucketsz;
+    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
+    void *e = ihash_get_buckets(hash);
+
+    for (size_t i = 0; i != bucketsz; ++i, e += nodesz) {
+        if (IHASH_UNDEF != *(ssize_t *)(e + keyoffs)) {
+            *bucket_idx = i;
+            return e;
+        }
+    }
+
+    *bucket_idx = bucketsz;
+    return NULL;    /* Hash is empty */
+}
+
+/**
+ * @brief Returns the next occupied entry after the given node
+ *
+ * Implements depth-first traversal:
+ * 1. If current node has a chain, returns the first node in the chain
+ * 2. Otherwise, scans subsequent buckets for the next occupied slot
+ *
+ * @param node       Current node pointer (must be from previous call)
+ * @param hash       Pointer to hash table
+ * @param bucket_idx Pointer to current bucket index (updated on each call)
+ * @return           Pointer to next occupied entry, or NULL if no more entries
+ *
+ * @pre node must be a valid pointer returned by ihash_first_node_fn() or previous ihash_next_node_fn()
+ * @post bucket_idx is updated to the bucket index of the returned entry
+ * @see ihash_first_node_fn()
+ * @see ihash_foreach
+ */
+void *
+ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx) {
+    const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
+    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
+    void *buckets = ihash_get_buckets(hash);                    /* buckets */
+    const size_t bucketsz = hash->bucketsz;
+
+    assert((node - buckets) % nodesz == 0);
+
+    if (node == NULL)
+        return NULL;
+
+    for(;;) {
+        if (IHASH_UNDEF != *(ssize_t *)(node + nextoffs)) { puts("a");
+            return buckets + *(ssize_t *)(node + nextoffs) * nodesz; /* Return next node in chain */
+        } else { puts("b");
+            ++*bucket_idx;                                      /* Move to the next bucket */
+            if (*bucket_idx >= bucketsz)
+                return NULL;                                    /* No more buckets */
+
+            node = buckets + *bucket_idx * nodesz;              /* Move to the top of the next bucket */
+
+            if (IHASH_UNDEF != *(ssize_t *)(node + keyoffs))    /* Next node found in bucket */
+                return node;
+            else {
+                /* Find next occupied bucket */
+                for (++*bucket_idx; *bucket_idx < bucketsz; ++*bucket_idx) {
+                    node += nodesz;
+                    if (IHASH_UNDEF != *(ssize_t *)(node + keyoffs))
+                        return node;
+                }
+
+                return NULL;                                    /* No more buckets */
+            }
+        }
+    }
+}
+
+/**
+ * @brief Prints a simple summary of the hash table
+ *
+ * Displays each bucket and its chain of keys in a human-readable format.
+ * Empty buckets are marked as EMPTY.
+ *
+ * @param hash Pointer to hash table
+ *
+ * @code
+ * === HASH TABLE (buckets=4, chains=8, freelist=3) ===
+ *   [  0] key=   4
+ *   [  1] key=   1 -> 5
+ *   [  2] EMPTY
+ *   [  3] key=   3 -> 11 -> 7
+ * =================================
+ * @endcode
+ *
+ * @see ihash_dump_debug()
+ * @see ihash_dump_freelist()
+ */
+void
+ihash_dump_simple(ihash *hash) {
+    const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
+    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
+    const size_t total_buckets = hash->bucketsz;
+    char *buckets = (char *)ihash_get_buckets(hash);
+    char *chains = (char *)ihash_get_chains(hash);
+
+    printf("\n=== HASH TABLE (buckets=%zu, chains=%zu, freelist=%zd) ===\n",
+           hash->bucketsz, hash->chainsz, hash->chain_head);
+
+    for (size_t i = 0; i < total_buckets; ++i) {
+        char *bucket = buckets + i * nodesz;
+        ssize_t key = *(ssize_t *)(bucket + keyoffs);
+        ssize_t next = *(ssize_t *)(bucket + nextoffs);
+
+        if (key == IHASH_UNDEF) {
+            printf("  [%3zu] EMPTY\n", i);
+        } else {
+            printf("  [%3zu] key=%4ld", i, key);
+
+            /* Traverse chain */
+            ssize_t chain_idx = next;
+            while (chain_idx != IHASH_UNDEF) {
+                char *chain_node = chains + chain_idx * nodesz;
+                ssize_t chain_key = *(ssize_t *)(chain_node + keyoffs);
+                printf(" -> %ld", chain_key);
+                chain_idx = *(ssize_t *)(chain_node + nextoffs);
+            }
+            printf("\n");
+        }
+    }
+    printf("=================================\n");
+}
+
+/**
+ * @brief Prints detailed debug information about the hash table
+ *
+ * Displays all slots (buckets + chains) with their key and next values,
+ * showing internal indices and freelist state. Useful for debugging
+ * hash table corruption or freelist issues.
+ *
+ * @param hash Pointer to hash table
+ *
+ * @note Output includes key offsets, node sizes, and complete freelist chain
+ * @see ihash_dump_simple()
+ * @see ihash_dump_freelist()
+ */
+void
+ihash_dump_debug(ihash *hash) {
+    const size_t nodesz = hash->nodesz;
+    const size_t keyoffs = hash->keyoffs;
+    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
+    const size_t total_buckets = hash->bucketsz;
+    const size_t total_nodes = hash->bucketsz + hash->chainsz;
+    char *buckets = (char *)ihash_get_buckets(hash);
+    char *chains = (char *)ihash_get_chains(hash);
+
+    printf("\n=== HASH TABLE DEBUG ===\n");
+    printf("bucketsz=%zu, chainsz=%zu, total_slots=%zu\n",
+           hash->bucketsz, hash->chainsz, total_nodes);
+    printf("keyoffs=%zu, nextoffs=%zu, nodesz=%zu\n",
+           keyoffs, nextoffs, nodesz);
+    printf("freelist_head=%zd\n\n", hash->chain_head);
+
+    /* Dump all slots (buckets + chains) */
+    for (size_t i = 0; i < total_nodes; ++i) {
+        char *slot = buckets + i * nodesz;
+        ssize_t key = *(ssize_t *)(slot + keyoffs);
+        ssize_t next = *(ssize_t *)(slot + nextoffs);
+        const char *type = (i < hash->bucketsz) ? "BUCKET" : "CHAIN";
+
+        if (key == IHASH_UNDEF) {
+            printf("%s[%3zu]: EMPTY (next=%zd)\n", type, i, next);
+        } else {
+            printf("%s[%3zu]: key=%4ld (next=%zd)\n", type, i, key, next);
+        }
+    }
+
+    /* Dump freelist */
+    if (hash->chain_head != IHASH_UNDEF) {
+        printf("\nFreelist: ");
+        ssize_t idx = hash->chain_head;
+        while (idx != IHASH_UNDEF && idx < (ssize_t)total_nodes) {
+            printf("%zd", idx);
+            char *node = chains + idx * nodesz;
+            idx = *(ssize_t *)(node + nextoffs);
+            printf(" -> ");
+            if (idx == hash->chain_head) break; /* loop detection */
+        }
+        printf("IHASH_UNDEF\n");
+    }
+
+    printf("========================\n");
+}
+
+/**
+ * @brief Prints the freelist chain of the hash table
+ *
+ * Displays the linked list of free nodes available for reuse,
+ * along with the total count of free nodes.
+ *
+ * @param hash Pointer to hash table
+ *
+ * @note Valid freelist indices are in range [0, chainsz-1]
+ * @warning If an index is out of range, prints an error message
+ *
+ * @code
+ * Freelist: 3 -> 1 -> 0 -> IHASH_UNDEF, Freelist contains 3 nodes
+ * @endcode
+ *
+ * @see ihash_dump_simple()
+ * @see ihash_dump_debug()
+ */
+void ihash_dump_freelist(ihash *hash) {
+    ssize_t count = 0;
+    ssize_t idx = hash->chain_head;
+    const size_t nodesz = hash->nodesz;
+    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
+    void *chains = ihash_get_chains(hash);
+
+    printf("Freelist: ");
+    while (idx != IHASH_UNDEF) {
+        if (idx < 0 || idx >= hash->chainsz) {
+            printf("ERROR: freelist index %zd out of range\n", idx);
+            break;
+        }
+        printf("%zd -> ", idx);
+        count++;
+        if (count > 1000) break;
+        char *node = chains + idx * hash->nodesz;
+        idx = *(ssize_t *)(node + nextoffs);
+    }
+    printf("IHASH_UNDEF, ");
+    printf("Freelist contains %zd nodes\n", count);
 }
 

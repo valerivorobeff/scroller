@@ -275,6 +275,35 @@ void ihash_free(void *hash);
     ihash_erase_fn((ihash *)h, key_)
 
 /**
+ * @def ihash_foreach(node, h)
+ * @brief Iterates over all occupied entries in the hash table
+ *
+ * This macro provides a convenient way to traverse all non-empty entries
+ * in the hash table, including both primary bucket slots and chain nodes.
+ *
+ * @param node  Name of the entry pointer variable (will be declared in the loop)
+ * @param h     Pointer to the hash table (will be cast to ihash*)
+ *
+ * @note The iterator visits entries in bucket order, then chain order
+ * @warning Do NOT insert or erase entries while iterating
+ * @warning The loop variable 'node' must not be modified inside the loop
+ *
+ * @code
+ * struct MyEntry *entry;
+ * ihash_foreach(entry, hash) {
+ *     printf("key: %ld, value: %d\n", entry->key, entry->value);
+ * }
+ * @endcode
+ *
+* @note _node_ is just used not to throw _bucket_idx_ out of the scope
+ */
+#define ihash_foreach(node, h) \
+    for (size_t _bucket_idx_ = 0, \
+        _node_ = (size_t)(node = ihash_first_node_fn((ihash *)h, &_bucket_idx_)); \
+        node; \
+        node = ihash_next_node_fn(node, (ihash *)h, &_bucket_idx_))
+
+/**
  * @cond PRIVATE
  * Inner functions and macros - implementation details
  * @endcond
@@ -366,6 +395,88 @@ void *ihash_touch_fn(ihash *hash, ssize_t key);
  * @return         1 if entry was found and removed, 0 if key not found
  */
 int ihash_erase_fn(ihash *hash, ssize_t key);
+
+/**
+ * @brief Returns the first occupied entry in the hash table
+ *
+ * @param hash       Pointer to hash table
+ * @param bucket_idx Pointer to store the bucket index of the found entry
+ * @return           Pointer to the first occupied entry, or NULL if table is empty
+ *
+ * @see ihash_next_node_fn()
+ * @see ihash_foreach
+ */
+void *ihash_first_node_fn(ihash *hash, size_t *bucket_idx);
+
+/**
+ * @brief Returns the next occupied entry after the given node
+ *
+ * @param node       Current node pointer (must be from previous call)
+ * @param hash       Pointer to hash table
+ * @param bucket_idx Pointer to current bucket index (updated on each call)
+ * @return           Pointer to next occupied entry, or NULL if no more entries
+ *
+ * @see ihash_first_node_fn()
+ * @see ihash_foreach
+ */
+void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
+
+/**
+ * @brief Prints a simple summary of the hash table
+ *
+ * Displays each bucket and its chain of keys in a human-readable format.
+ * Empty buckets are marked as EMPTY.
+ *
+ * @param hash Pointer to hash table
+ *
+ * @code
+ * === HASH TABLE (buckets=4, chains=8, freelist=3) ===
+ *   [  0] key=   4
+ *   [  1] key=   1 -> 5
+ *   [  2] EMPTY
+ *   [  3] key=   3 -> 11 -> 7
+ * =================================
+ * @endcode
+ *
+ * @see ihash_dump_debug()
+ * @see ihash_dump_freelist()
+ */
+void ihash_dump_simple(ihash *hash);
+
+/**
+ * @brief Prints detailed debug information about the hash table
+ *
+ * Displays all slots (buckets + chains) with their key and next values,
+ * showing internal indices and freelist state. Useful for debugging
+ * hash table corruption or freelist issues.
+ *
+ * @param hash Pointer to hash table
+ *
+ * @note Output includes key offsets, node sizes, and complete freelist chain
+ * @see ihash_dump_simple()
+ * @see ihash_dump_freelist()
+ */
+void ihash_dump_debug(ihash *hash);
+
+/**
+ * @brief Prints the freelist chain of the hash table
+ *
+ * Displays the linked list of free nodes available for reuse,
+ * along with the total count of free nodes.
+ *
+ * @param hash Pointer to hash table
+ *
+ * @note Valid freelist indices are in range [0, chainsz-1]
+ * @warning If an index is out of range, prints an error message
+ *
+ * @code
+ * Freelist: 3 -> 1 -> 0 -> IHASH_UNDEF, Freelist contains 3 nodes
+ * @endcode
+ *
+ * @see ihash_dump_simple()
+ * @see ihash_dump_debug()
+ */
+void ihash_dump_freelist(ihash *hash);
 
 #endif /* _IHASH_H_ */
 
