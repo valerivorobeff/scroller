@@ -253,7 +253,7 @@ void ihash_free(void *hash);
  * @see ihash_get_fn()
  */
 #define ihash_get(h, key_) \
-    (typeof(h))ihash_get_fn((ihash *)h, key_)
+    ((typeof(h))ihash_get_fn((ihash *)h, key_))
 
 /**
  * @def ihash_exists(h, key_)
@@ -355,7 +355,7 @@ void ihash_free(void *hash);
  * @endcode
  */
 #define ihash_get_value_ptr(h, key_) \
-    ihash_get_memer_ptr(h, key_, value)
+    ihash_get_member_ptr(h, key_, value)
 
 /**
  * @def ihash_get_value(h, key_)
@@ -463,7 +463,7 @@ void ihash_free(void *hash);
  */
 #define ihash_put_struct(h, struct_ptr) \
     ({ \
-        typeof(h) _e = ihash_put_key(h, struct_ptr->key); \
+        typeof(h) _e = ihash_put_key(h, (struct_ptr)->key); \
         if (_e) { \
             *_e = *(struct_ptr); \
         } \

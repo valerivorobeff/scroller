@@ -35,10 +35,12 @@
 
 /**
  * @todo:
- * 1. Allow the user define his/her own hash function when initializing the hash
- * 2. correct ihash_foreach()
- * 3. add tests
- * 4. Investigate if it makes more sence to move all the entries including the first one
+ * 1. correct ihash_foreach()
+ * 2. Think of interface.
+ *      ihash_get* and ihash_put* macro names don't match
+ *      now: ihash_get -> ihash_put_struct maybe: ihash_get_struct, ihash_put_struct
+ *      ihash_get_member_ptr and ihash_get_member don't have their analogs of ihash_put*s
+ * 3. Investigate if it makes more sence to move all the entries including the first one
  *      into the chains pool and store in the buckets only the index of the first entry.
  */
 
@@ -163,7 +165,13 @@ ihash_free(void *hash) {
 ihash *
 ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
     /* Allocate contiguous memory */
-    ihash *hash = malloc(ihash_get_required_memory_size(bucketsz, chainsz, usersz));
+    ihash *hash;
+
+    if (bucketsz == 0)
+        return NULL;    /* Error, impossible to init a hash without buckets */
+
+    /* Allocate contiguous memory */
+    hash = malloc(ihash_get_required_memory_size(bucketsz, chainsz, usersz));
 
     return hash ? ihash_init_fn(hash, bucketsz, chainsz, keyoffs, usersz, hash_fn) : NULL;
 }
@@ -206,6 +214,9 @@ ihash *
 ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
     ihash *hash = p;
     const size_t nodesz = usersz + sizeof(ihash_idx_t);
+
+    if (bucketsz == 0)
+        return NULL;    /* Error, impossible to init a hash without buckets */
 
     hash->bucketsz = bucketsz;
     hash->chainsz = chainsz;
@@ -257,7 +268,6 @@ ihash_clear(void *p, ihash_hash_fn hash_fn) {
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     void *e = ihash_get_buckets(hash);
 
-    hash->chain_head = 0;
     hash->hash_fn = hash_fn ? hash_fn : ihash_default_hash_fn;
 
     /* Initialize primary hash slots to empty state */
@@ -274,8 +284,10 @@ ihash_clear(void *p, ihash_hash_fn hash_fn) {
 
     /* Mark the end of the freelist */
     if (chainsz > 0) {
+        hash->chain_head = 0;
         *(ssize_t *)(e - nodesz + nextoffs) = IHASH_UNDEF;
-    }
+    } else
+        hash->chain_head = IHASH_UNDEF;
 }
 
 /**
