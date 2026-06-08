@@ -1,19 +1,47 @@
 BIN = basic_test
 
 # Flags
-CFLAGS += -I../src
+CFLAGS = -I../src -Wall -Wextra
+LDFLAGS =
 
-SRC = basic.c ../src/grid.c
-OBJ = $(SRC:.c=.o)
-
-ifeq ($(OS),Windows_NT)
-BIN := $(BIN).exe
+# Debug/Release
+ifeq ($(DEBUG),1)
+    CFLAGS += -DDEBUG -g -O0 -DIHASH_DEBUG
+else
+    CFLAGS += -O2 -DNDEBUG
 endif
 
+SRC = basic.c \
+    ../src/grid.c \
+    ../src/ihash.c
+
+OBJ = $(SRC:.c=.o)
+
+# OS special
+ifeq ($(OS),Windows_NT)
+    BIN := $(BIN).exe
+    RM = del /Q
+else
+    RM = rm -f
+endif
+
+# Targets
 all: $(BIN)
 
-$(BIN): clean
-	$(CC) $(SRC) $(CFLAGS) -o $(BIN)
+$(BIN): $(OBJ)
+	$(CC) $(OBJ) $(LDFLAGS) -o $(BIN)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+debug:
+	$(MAKE) DEBUG=1 all
+
+release:
+	$(MAKE) DEBUG=0 all
 
 clean:
-	rm -f $(OBJ)
+	$(RM) $(OBJ) $(BIN)
+
+.PHONY: all clean debug release
+
