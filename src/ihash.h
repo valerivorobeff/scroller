@@ -517,7 +517,8 @@ void ihash_free(void *hash);
  */
 #define ihash_foreach(node, h) \
     for (size_t _bucket_idx_ = 0, \
-        _node_ = (size_t)(node = ihash_first_node_fn((ihash *)h, &_bucket_idx_)); \
+        _node_ __attribute__((unused)) = \
+        (size_t)(node = ihash_first_node_fn((ihash *)h, &_bucket_idx_)); \
         node; \
         node = ihash_next_node_fn(node, (ihash *)h, &_bucket_idx_))
 
