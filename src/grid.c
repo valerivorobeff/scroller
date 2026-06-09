@@ -47,6 +47,7 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
     assert(sizeof(g->magic) == sizeof(magic));
 
     memset(page, 0, pagesz); /* We must zero the page due to security reasons */
+    memcpy(g->magic, magic, sizeof(magic));
     g->size = pagesz;
     g->type = type;
     g->rowsz = rowsz;
@@ -81,7 +82,11 @@ hgrid_add_column(Grid *grid, const char *name, size_t size) {
     HColumn *hc = grid_alloc_row(grid);
 
     if (hc) {
-        strncpy(hc->name, name, NAMESZ);
+        /* @todo: now the maximum copied bytes are NAMESZ - 1
+         * which means that the latest byte should always be 0
+         * and we can only work with 15 byte (NAMESZ - 1) length
+         * strings, is it suitable? */
+        strncpy(hc->name, name, NAMESZ - 1);
         hc->size = size;
 
         /* Calculate byte offset based on the previous column */
