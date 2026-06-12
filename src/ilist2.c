@@ -54,7 +54,7 @@ ilist2_clear(void *p) {
     const size_t nodesz = list->nodesz;
     const size_t listsz = list->listsz;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
-    const size_t prevoffs = nextoffs - 1;
+    const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
     void *e = ilist2_get_nodes(list);
 
     list->back_idx =    ILIST2_UNDEF;
@@ -84,15 +84,19 @@ ilist2_pop_back_fn(ilist2 *list) {
     const size_t nodesz = list->nodesz;
     void *nodes = ilist2_get_nodes(list);
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
-    const size_t prevoffs = nextoffs - 1;
+    const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
     void *old_node = nodes + list->back_idx * nodesz;
     const ilist2_idx_t prev_idx = *(ilist2_idx_t *)(old_node + prevoffs);
 
-    *(ilist2_idx_t *)(nodes + prev_idx * nodesz) = ILIST2_UNDEF;    /* update previous node */
+    *(ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs) =
+        ILIST2_UNDEF;                                   /* update previous node's nextoffs */
 
     *(ilist2_idx_t *)(old_node + nextoffs) = ILIST2_UNDEF;
     list->freelist_head = (nodes - old_node) / nodesz;  /* freelist_head = old node's index */
     list->back_idx = prev_idx;                                      /* update back_idx */
+
+    if (prev_idx == ILIST2_UNDEF)
+        list->front_idx = ILIST2_UNDEF;
 
     return old_node;
 }
@@ -102,7 +106,7 @@ ilist2_touch_back_fn(ilist2 *list) {
     const size_t nodesz = list->nodesz;
     void *nodes = ilist2_get_nodes(list);
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
-    const size_t prevoffs = nextoffs - 1;
+    const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
     if (list->freelist_head == ILIST2_UNDEF)
         return NULL;                                                /* No free nodes available */
@@ -121,10 +125,11 @@ ilist2_touch_back_fn(ilist2 *list) {
         *(size_t *)(back_node + nextoffs) = new_idx; /* update previous node's nextoffs */
 
         list->freelist_head = *(ilist2_idx_t *)(new_node + nextoffs);  /* update freelist_head */
-        list->back_idx = new_idx;                                   /* update back_idx */
 
         *(ilist2_idx_t *)(new_node + prevoffs) = list->back_idx;    /* new node's prevoffs */
         *(ilist2_idx_t *)(new_node + nextoffs) = ILIST2_UNDEF;      /* new node's nextoffs */
+
+        list->back_idx = new_idx;                                   /* update back_idx */
 
         return new_node;
     } else {
@@ -137,13 +142,13 @@ ilist2_touch_back_fn(ilist2 *list) {
 
         new_node = nodes + new_idx * nodesz;                        /* get new node */
 
-        *(size_t *)(new_node + nextoffs) = new_idx;
         list->freelist_head = *(ilist2_idx_t *)(new_node + nextoffs);  /* update freelist_head */
+
+        *(ilist2_idx_t *)(new_node + prevoffs) = ILIST2_UNDEF;      /* new node's prevoffs */
+        *(ilist2_idx_t *)(new_node + nextoffs) = ILIST2_UNDEF;      /* new node's nextoffs */
+
         list->back_idx = new_idx;                                   /* update back_idx */
         list->front_idx = new_idx;                                  /* update front_idx */
-
-        *(ilist2_idx_t *)(new_node + nextoffs) = ILIST2_UNDEF;      /* new node's prevoffs */
-        *(ilist2_idx_t *)(new_node + prevoffs) = ILIST2_UNDEF;      /* new node's nextoffs */
 
         return new_node;
     }

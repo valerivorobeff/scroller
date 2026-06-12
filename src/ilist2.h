@@ -27,14 +27,29 @@ void ilist2_clear(void *p);
 void ilist2_free(void *p);
 
 #define ilist2_get_back(h) \
-    (typeof(*h))ilist2_get_back_fn((ilist2 *)h)
+    ((typeof(*h))(*(typeof(h))ilist2_get_back_fn((ilist2 *)h)))
+
+#define ilist2_get_front(h) \
+    ((typeof(*h))(*(typeof(h))ilist2_get_front_fn((ilist2 *)h)))
 
 #define ilist2_pop_back(h) \
-    (typeof(*h))ilist2_pop_back_fn((ilist2 *)h)
+    ((typeof(*h))(*(typeof(h))ilist2_pop_back_fn((ilist2 *)h)))
+
+#define ilist2_pop_front(h) \
+    ((typeof(*h))(*(typeof(h))ilist2_pop_front_fn((ilist2 *)h)))
 
 #define ilist2_put_back(h, node) \
     ({ \
-        typeof(h) e = (typeof(h))ilist_touch_fn((ihash *)h); \
+        typeof(h) e = (typeof(h))ilist2_touch_back_fn((ilist2 *)h); \
+        if (e) { \
+            *e = (node); \
+        } \
+        e; \
+    })
+
+#define ilist2_put_front(h, node) \
+    ({ \
+        typeof(h) e = (typeof(h))ilist2_touch_front_fn((ilist2 *)h); \
         if (e) { \
             *e = (node); \
         } \
@@ -42,7 +57,7 @@ void ilist2_free(void *p);
     })
 
 #define ilist2_empty(h) \
-    ((ilist2 *)h->front_idx == IHASH2_UNDEF)
+    (((ilist2 *)(h))->front_idx == ILIST2_UNDEF)
 
 #define ilist2_get_required_memory_size(listsz, usersz) \
     (sizeof(ilist2) + (usersz + sizeof(ilist2_idx_t) + sizeof(ilist2_idx_t)) * listsz)

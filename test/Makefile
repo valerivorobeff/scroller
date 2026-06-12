@@ -13,6 +13,7 @@ endif
 
 SRC = basic.c \
     ../src/grid.c \
+    ../src/ilist2.c \
     ../src/ihash.c
 
 OBJ = $(SRC:.c=.o)

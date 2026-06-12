@@ -30,6 +30,7 @@
 
 #include "quin.h"
 #include "grid.h"
+#include "ilist2.h"
 #include "ihash.h"
 #include <malloc.h>
 #include <string.h>
@@ -116,6 +117,28 @@ TEST(basic)
         }
 
     TEST_SUITE_END()  /* End of grid test suite */
+
+    TEST_SUITE(ilist2)
+
+        TEST_CASE(basic) {
+            /* Create hash */
+            int  *val = ilist2_create(val, 16);
+
+            TEST_CHECK(ilist2_empty(val));
+            TEST_CHECK(ilist2_put_back(val, 5));
+            TEST_CHECK(!ilist2_empty(val));
+            TEST_CHECK(ilist2_get_back(val) == 5);
+            TEST_CHECK(ilist2_put_back(val, 6));
+            TEST_CHECK(ilist2_get_back(val) == 6);
+            TEST_CHECK(ilist2_pop_back(val) == 6);
+            TEST_CHECK(ilist2_get_back(val) == 5);
+            TEST_CHECK(ilist2_pop_back(val) == 5);
+            TEST_CHECK(ilist2_empty(val));
+
+            ilist2_free(val);
+        }
+
+    TEST_SUITE_END()    /* End of ilist2 test suite */
 
     TEST_SUITE(ihash)
 
