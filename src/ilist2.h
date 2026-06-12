@@ -66,8 +66,11 @@ void ilist2_free(void *p);
 ilist2 *ilist2_create_fn(size_t listsz, size_t usersz);
 ilist2 *ilist2_init_fn(void *p, size_t listsz, size_t usersz);
 void *ilist2_get_back_fn(ilist2 *list);
+void *ilist2_get_front_fn(ilist2 *list);
 void *ilist2_pop_back_fn(ilist2 *list);
+void *ilist2_pop_front_fn(ilist2 *list);
 void *ilist2_touch_back_fn(ilist2 *list);
+void *ilist2_touch_front_fn(ilist2 *list);
 
 #ifndef NDEBUG
 

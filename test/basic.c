@@ -120,8 +120,7 @@ TEST(basic)
 
     TEST_SUITE(ilist2)
 
-        TEST_CASE(basic) {
-            /* Create hash */
+        TEST_CASE(back) {
             int  *val = ilist2_create(val, 16);
 
             TEST_CHECK(ilist2_empty(val));
@@ -133,6 +132,23 @@ TEST(basic)
             TEST_CHECK(ilist2_pop_back(val) == 6);
             TEST_CHECK(ilist2_get_back(val) == 5);
             TEST_CHECK(ilist2_pop_back(val) == 5);
+            TEST_CHECK(ilist2_empty(val));
+
+            ilist2_free(val);
+        }
+
+        TEST_CASE(front) {
+            int  *val = ilist2_create(val, 16);
+
+            TEST_CHECK(ilist2_empty(val));
+            TEST_CHECK(ilist2_put_front(val, 5));
+            TEST_CHECK(!ilist2_empty(val));
+            TEST_CHECK(ilist2_get_front(val) == 5);
+            TEST_CHECK(ilist2_put_front(val, 6));
+            TEST_CHECK(ilist2_get_front(val) == 6);
+            TEST_CHECK(ilist2_pop_front(val) == 6);
+            TEST_CHECK(ilist2_get_front(val) == 5);
+            TEST_CHECK(ilist2_pop_front(val) == 5);
             TEST_CHECK(ilist2_empty(val));
 
             ilist2_free(val);
