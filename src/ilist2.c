@@ -13,6 +13,8 @@ void *ilist2_pop_back_fn(ilist2 *list);
 void *ilist2_pop_front_fn(ilist2 *list);
 void *ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx);
 void *ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx);
+void ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx);
+void ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx);
 static void *ilist2_touch_new_fn(ilist2 *list);
 
 #ifndef NDEBUG
@@ -200,6 +202,64 @@ ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
 
         return new_node;
     }
+}
+
+void
+ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
+    const size_t nodesz = list->nodesz;
+    void *nodes = list->nodes;
+    void *node = nodes + idx * nodesz;
+    const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
+    const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
+
+    const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
+    const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
+
+    /* Link together previous and next nodes */
+    if (prev_idx != ILIST2_UNDEF)
+        *((ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs)) = next_idx;
+
+    if (next_idx != ILIST2_UNDEF)
+        *((ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs)) = prev_idx;
+
+    /* Update back node's nextoffs to point to idx */
+    *((ilist2_idx_t *)(nodes + list->back_idx * nodesz + nextoffs)) = idx;
+
+    /* Update node's prevoffs and nextoffs to point ro new neighbours */
+    *((ilist2_idx_t *)(node + prevoffs)) = list->back_idx;
+    *((ilist2_idx_t *)(node + nextoffs)) = ILIST2_UNDEF;
+
+    /* Update back_idx */
+    list->back_idx = idx;
+}
+
+void
+ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
+    const size_t nodesz = list->nodesz;
+    void *nodes = list->nodes;
+    void *node = nodes + idx * nodesz;
+    const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
+    const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
+
+    const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
+    const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
+
+    /* Link together previous and next nodes */
+    if (prev_idx != ILIST2_UNDEF)
+        *((ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs)) = next_idx;
+
+    if (next_idx != ILIST2_UNDEF)
+        *((ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs)) = prev_idx;
+
+    /* Update front node's prevoffs to point to idx */
+    *((ilist2_idx_t *)(nodes + list->front_idx * nodesz + prevoffs)) = idx;
+
+    /* Update node's prevoffs and nextoffs to point ro new neighbours */
+    *((ilist2_idx_t *)(node + prevoffs)) = ILIST2_UNDEF;
+    *((ilist2_idx_t *)(node + nextoffs)) = list->front_idx;
+
+    /* Update front_idx */
+    list->front_idx = idx;
 }
 
 void *

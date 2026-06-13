@@ -59,6 +59,12 @@ void ilist2_free(void *p);
         idx; \
     })
 
+#define ilist2_move_back_by_idx(h, idx) \
+    ilist2_move_back_by_idx_fn((ilist2 *)h, idx)
+
+#define ilist2_move_front_by_idx(h, idx) \
+    ilist2_move_front_by_idx_fn((ilist2 *)h, idx)
+
 #define ilist2_empty(h) \
     (((ilist2 *)(h))->front_idx == ILIST2_UNDEF)
 
@@ -73,6 +79,8 @@ void *ilist2_get_front_fn(ilist2 *list);
 void *ilist2_pop_back_fn(ilist2 *list);
 void *ilist2_pop_front_fn(ilist2 *list);
 void *ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx);
+void ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx);
+void ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx);
 void *ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx);
 
 #ifndef NDEBUG

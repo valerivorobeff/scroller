@@ -124,10 +124,10 @@ TEST(basic)
             int  *val = ilist2_create(val, 16);
 
             TEST_CHECK(ilist2_empty(val));
-            TEST_CHECK(ilist2_put_back(val, 5) != ILIST2_UNDEF);
+            TEST_CHECK(ilist2_put_back(val, 5) == 0);
             TEST_CHECK(!ilist2_empty(val));
             TEST_CHECK(ilist2_get_back(val) == 5);
-            TEST_CHECK(ilist2_put_back(val, 6) != ILIST2_UNDEF);
+            TEST_CHECK(ilist2_put_back(val, 6) == 1);
             TEST_CHECK(ilist2_get_back(val) == 6);
             TEST_CHECK(ilist2_pop_back(val) == 6);
             TEST_CHECK(ilist2_get_back(val) == 5);
@@ -141,15 +141,34 @@ TEST(basic)
             int  *val = ilist2_create(val, 16);
 
             TEST_CHECK(ilist2_empty(val));
-            TEST_CHECK(ilist2_put_front(val, 5) != ILIST2_UNDEF);
+            TEST_CHECK(ilist2_put_front(val, 5) == 0);
             TEST_CHECK(!ilist2_empty(val));
             TEST_CHECK(ilist2_get_front(val) == 5);
-            TEST_CHECK(ilist2_put_front(val, 6) != ILIST2_UNDEF);
+            TEST_CHECK(ilist2_put_front(val, 6) == 1);
             TEST_CHECK(ilist2_get_front(val) == 6);
             TEST_CHECK(ilist2_pop_front(val) == 6);
             TEST_CHECK(ilist2_get_front(val) == 5);
             TEST_CHECK(ilist2_pop_front(val) == 5);
             TEST_CHECK(ilist2_empty(val));
+
+            ilist2_free(val);
+        }
+
+        TEST_CASE(move_back) {
+            int  *val = ilist2_create(val, 16);
+
+            ilist2_idx_t idx = ilist2_put_back(val, 5);
+            ilist2_put_front(val, 6);
+            ilist2_put_back(val, 7);
+
+            TEST_CHECK(ilist2_get_back(val) == 7);
+            ilist2_move_back_by_idx(val, idx);
+            TEST_CHECK(ilist2_get_front(val) == 6);
+            TEST_CHECK(ilist2_get_back(val) == 5);
+
+            ilist2_move_front_by_idx(val, idx);
+            TEST_CHECK(ilist2_get_front(val) == 5);
+            TEST_CHECK(ilist2_get_back(val) == 7);
 
             ilist2_free(val);
         }
