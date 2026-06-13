@@ -11,8 +11,8 @@ void *ilist2_get_back_fn(ilist2 *list);
 void *ilist2_get_front_fn(ilist2 *list);
 void *ilist2_pop_back_fn(ilist2 *list);
 void *ilist2_pop_front_fn(ilist2 *list);
-void *ilist2_touch_back_fn(ilist2 *list);
-void *ilist2_touch_front_fn(ilist2 *list);
+void *ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx);
+void *ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx);
 static void *ilist2_touch_new_fn(ilist2 *list);
 
 #ifndef NDEBUG
@@ -131,8 +131,10 @@ ilist2_pop_front_fn(ilist2 *list) {
 }
 
 void *
-ilist2_touch_back_fn(ilist2 *list) {
-    if (list->freelist_head == ILIST2_UNDEF)
+ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx) {
+    *idx = list->freelist_head;
+
+    if (*idx == ILIST2_UNDEF)
         return NULL;                                                /* No free nodes available */
 
     if (ilist2_empty(list))
@@ -146,10 +148,7 @@ ilist2_touch_back_fn(ilist2 *list) {
 
         void *back_node;
         void *new_node;
-        ilist2_idx_t new_idx = list->freelist_head;
-
-        if (new_idx == ILIST2_UNDEF)
-            return NULL;
+        ilist2_idx_t new_idx = *idx;
 
         back_node = nodes + list->back_idx * nodesz;                /* get back node */
         new_node = nodes + new_idx * nodesz;                        /* get new node */
@@ -168,8 +167,10 @@ ilist2_touch_back_fn(ilist2 *list) {
 }
 
 void *
-ilist2_touch_front_fn(ilist2 *list) {
-    if (list->freelist_head == ILIST2_UNDEF)
+ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
+    *idx = list->freelist_head;
+
+    if (*idx == ILIST2_UNDEF)
         return NULL;                                                /* No free nodes available */
 
     if (ilist2_empty(list))
@@ -183,10 +184,7 @@ ilist2_touch_front_fn(ilist2 *list) {
 
         void *front_node;
         void *new_node;
-        ilist2_idx_t new_idx = list->freelist_head;
-
-        if (new_idx == ILIST2_UNDEF)
-            return NULL;
+        ilist2_idx_t new_idx = *idx;
 
         front_node = nodes + list->back_idx * nodesz;               /* get front node */
         new_node = nodes + new_idx * nodesz;                        /* get new node */
@@ -212,20 +210,15 @@ ilist2_touch_new_fn(ilist2 *list) {
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
     ilist2_idx_t new_idx = list->freelist_head;
-    void *new_node;
+    void *new_node = nodes + new_idx * nodesz;                      /* get new node */
 
-    if (new_idx == ILIST2_UNDEF)
-        return NULL;
+    list->freelist_head = *(ilist2_idx_t *)(new_node + nextoffs);   /* update freelist_head */
 
-    new_node = nodes + new_idx * nodesz;                        /* get new node */
+    *(ilist2_idx_t *)(new_node + prevoffs) = ILIST2_UNDEF;          /* new node's prevoffs */
+    *(ilist2_idx_t *)(new_node + nextoffs) = ILIST2_UNDEF;          /* new node's nextoffs */
 
-    list->freelist_head = *(ilist2_idx_t *)(new_node + nextoffs);  /* update freelist_head */
-
-    *(ilist2_idx_t *)(new_node + prevoffs) = ILIST2_UNDEF;      /* new node's prevoffs */
-    *(ilist2_idx_t *)(new_node + nextoffs) = ILIST2_UNDEF;      /* new node's nextoffs */
-
-    list->back_idx = new_idx;                                   /* update back_idx */
-    list->front_idx = new_idx;                                  /* update front_idx */
+    list->back_idx = new_idx;                                       /* update back_idx */
+    list->front_idx = new_idx;                                      /* update front_idx */
 
     return new_node;
 }

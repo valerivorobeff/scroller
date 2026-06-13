@@ -124,10 +124,10 @@ TEST(basic)
             int  *val = ilist2_create(val, 16);
 
             TEST_CHECK(ilist2_empty(val));
-            TEST_CHECK(ilist2_put_back(val, 5));
+            TEST_CHECK(ilist2_put_back(val, 5) != ILIST2_UNDEF);
             TEST_CHECK(!ilist2_empty(val));
             TEST_CHECK(ilist2_get_back(val) == 5);
-            TEST_CHECK(ilist2_put_back(val, 6));
+            TEST_CHECK(ilist2_put_back(val, 6) != ILIST2_UNDEF);
             TEST_CHECK(ilist2_get_back(val) == 6);
             TEST_CHECK(ilist2_pop_back(val) == 6);
             TEST_CHECK(ilist2_get_back(val) == 5);
@@ -141,10 +141,10 @@ TEST(basic)
             int  *val = ilist2_create(val, 16);
 
             TEST_CHECK(ilist2_empty(val));
-            TEST_CHECK(ilist2_put_front(val, 5));
+            TEST_CHECK(ilist2_put_front(val, 5) != ILIST2_UNDEF);
             TEST_CHECK(!ilist2_empty(val));
             TEST_CHECK(ilist2_get_front(val) == 5);
-            TEST_CHECK(ilist2_put_front(val, 6));
+            TEST_CHECK(ilist2_put_front(val, 6) != ILIST2_UNDEF);
             TEST_CHECK(ilist2_get_front(val) == 6);
             TEST_CHECK(ilist2_pop_front(val) == 6);
             TEST_CHECK(ilist2_get_front(val) == 5);

@@ -41,20 +41,22 @@ void ilist2_free(void *p);
 
 #define ilist2_put_back(h, node) \
     ({ \
-        typeof(h) e = (typeof(h))ilist2_touch_back_fn((ilist2 *)h); \
+        ilist2_idx_t idx; \
+        typeof(h) e = (typeof(h))ilist2_touch_back_fn((ilist2 *)h, &idx); \
         if (e) { \
             *e = (node); \
         } \
-        e; \
+        idx; \
     })
 
 #define ilist2_put_front(h, node) \
     ({ \
-        typeof(h) e = (typeof(h))ilist2_touch_front_fn((ilist2 *)h); \
+        ilist2_idx_t idx; \
+        typeof(h) e = (typeof(h))ilist2_touch_front_fn((ilist2 *)h, &idx); \
         if (e) { \
             *e = (node); \
         } \
-        e; \
+        idx; \
     })
 
 #define ilist2_empty(h) \
@@ -70,8 +72,8 @@ void *ilist2_get_back_fn(ilist2 *list);
 void *ilist2_get_front_fn(ilist2 *list);
 void *ilist2_pop_back_fn(ilist2 *list);
 void *ilist2_pop_front_fn(ilist2 *list);
-void *ilist2_touch_back_fn(ilist2 *list);
-void *ilist2_touch_front_fn(ilist2 *list);
+void *ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx);
+void *ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx);
 
 #ifndef NDEBUG
 
