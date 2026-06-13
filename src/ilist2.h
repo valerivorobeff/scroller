@@ -14,6 +14,7 @@ typedef struct ilist2 {
     ilist2_idx_t front_idx;
     ilist2_idx_t back_idx;
     size_t nodesz;
+    char nodes[];
 } ilist2;
 
 #define ilist2_create(h, listsz_) \

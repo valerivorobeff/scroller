@@ -3,8 +3,6 @@
 #include <string.h>
 #include <assert.h>
 
-#define ilist2_get_nodes(h)   ((void *)((char *)h + sizeof(ilist2)))
-
 void ilist2_free(void *list);
 ilist2 *ilist2_create_fn(size_t listsz, size_t usersz);
 ilist2 *ilist2_init_fn(void *p, size_t list, size_t usersz);
@@ -59,39 +57,39 @@ ilist2_clear(void *p) {
     const size_t listsz = list->listsz;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
-    void *e = ilist2_get_nodes(list);
+    void *nodes = list->nodes;
 
     list->back_idx =    ILIST2_UNDEF;
     list->front_idx =   ILIST2_UNDEF;
 
     /* Initialize primary hash slots to empty state */
-    for (size_t i = 0; i != listsz; ++i, e += nodesz) {
-        *(ssize_t *)(e + prevoffs) = ILIST2_UNDEF;
-        *(ssize_t *)(e + nextoffs) = i + 1;
+    for (size_t i = 0; i != listsz; ++i, nodes += nodesz) {
+        *(ssize_t *)(nodes + prevoffs) = ILIST2_UNDEF;
+        *(ssize_t *)(nodes + nextoffs) = i + 1;
     }
 
     /* Mark the end of the freelist */
     if (listsz > 0) {
         list->freelist_head = 0;
-        *(ssize_t *)(e - nodesz + nextoffs) = ILIST2_UNDEF;
+        *(ssize_t *)(nodes - nodesz + nextoffs) = ILIST2_UNDEF;
     } else
         list->freelist_head = ILIST2_UNDEF;
 }
 
 void *
 ilist2_get_back_fn(ilist2 *list) {
-    return ilist2_get_nodes(list) + list->back_idx * list->nodesz;
+    return list->nodes + list->back_idx * list->nodesz;
 }
 
 void *
 ilist2_get_front_fn(ilist2 *list) {
-    return ilist2_get_nodes(list) + list->front_idx * list->nodesz;
+    return list->nodes + list->front_idx * list->nodesz;
 }
 
 void *
 ilist2_pop_back_fn(ilist2 *list) {
     const size_t nodesz = list->nodesz;
-    void *nodes = ilist2_get_nodes(list);
+    void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
     void *old_node = nodes + list->back_idx * nodesz;
@@ -113,7 +111,7 @@ ilist2_pop_back_fn(ilist2 *list) {
 void *
 ilist2_pop_front_fn(ilist2 *list) {
     const size_t nodesz = list->nodesz;
-    void *nodes = ilist2_get_nodes(list);
+    void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
     void *old_node = nodes + list->front_idx * nodesz;
@@ -142,7 +140,7 @@ ilist2_touch_back_fn(ilist2 *list) {
     else {
         /* List is not empty */
         const size_t nodesz = list->nodesz;
-        void *nodes = ilist2_get_nodes(list);
+        void *nodes = list->nodes;
         const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
         const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
@@ -179,7 +177,7 @@ ilist2_touch_front_fn(ilist2 *list) {
     else {
         /* List is not empty */
         const size_t nodesz = list->nodesz;
-        void *nodes = ilist2_get_nodes(list);
+        void *nodes = list->nodes;
         const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
         const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
@@ -210,7 +208,7 @@ void *
 ilist2_touch_new_fn(ilist2 *list) {
     /* Create the first node */
     const size_t nodesz = list->nodesz;
-    void *nodes = ilist2_get_nodes(list);
+    void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
     ilist2_idx_t new_idx = list->freelist_head;
