@@ -101,7 +101,7 @@ ilist2_pop_back_fn(ilist2 *list) {
         ILIST2_UNDEF;                                   /* update previous node's nextoffs */
 
     *(ilist2_idx_t *)(old_node + nextoffs) = ILIST2_UNDEF;
-    list->freelist_head = (nodes - old_node) / nodesz;  /* freelist_head = old node's index */
+    list->freelist_head = list->back_idx;           /* freelist_head = old node's index */
     list->back_idx = prev_idx;                                      /* update back_idx */
 
     if (prev_idx == ILIST2_UNDEF)
@@ -123,7 +123,7 @@ ilist2_pop_front_fn(ilist2 *list) {
         ILIST2_UNDEF;                                   /* update next node's prevoffs */
 
     *(ilist2_idx_t *)(old_node + prevoffs) = ILIST2_UNDEF;
-    list->freelist_head = (nodes - old_node) / nodesz;  /* freelist_head = old node's index */
+    list->freelist_head = list->front_idx;          /* freelist_head = old node's index */
     list->front_idx = next_idx;                                     /* update front_idx */
 
     if (next_idx == ILIST2_UNDEF)
