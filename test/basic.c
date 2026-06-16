@@ -154,7 +154,7 @@ TEST(basic)
             ilist2_free(val);
         }
 
-        TEST_CASE(move_back) {
+        TEST_CASE(move) {
             int  *val = ilist2_create(val, 16);
 
             ilist2_idx_t idx = ilist2_put_back(val, 5);
@@ -163,12 +163,19 @@ TEST(basic)
 
             TEST_CHECK(ilist2_get_back(val) == 7);
             ilist2_move_back_by_idx(val, idx);
+
             TEST_CHECK(ilist2_get_front(val) == 6);
             TEST_CHECK(ilist2_get_back(val) == 5);
 
             ilist2_move_front_by_idx(val, idx);
+
             TEST_CHECK(ilist2_get_front(val) == 5);
             TEST_CHECK(ilist2_get_back(val) == 7);
+
+            ilist2_move_back_by_idx(val, idx);
+
+            TEST_CHECK(ilist2_get_front(val) == 6);
+            TEST_CHECK(ilist2_get_back(val) == 5);
 
             ilist2_free(val);
         }

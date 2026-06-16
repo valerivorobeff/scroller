@@ -1,12 +1,10 @@
 #include "ilist2.h"
 #include <malloc.h>
-#include <string.h>
-#include <assert.h>
 
-void ilist2_free(void *list);
 ilist2 *ilist2_create_fn(size_t listsz, size_t usersz);
 ilist2 *ilist2_init_fn(void *p, size_t list, size_t usersz);
 void ilist2_clear(void *p);
+void ilist2_free(void *list);
 void *ilist2_get_back_fn(ilist2 *list);
 void *ilist2_get_front_fn(ilist2 *list);
 void *ilist2_pop_back_fn(ilist2 *list);
@@ -18,15 +16,10 @@ void ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx);
 static void *ilist2_touch_new_fn(ilist2 *list);
 
 #ifndef NDEBUG
-void ilist2_dump_simple(void *h);
-void ilist2_dump_debug(void *h);
-void ilist2_dump_freelist(void *h);
+void ilist2_dump_list(void *p);
+void ilist2_dump_idx(void *p);
+void ilist2_dump_freelist(void *p);
 #endif /* NDEBUG */
-
-void
-ilist2_free(void *list) {
-    free((ilist2 *)list);
-}
 
 ilist2 *
 ilist2_create_fn(size_t listsz, size_t usersz) {
@@ -76,6 +69,11 @@ ilist2_clear(void *p) {
         *(ssize_t *)(nodes - nodesz + nextoffs) = ILIST2_UNDEF;
     } else
         list->freelist_head = ILIST2_UNDEF;
+}
+
+void
+ilist2_free(void *list) {
+    free((ilist2 *)list);
 }
 
 void *
@@ -148,12 +146,10 @@ ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx) {
         const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
         const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
-        void *back_node;
-        void *new_node;
         ilist2_idx_t new_idx = *idx;
 
-        back_node = nodes + list->back_idx * nodesz;                /* get back node */
-        new_node = nodes + new_idx * nodesz;                        /* get new node */
+        void *back_node = nodes + list->back_idx * nodesz;          /* get back node */
+        void *new_node = nodes + new_idx * nodesz;                  /* get new node */
 
         *(size_t *)(back_node + nextoffs) = new_idx; /* update previous node's nextoffs */
 
@@ -184,12 +180,10 @@ ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
         const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
         const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
-        void *front_node;
-        void *new_node;
         ilist2_idx_t new_idx = *idx;
 
-        front_node = nodes + list->back_idx * nodesz;               /* get front node */
-        new_node = nodes + new_idx * nodesz;                        /* get new node */
+        void *front_node = nodes + list->back_idx * nodesz;         /* get front node */
+        void *new_node = nodes + new_idx * nodesz;                  /* get new node */
 
         *(size_t *)(front_node + prevoffs) = new_idx; /* update next node's prevoffs */
 
@@ -216,16 +210,21 @@ ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
 
     /* Link together previous and next nodes */
-    if (prev_idx != ILIST2_UNDEF)
-        *((ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs)) = next_idx;
-
     if (next_idx != ILIST2_UNDEF)
         *((ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs)) = prev_idx;
+    else
+        return;
+
+    if (prev_idx != ILIST2_UNDEF)
+        *((ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs)) = next_idx;
+    else
+        /* next_idx is now front_idx */
+        list->front_idx = next_idx;
 
     /* Update back node's nextoffs to point to idx */
     *((ilist2_idx_t *)(nodes + list->back_idx * nodesz + nextoffs)) = idx;
 
-    /* Update node's prevoffs and nextoffs to point ro new neighbours */
+    /* Update node's prevoffs and nextoffs to point to new neighbours */
     *((ilist2_idx_t *)(node + prevoffs)) = list->back_idx;
     *((ilist2_idx_t *)(node + nextoffs)) = ILIST2_UNDEF;
 
@@ -247,14 +246,19 @@ ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     /* Link together previous and next nodes */
     if (prev_idx != ILIST2_UNDEF)
         *((ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs)) = next_idx;
+    else
+        return;
 
     if (next_idx != ILIST2_UNDEF)
         *((ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs)) = prev_idx;
+    else
+        /* prev_idx is now back_idx */
+        list->back_idx = prev_idx;
 
     /* Update front node's prevoffs to point to idx */
     *((ilist2_idx_t *)(nodes + list->front_idx * nodesz + prevoffs)) = idx;
 
-    /* Update node's prevoffs and nextoffs to point ro new neighbours */
+    /* Update node's prevoffs and nextoffs to point to new neighbours */
     *((ilist2_idx_t *)(node + prevoffs)) = ILIST2_UNDEF;
     *((ilist2_idx_t *)(node + nextoffs)) = list->front_idx;
 
@@ -285,121 +289,98 @@ ilist2_touch_new_fn(ilist2 *list) {
 
 #ifndef NDEBUG
 
-#if 0
-
 void
-ilist2_dump_simple(void *h) {
-    ilist2 *hash = h;
-    const size_t nodesz = hash->nodesz;
-    const size_t keyoffs = hash->keyoffs;
+ilist2_dump_list(void *p) {
+    ilist2 *list = p;
+    const size_t nodesz = list->nodesz;
+    const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
-    const size_t total_buckets = hash->bucketsz;
-    char *buckets = (char *)ilist2_get_buckets(hash);
-    char *chains = (char *)ilist2_get_chains(hash);
+    const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
-    printf("\n=== HASH TABLE (buckets=%zu, chains=%zu, freelist=%zd) ===\n",
-           hash->bucketsz, hash->chainsz, hash->freelist_head);
+    if (list->front_idx == ILIST2_UNDEF) {
+        printf("\n=== LIST ===\n");
+        printf("-- List is empty --\n");
+    } else {
+        const void *node = nodes + nodesz * list->front_idx;
 
-    for (size_t i = 0; i < total_buckets; ++i) {
-        char *bucket = buckets + i * nodesz;
-        ssize_t key = *(ssize_t *)(bucket + keyoffs);
-        ssize_t next = *(ssize_t *)(bucket + nextoffs);
+        printf("\n=== LIST (front_idx=%zu, back_idx=%zu, freelist=%zd) ===\n",
+            list->front_idx, list->back_idx, list->freelist_head);
 
-        if (key == ILIST2_UNDEF) {
-            printf("  [%3zu] EMPTY\n", i);
-        } else {
-            printf("  [%3zu] key=%4ld", i, key);
+        for (;;) {
+                ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
+                ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
+                size_t idx = (node - nodes) / nodesz;
 
-            /* Traverse chain */
-            ssize_t chain_idx = next;
-            while (chain_idx != ILIST2_UNDEF) {
-                char *chain_node = chains + chain_idx * nodesz;
-                ssize_t chain_key = *(ssize_t *)(chain_node + keyoffs);
-                printf(" -> %ld", chain_key);
-                chain_idx = *(ssize_t *)(chain_node + nextoffs);
-            }
-            printf("\n");
+                prev_idx != ILIST2_UNDEF ? printf("[%3zu]  [%5zu]", idx, prev_idx) : printf("[%3zu]  [UNDEF]", idx);
+                printf(" %i ", *(int *)node);
+                next_idx != ILIST2_UNDEF ? printf("[%5zu]\n", next_idx) : printf("[UNDEF]\n");
+
+                if (*((ilist2_idx_t *)(node + nextoffs)) == ILIST2_UNDEF)
+                    break;
+
+                node = nodes + nodesz * (*((ilist2_idx_t *)(node + nextoffs)));
         }
     }
+
     printf("=================================\n");
 }
 
-
 void
-ilist2_dump_debug(void *h) {
-    ilist2 *hash = h;
-    const size_t nodesz = hash->nodesz;
-    const size_t keyoffs = hash->keyoffs;
+ilist2_dump_idx(void *p) {
+    ilist2 *list = p;
+    const size_t nodesz = list->nodesz;
+    const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
-    const size_t total_buckets = hash->bucketsz;
-    const size_t total_nodes = hash->bucketsz + hash->chainsz;
-    char *buckets = (char *)ilist2_get_buckets(hash);
-    char *chains = (char *)ilist2_get_chains(hash);
+    const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
-    printf("\n=== HASH TABLE DEBUG ===\n");
-    printf("bucketsz=%zu, chainsz=%zu, total_slots=%zu\n",
-           hash->bucketsz, hash->chainsz, total_nodes);
-    printf("keyoffs=%zu, nextoffs=%zu, nodesz=%zu\n",
-           keyoffs, nextoffs, nodesz);
-    printf("freelist_head=%zd\n\n", hash->freelist_head);
+    if (list->front_idx == ILIST2_UNDEF) {
+        printf("\n=== LIST IDX ===\n");
+        printf("-- List is empty --\n");
+    } else {
+        const void *node = nodes;
 
-    /* Dump all slots (buckets + chains) */
-    for (size_t i = 0; i < total_nodes; ++i) {
-        char *slot = buckets + i * nodesz;
-        ssize_t key = *(ssize_t *)(slot + keyoffs);
-        ssize_t next = *(ssize_t *)(slot + nextoffs);
-        const char *type = (i < hash->bucketsz) ? "BUCKET" : "CHAIN";
+        printf("\n=== LIST IDX (front_idx=%zu, back_idx=%zu, freelist=%zd) ===\n",
+            list->front_idx, list->back_idx, list->freelist_head);
 
-        if (key == ILIST2_UNDEF) {
-            printf("%s[%3zu]: EMPTY (next=%zd)\n", type, i, next);
-        } else {
-            printf("%s[%3zu]: key=%4ld (next=%zd)\n", type, i, key, next);
+        for (size_t i = 0, ie = list->listsz; i != ie; ++i) {
+                ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
+                ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
+
+                prev_idx != ILIST2_UNDEF ? printf("[%3zu]  [%5zu]", i, prev_idx) : printf("[%3zu]  [UNDEF]", i);
+                printf(" %i ", *(int *)node);
+                next_idx != ILIST2_UNDEF ? printf("[%5zu]\n", next_idx) : printf("[UNDEF]\n");
+
+                node += nodesz;
         }
     }
 
-    /* Dump freelist */
-    if (hash->freelist_head != ILIST2_UNDEF) {
-        printf("\nFreelist: ");
-        ssize_t idx = hash->freelist_head;
-        while (idx != ILIST2_UNDEF && idx < (ssize_t)total_nodes) {
-            printf("%zd", idx);
-            char *node = chains + idx * nodesz;
-            idx = *(ssize_t *)(node + nextoffs);
-            printf(" -> ");
-            if (idx == hash->freelist_head) break; /* loop detection */
-        }
-        printf("ILIST2_UNDEF\n");
-    }
-
-    printf("========================\n");
+    printf("=================================\n");
 }
 
-
-void ilist2_dump_freelist(void *h) {
-    ilist2 *hash = h;
+void ilist2_dump_freelist(void *p) {
+    ilist2 *list = p;
     ssize_t count = 0;
-    ssize_t idx = hash->freelist_head;
-    const size_t nodesz = hash->nodesz;
+    const size_t listsz = list->listsz;
+    ilist2_idx_t idx = list->freelist_head;
+    const size_t nodesz = list->nodesz;
+    const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
-    void *chains = ilist2_get_chains(hash);
 
     printf("Freelist: ");
     while (idx != ILIST2_UNDEF) {
-        if (idx < 0 || idx >= hash->chainsz) {
+        if (idx < 0 || idx >= (ilist2_idx_t)listsz) {
             printf("ERROR: freelist index %zd out of range\n", idx);
             break;
         }
         printf("%zd -> ", idx);
         count++;
         if (count > 1000) break;
-        char *node = chains + idx * hash->nodesz;
-        idx = *(ssize_t *)(node + nextoffs);
+        const char *node = nodes + idx * nodesz;
+        idx = *(ilist2_idx_t *)(node + nextoffs);
     }
     printf("ILIST2_UNDEF, ");
     printf("Freelist contains %zd nodes\n", count);
 }
-
-#endif
 
 #endif /* NDEBUG */
 

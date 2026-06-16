@@ -93,7 +93,6 @@
 #ifndef _IHASH_H_
 #define _IHASH_H_
 
-#include <stddef.h>
 #include <sys/types.h>
 
 /**

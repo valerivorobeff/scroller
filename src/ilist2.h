@@ -1,7 +1,6 @@
 #ifndef _ILIST2_H_
 #define _ILIST2_H_
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #define ILIST2_UNDEF (ssize_t)-1
@@ -85,14 +84,14 @@ void *ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx);
 
 #ifndef NDEBUG
 
-void ilist2_dump_simple(void *h);
-void ilist2_dump_debug(void *h);
+void ilist2_dump_list(void *h);
+void ilist2_dump_idx(void *h);
 void ilist2_dump_freelist(void *h);
 
 #else
 
-#define ilist2_dump_simple(h)    ((void)0)
-#define ilist2_dump_debug(h)     ((void)0)
+#define ilist2_dump_list(h)    ((void)0)
+#define ilist2_dump_idx(h)    ((void)0)
 #define ilist2_dump_freelist(h)  ((void)0)
 
 #endif /* NDEBUG */

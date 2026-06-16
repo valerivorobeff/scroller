@@ -663,7 +663,6 @@ ihash_dump_debug(void *h) {
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
-    const size_t total_buckets = hash->bucketsz;
     const size_t total_nodes = hash->bucketsz + hash->chainsz;
     char *buckets = (char *)ihash_get_buckets(hash);
     char *chains = (char *)ihash_get_chains(hash);
@@ -734,7 +733,7 @@ void ihash_dump_freelist(void *h) {
 
     printf("Freelist: ");
     while (idx != IHASH_UNDEF) {
-        if (idx < 0 || idx >= hash->chainsz) {
+        if (idx < 0 || idx >= (ihash_idx_t)hash->chainsz) {
             printf("ERROR: freelist index %zd out of range\n", idx);
             break;
         }
