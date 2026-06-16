@@ -95,15 +95,20 @@ ilist2_pop_back_fn(ilist2 *list) {
     void *old_node = nodes + list->back_idx * nodesz;
     const ilist2_idx_t prev_idx = *(ilist2_idx_t *)(old_node + prevoffs);
 
-    *(ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs) =
-        ILIST2_UNDEF;                                   /* update previous node's nextoffs */
+    *(ilist2_idx_t *)(old_node + nextoffs) = list->freelist_head; /* Mark old node's next node
+                                                                     as freelist_head */
 
-    *(ilist2_idx_t *)(old_node + nextoffs) = ILIST2_UNDEF;
-    list->freelist_head = list->back_idx;           /* freelist_head = old node's index */
-    list->back_idx = prev_idx;                                      /* update back_idx */
+    if (prev_idx != ILIST2_UNDEF) {
+        *(ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs) =
+            ILIST2_UNDEF;                                   /* update previous node's nextoffs */
 
-    if (prev_idx == ILIST2_UNDEF)
+        list->freelist_head = list->back_idx;           /* freelist_head = old node's index */
+        list->back_idx = prev_idx;                                      /* update back_idx */
+    } else {
+        list->freelist_head = list->back_idx;
         list->front_idx = ILIST2_UNDEF;
+        list->back_idx = ILIST2_UNDEF;
+    }
 
     return old_node;
 }
@@ -117,15 +122,20 @@ ilist2_pop_front_fn(ilist2 *list) {
     void *old_node = nodes + list->front_idx * nodesz;
     const ilist2_idx_t next_idx = *(ilist2_idx_t *)(old_node + nextoffs);
 
-    *(ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs) =
-        ILIST2_UNDEF;                                   /* update next node's prevoffs */
+    *(ilist2_idx_t *)(old_node + nextoffs) = list->freelist_head; /* Mark old node's next node
+                                                                     as freelist_head */
 
-    *(ilist2_idx_t *)(old_node + prevoffs) = ILIST2_UNDEF;
-    list->freelist_head = list->front_idx;          /* freelist_head = old node's index */
-    list->front_idx = next_idx;                                     /* update front_idx */
+    if (next_idx != ILIST2_UNDEF) {
+        *(ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs) =
+            ILIST2_UNDEF;                                   /* update next node's prevoffs */
 
-    if (next_idx == ILIST2_UNDEF)
+        list->freelist_head = list->front_idx;          /* freelist_head = old node's index */
+        list->front_idx = next_idx;                                     /* update front_idx */
+    } else {
+        list->freelist_head = list->front_idx;
         list->back_idx = ILIST2_UNDEF;
+        list->front_idx = ILIST2_UNDEF;
+    }
 
     return old_node;
 }
@@ -182,7 +192,7 @@ ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
 
         ilist2_idx_t new_idx = *idx;
 
-        void *front_node = nodes + list->back_idx * nodesz;         /* get front node */
+        void *front_node = nodes + list->front_idx * nodesz;        /* get front node */
         void *new_node = nodes + new_idx * nodesz;                  /* get new node */
 
         *(size_t *)(front_node + prevoffs) = new_idx; /* update next node's prevoffs */
@@ -366,7 +376,9 @@ void ilist2_dump_freelist(void *p) {
     const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
 
-    printf("Freelist: ");
+    printf("Freelist:(front_idx=%zu, back_idx=%zu, freelist=%zd) ===\n",
+        list->front_idx, list->back_idx, list->freelist_head);
+
     while (idx != ILIST2_UNDEF) {
         if (idx < 0 || idx >= (ilist2_idx_t)listsz) {
             printf("ERROR: freelist index %zd out of range\n", idx);
