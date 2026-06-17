@@ -19,8 +19,8 @@ typedef struct ilist2 {
 #define ilist2_create(h, listsz_) \
     (typeof(h))ilist2_create_fn(listsz_, sizeof(*h))
 
-#define ilist2_init(p, h, listsz_) \
-    (typeof(h))ilist2_init_fn( p, listsz_, sizeof(*h))
+#define ilist2_init(h, listsz_) \
+    (typeof(h))ilist2_init_fn(h, listsz_, sizeof(*h))
 
 void ilist2_clear(void *p);
 

@@ -335,7 +335,7 @@ TEST(basic)
             int *list = malloc(size);
             TEST_CHECK(list != NULL);
 
-            list = ilist2_init(list, list, 16);
+            list = ilist2_init(list, 16);
             TEST_CHECK(list != NULL);
             TEST_CHECK(ilist2_empty(list));
 

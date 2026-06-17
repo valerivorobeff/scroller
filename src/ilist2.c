@@ -1,8 +1,9 @@
 #include "ilist2.h"
 #include <malloc.h>
+#include <assert.h>
 
 ilist2 *ilist2_create_fn(size_t listsz, size_t usersz);
-ilist2 *ilist2_init_fn(void *p, size_t list, size_t usersz);
+ilist2 *ilist2_init_fn(void *p, size_t listsz, size_t usersz);
 void ilist2_clear(void *p);
 void ilist2_free(void *list);
 void *ilist2_get_back_fn(ilist2 *list);
@@ -23,7 +24,6 @@ void ilist2_dump_freelist(void *p);
 
 ilist2 *
 ilist2_create_fn(size_t listsz, size_t usersz) {
-    /* Allocate contiguous memory */
     ilist2 *list;
 
     /* Allocate contiguous memory */
@@ -59,14 +59,14 @@ ilist2_clear(void *p) {
 
     /* Initialize primary hash slots to empty state */
     for (size_t i = 0; i != listsz; ++i, nodes += nodesz) {
-        *(ssize_t *)(nodes + prevoffs) = ILIST2_UNDEF;
-        *(ssize_t *)(nodes + nextoffs) = i + 1;
+        *(ilist2_idx_t *)(nodes + prevoffs) = ILIST2_UNDEF;
+        *(ilist2_idx_t *)(nodes + nextoffs) = i + 1;
     }
 
     /* Mark the end of the freelist */
     if (listsz > 0) {
         list->freelist_head = 0;
-        *(ssize_t *)(nodes - nodesz + nextoffs) = ILIST2_UNDEF;
+        *(ilist2_idx_t *)(nodes - nodesz + nextoffs) = ILIST2_UNDEF;
     } else
         list->freelist_head = ILIST2_UNDEF;
 }
@@ -161,7 +161,7 @@ ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx) {
         void *back_node = nodes + list->back_idx * nodesz;          /* get back node */
         void *new_node = nodes + new_idx * nodesz;                  /* get new node */
 
-        *(size_t *)(back_node + nextoffs) = new_idx; /* update previous node's nextoffs */
+        *(ilist2_idx_t *)(back_node + nextoffs) = new_idx; /* update previous node's nextoffs */
 
         list->freelist_head = *(ilist2_idx_t *)(new_node + nextoffs);  /* update freelist_head */
 
@@ -195,7 +195,7 @@ ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
         void *front_node = nodes + list->front_idx * nodesz;        /* get front node */
         void *new_node = nodes + new_idx * nodesz;                  /* get new node */
 
-        *(size_t *)(front_node + prevoffs) = new_idx; /* update next node's prevoffs */
+        *(ilist2_idx_t *)(front_node + prevoffs) = new_idx; /* update next node's prevoffs */
 
         list->freelist_head = *(ilist2_idx_t *)(new_node + nextoffs);  /* update freelist_head */
 
@@ -219,11 +219,13 @@ ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
     const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
 
+    assert(idx >= 0 && idx < list->listsz );
+
     /* Link together previous and next nodes */
     if (next_idx != ILIST2_UNDEF)
         *((ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs)) = prev_idx;
     else
-        return;
+        return; /* Node is already in back of the list */
 
     if (prev_idx != ILIST2_UNDEF)
         *((ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs)) = next_idx;
@@ -253,11 +255,13 @@ ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
     const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
 
+    assert(idx >= 0 && idx < list->listsz );
+
     /* Link together previous and next nodes */
     if (prev_idx != ILIST2_UNDEF)
         *((ilist2_idx_t *)(nodes + prev_idx * nodesz + nextoffs)) = next_idx;
     else
-        return;
+        return; /* Node is already in front of the list */
 
     if (next_idx != ILIST2_UNDEF)
         *((ilist2_idx_t *)(nodes + next_idx * nodesz + prevoffs)) = prev_idx;
@@ -306,6 +310,8 @@ ilist2_dump_list(void *p) {
     const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
+
+    assert(nodesz != 0);
 
     if (list->front_idx == ILIST2_UNDEF) {
         printf("\n=== LIST ===\n");
@@ -376,7 +382,7 @@ void ilist2_dump_freelist(void *p) {
     const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
 
-    printf("Freelist:(front_idx=%zu, back_idx=%zu, freelist=%zd) ===\n",
+    printf("Freelist:(front_idx=%zd, back_idx=%zd, freelist=%zd) ===\n",
         list->front_idx, list->back_idx, list->freelist_head);
 
     while (idx != ILIST2_UNDEF) {
