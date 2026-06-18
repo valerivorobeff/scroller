@@ -1,3 +1,39 @@
+/**
+ * @file ilist2.c
+ * @brief Implementation of index-based doubly linked list
+ *
+ * This file implements a doubly linked list that uses indices instead of
+ * pointers for node linking, making it suitable for shared memory and
+ * persistent storage scenarios.
+ *
+ * Memory Layout:
+ * ```
+ * +-------------+
+ * | ilist2      | Header (listsz, freelist_head, front_idx, back_idx, nodesz)
+ * +-------------+
+ * | User data   |
+ * | prev idx    |
+ * | next idx    |
+ * +-------------+
+ * | User data   |
+ * | prev idx    |
+ * | next idx    |
+ * +-------------+
+ * | ...         |
+ * +-------------+
+ * ```
+ *
+ * @section freelist Freelist Management
+ * - freelist_head points to the first free node
+ * - Each free node's next points to the next free node
+ * - Free nodes form a singly linked list
+ * - When a node is popped, it's added to the freelist
+ * - When a node is pushed, it's taken from the freelist
+ *
+ * @see ilist2.h
+ */
+
+
 #include "ilist2.h"
 #include <malloc.h>
 #include <assert.h>
@@ -22,6 +58,17 @@ void ilist2_dump_idx(void *p);
 void ilist2_dump_freelist(void *p);
 #endif /* NDEBUG */
 
+/**
+ * @brief Internal function for list creation
+ *
+ * Allocates contiguous memory for list header and all nodes.
+ *
+ * @param listsz  Number of slots in the list
+ * @param usersz  Size of each user's entry in bytes
+ * @return        Pointer to initialized list, or NULL on allocation failure
+ *
+ * @see ilist2_create macro
+ */
 ilist2 *
 ilist2_create_fn(size_t listsz, size_t usersz) {
     ilist2 *list;
@@ -32,6 +79,17 @@ ilist2_create_fn(size_t listsz, size_t usersz) {
     return list ? ilist2_init_fn(list, listsz, usersz) : NULL;
 }
 
+/**
+ * @brief Internal function for list initialization in pre-allocated memory
+ *
+ * @param p       Previously allocated pointer where list is going to be initialized
+ * @param listsz  Number of slots in the list
+ * @param usersz  Size of each user's entry in bytes
+ * @return        Pointer to initialized list
+ *
+ * @see ilist2_init macro
+ * @see ilist2_get_required_memory_size
+ */
 ilist2 *
 ilist2_init_fn(void *p, size_t listsz, size_t usersz) {
     const size_t nodesz = usersz + sizeof(ilist2_idx_t) + sizeof(ilist2_idx_t);
@@ -45,6 +103,15 @@ ilist2_init_fn(void *p, size_t listsz, size_t usersz) {
     return list;
 }
 
+/**
+ * @brief Clears all entries from the list
+ *
+ * Resets the list to empty state. All nodes are moved to the freelist.
+ *
+ * @param p Pointer to list to clear
+ *
+ * @note Time complexity: O(listsz)
+ */
 void
 ilist2_clear(void *p) {
     ilist2 *list = p;
@@ -71,21 +138,51 @@ ilist2_clear(void *p) {
         list->freelist_head = ILIST2_UNDEF;
 }
 
+/**
+ * @brief Frees a list created with ilist2_create()
+ *
+ * @param list Pointer to the list to free
+ */
 void
 ilist2_free(void *list) {
     free((ilist2 *)list);
 }
 
+/**
+ * @brief Internal function to get pointer to back node
+ *
+ * @param list Pointer to list
+ * @return     Pointer to back node (user data), or NULL if list is empty
+ *
+ * @warning Does NOT check if list is empty
+ */
 void *
 ilist2_get_back_fn(ilist2 *list) {
     return list->nodes + list->back_idx * list->nodesz;
 }
 
+/**
+ * @brief Internal function to get pointer to front node
+ *
+ * @param list Pointer to list
+ * @return     Pointer to front node (user data), or NULL if list is empty
+ *
+ * @warning Does NOT check if list is empty
+ */
 void *
 ilist2_get_front_fn(ilist2 *list) {
     return list->nodes + list->front_idx * list->nodesz;
 }
 
+/**
+ * @brief Internal function to pop back node
+ *
+ * @param list Pointer to list
+ * @return     Pointer to popped node (user data), or NULL if list is empty
+ *
+ * @note The popped node is added to the freelist
+ * @warning Returns NULL if list is empty
+ */
 void *
 ilist2_pop_back_fn(ilist2 *list) {
     const size_t nodesz = list->nodesz;
@@ -113,6 +210,15 @@ ilist2_pop_back_fn(ilist2 *list) {
     return old_node;
 }
 
+/**
+ * @brief Internal function to pop front node
+ *
+ * @param list Pointer to list
+ * @return     Pointer to popped node (user data), or NULL if list is empty
+ *
+ * @note The popped node is added to the freelist
+ * @warning Returns NULL if list is empty
+ */
 void *
 ilist2_pop_front_fn(ilist2 *list) {
     const size_t nodesz = list->nodesz;
@@ -140,6 +246,15 @@ ilist2_pop_front_fn(ilist2 *list) {
     return old_node;
 }
 
+/**
+ * @brief Internal function to create a new node at the back
+ *
+ * @param list Pointer to list
+ * @param idx  Pointer to store the index of the new node
+ * @return     Pointer to the new node, or NULL if list is full
+ *
+ * @note If the list is full, returns NULL and idx is set to ILIST2_UNDEF
+ */
 void *
 ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx) {
     *idx = list->freelist_head;
@@ -174,6 +289,15 @@ ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx) {
     }
 }
 
+/**
+ * @brief Internal function to create a new node at the front
+ *
+ * @param list Pointer to list
+ * @param idx  Pointer to store the index of the new node
+ * @return     Pointer to the new node, or NULL if list is full
+ *
+ * @note If the list is full, returns NULL and idx is set to ILIST2_UNDEF
+ */
 void *
 ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
     *idx = list->freelist_head;
@@ -208,6 +332,17 @@ ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
     }
 }
 
+/**
+ * @brief Internal function to move a node to the back
+ *
+ * @param list Pointer to list
+ * @param idx  Index of the node to move
+ *
+ * @pre idx must be a valid index
+ * @pre The node must be in the list
+ *
+ * @note If idx is already at the back, does nothing
+ */
 void
 ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const size_t nodesz = list->nodesz;
@@ -219,7 +354,7 @@ ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
     const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
 
-    assert(idx >= 0 && idx < list->listsz );
+    assert(idx >= 0 && (size_t)idx < list->listsz);
 
     /* Link together previous and next nodes */
     if (next_idx != ILIST2_UNDEF)
@@ -244,6 +379,17 @@ ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     list->back_idx = idx;
 }
 
+/**
+ * @brief Internal function to move a node to the front
+ *
+ * @param list Pointer to list
+ * @param idx  Index of the node to move
+ *
+ * @pre idx must be a valid index
+ * @pre The node must be in the list
+ *
+ * @note If idx is already at the front, does nothing
+ */
 void
 ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const size_t nodesz = list->nodesz;
@@ -255,7 +401,7 @@ ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
     const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
 
-    assert(idx >= 0 && idx < list->listsz );
+    assert(idx >= 0 && (size_t)idx < list->listsz);
 
     /* Link together previous and next nodes */
     if (prev_idx != ILIST2_UNDEF)
@@ -280,6 +426,15 @@ ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     list->front_idx = idx;
 }
 
+/**
+ * @brief Internal function to create the first node in an empty list
+ *
+ * @param list Pointer to list
+ * @return     Pointer to the new node
+ *
+ * @pre list must be empty
+ * @pre freelist_head must be valid
+ */
 void *
 ilist2_touch_new_fn(ilist2 *list) {
     /* Create the first node */
@@ -303,6 +458,15 @@ ilist2_touch_new_fn(ilist2 *list) {
 
 #ifndef NDEBUG
 
+/**
+ * @brief Prints the list structure (simple version)
+ *
+ * @param h Pointer to list
+ *
+ * @note Shows the actual list order with prev/next indices
+ * @see ilist2_dump_idx()
+ * @see ilist2_dump_freelist()
+ */
 void
 ilist2_dump_list(void *p) {
     ilist2 *list = p;
@@ -341,6 +505,15 @@ ilist2_dump_list(void *p) {
     printf("=================================\n");
 }
 
+/**
+ * @brief Prints all nodes with their prev/next indices
+ *
+ * @param h Pointer to list
+ *
+ * @note Shows every slot in the list, including free nodes
+ * @see ilist2_dump_list()
+ * @see ilist2_dump_freelist()
+ */
 void
 ilist2_dump_idx(void *p) {
     ilist2 *list = p;
@@ -373,6 +546,15 @@ ilist2_dump_idx(void *p) {
     printf("=================================\n");
 }
 
+/**
+ * @brief Prints the freelist chain
+ *
+ * @param h Pointer to list
+ *
+ * @note Shows the linked list of free nodes available for reuse
+ * @see ilist2_dump_list()
+ * @see ilist2_dump_idx()
+ */
 void ilist2_dump_freelist(void *p) {
     ilist2 *list = p;
     ssize_t count = 0;
