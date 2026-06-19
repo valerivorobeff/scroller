@@ -189,7 +189,6 @@ typedef struct ihash {
  * This macro automatically computes field offsets using typeof() and
  * offsetof(), eliminating the need for manual offset calculation.
  *
- * @param p         Previously allocated pointer where ihash is going to be initialized
  * @param h         Pointer to a variable that will receive the hash table pointer
  * @param bucketsz_ Number of slots in the hash table (primary bucket count)
  * @param chainsz_  Number of slots in the chains table (overflow nodes)
@@ -210,9 +209,9 @@ typedef struct ihash {
  *
  * @see ihash_init_fn()
  */
-#define ihash_init(p, h, bucketsz_, chainsz_, hash_fn_) \
+#define ihash_init(h, bucketsz_, chainsz_, hash_fn_) \
     (typeof(h))ihash_init_fn( \
-        p, bucketsz_, chainsz_, \
+        h, bucketsz_, chainsz_, \
         offsetof(typeof(*h), key), \
         sizeof(*h), \
         hash_fn_)
@@ -397,7 +396,6 @@ void ihash_free(void *hash);
  *
  * @pre value_ must be of the same type as the 'value' field in the entry
  *
- * @note The entry's 'value' field is updated via memcpy()
  * @warning Returns NULL if the node pool is exhausted
  * @see ihash_touch_fn()
  */

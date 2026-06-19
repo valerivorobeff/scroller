@@ -85,10 +85,10 @@ static size_t ihash_default_hash_fn(size_t key);
  * @endcond
  */
 
-void ihash_free(void *hash);
 ihash *ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
 ihash *ihash_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
 void ihash_clear(void *p, ihash_hash_fn hash_fn);
+void ihash_free(void *hash);
 void *ihash_get_fn(ihash *hash, ssize_t key);
 void *ihash_touch_fn(ihash *hash, ssize_t key);
 int ihash_erase_fn(ihash *hash, ssize_t key);
@@ -118,17 +118,6 @@ void ihash_dump_freelist(void *h);
 static size_t
 ihash_default_hash_fn(size_t key) {
     return key;
-}
-
-/**
- * @brief Frees the hash table memory
- * @param hash Pointer to hash table to free
- *
- * @note Just a wrapper around free() for API consistency
- */
-void
-ihash_free(void *hash) {
-    free((ihash *)hash);
 }
 
 /**
@@ -288,6 +277,17 @@ ihash_clear(void *p, ihash_hash_fn hash_fn) {
         *(ssize_t *)(e - nodesz + nextoffs) = IHASH_UNDEF;
     } else
         hash->chain_head = IHASH_UNDEF;
+}
+
+/**
+ * @brief Frees the hash table memory
+ * @param hash Pointer to hash table to free
+ *
+ * @note Just a wrapper around free() for API consistency
+ */
+void
+ihash_free(void *hash) {
+    free((ihash *)hash);
 }
 
 /**
