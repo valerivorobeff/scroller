@@ -32,6 +32,7 @@
 #include "grid.h"
 #include "ilist2.h"
 #include "ihash.h"
+#include "icache.h"
 #include <malloc.h>
 #include <string.h>
 
@@ -816,6 +817,34 @@ TEST(basic)
         }
 
     TEST_SUITE_END()  /* End of ihash test suite */
+
+    TEST_SUITE(icache)
+
+    typedef struct cache_t {
+        size_t key;
+    } cache_t;
+
+    TEST_CASE(basic) {
+        cache_t *cache, *val;
+
+        cache = icache_create(cache, 2, 2, NULL);
+
+        val = icache_put_key(cache, 1);
+        TEST_CHECK(val->key == 1);
+
+        icache_put_key(cache, 2);
+        icache_put_key(cache, 3);
+        icache_put_key(cache, 4);
+
+        TEST_CHECK(icache_exists(cache, 1));
+        val = icache_put_key(cache, 5);
+        TEST_CHECK(val->key == 5);
+        TEST_CHECK(!icache_exists(cache, 1));
+
+        icache_free(cache);
+    }
+
+    TEST_SUITE_END()  /* End of icache test suite */
 
 TEST_END()  /* End of basic test unit */
 
