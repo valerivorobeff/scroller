@@ -88,7 +88,6 @@ void *icache_touch_fn(icache *cache, ssize_t key);
  */
 icache *
 icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
-    /* Allocate contiguous memory */
     icache *cache;
 
     if (bucketsz == 0)
@@ -203,22 +202,29 @@ icache_free(void *p) {
  */
 void *
 icache_touch_fn(icache *cache, ssize_t key) {
-    const size_t idxoffs = cache->nodesz - sizeof(size_t);
+    const icache_idx_t idxoffs = cache->nodesz - sizeof(icache_idx_t);
     ihash *hash = icache_get_hash(cache);
     icache_idx_t *list = icache_get_list(cache);
     void *e = icache_get(cache, key);
 
     if (e != NULL)
-        ilist2_move_front_by_idx(list, *(size_t *)(e + idxoffs));
+        ilist2_move_front_by_idx(list, *(icache_idx_t *)(e + idxoffs));
     else {
         e = ihash_touch_fn(hash, key);
 
-        if (e != NULL)
+        if (e != NULL) {
             *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
-        else {
+            assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
+        } else {
             icache_idx_t lru_key = ilist2_pop_back(list);
+
+            assert(lru_key != ILIST2_UNDEF);
+
             ihash_erase(hash, lru_key);
-            return ihash_touch_fn(hash, key);
+            e = ihash_touch_fn(hash, key);
+            assert(e);
+            *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
+            assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         }
     }
 

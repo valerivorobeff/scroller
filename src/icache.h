@@ -103,7 +103,7 @@
  * [icache header][hash table entries][lru list entries]
  * ```
  *
- * @var icache:hashoffs
+ * @var icache::hashoffs
  *      Offset of inner ihash structure and data
  *      Number of slots in the hash table (primary bucket array)
  * @var icache::listoffs
@@ -464,7 +464,7 @@ void icache_free(void *p);
 #define icache_get_required_memory_size(bucketsz, chainsz, usersz) \
     (sizeof(icache) + \
         ihash_get_required_memory_size(bucketsz, chainsz, usersz) + \
-        ilist2_get_required_memory_size(bucketsz + chainsz, sizeof(size_t)) \
+        ilist2_get_required_memory_size(bucketsz + chainsz, sizeof(icache_idx_t)) \
     )
 
 /**
@@ -511,7 +511,7 @@ icache *icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs,
  *
  * @param cache     Pointer to cache
  * @param key       Key to insert/update
- * @return          Pointer to entry
+ * @return          Pointer to the entry (inserted or updated)
  */
 void *icache_touch_fn(icache *cache, ssize_t key);
 
