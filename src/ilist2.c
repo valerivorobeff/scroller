@@ -445,6 +445,8 @@ ilist2_touch_new_fn(ilist2 *list) {
     ilist2_idx_t new_idx = list->freelist_head;
     void *new_node = nodes + new_idx * nodesz;                      /* get new node */
 
+    assert(new_idx != ILIST2_UNDEF);
+
     list->freelist_head = *(ilist2_idx_t *)(new_node + nextoffs);   /* update freelist_head */
 
     *(ilist2_idx_t *)(new_node + prevoffs) = ILIST2_UNDEF;          /* new node's prevoffs */

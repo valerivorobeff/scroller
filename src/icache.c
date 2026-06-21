@@ -23,35 +23,9 @@
  */
 
 #include "icache.h"
-#include "ilist2.h"
 #include <malloc.h>
 #include <string.h>
 #include <assert.h>
-
-/**
- * @cond PRIVATE
- * Static functions and data
- * @endcond
- */
-
-/**
- * @brief Internal type of icache index
- */
-typedef ssize_t icache_idx_t;
-
-/**
- * @brief Internal helper to get pointer to cache's hash table
- * @param h Pointer to cache
- * @return Pointer to the hash table
- */
-#define icache_get_hash(h)   (ihash *)((void *)h + ((icache *)(h))->hashoffs)
-
-/**
- * @brief Internal helper to get pointer to cache's lru list
- * @param h Pointer to cache
- * @return Pointer to the lru list
- */
-#define icache_get_list(h)   (icache_idx_t *)((void *)h + ((icache *)(h))->listoffs)
 
 /**
  * @cond PRIVATE
@@ -94,7 +68,7 @@ icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz,
         return NULL;    /* Error, impossible to init a hash without buckets */
 
     /* Allocate contiguous memory */
-    cache = malloc(icache_get_required_memory_size(bucketsz, chainsz, usersz));
+    cache = malloc(icache_get_required_memory_size(bucketsz, chainsz, usersz) + 10256);
 
     return cache ? icache_init_fn(cache, bucketsz, chainsz, keyoffs, usersz, hash_fn) : NULL;
 }
@@ -132,7 +106,7 @@ icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t 
         return NULL;    /* Error, impossible to init a hash without buckets */
 
     cache->hashoffs = sizeof(icache);
-    cache->listoffs = sizeof(icache) + ihash_get_required_memory_size(bucketsz, chainsz, usersz);
+    cache->listoffs = sizeof(icache) + ihash_get_required_memory_size(bucketsz, chainsz, nodesz);
     cache->nodesz = nodesz;
 
     if (ihash_init_fn(icache_get_hash(cache), bucketsz, chainsz, keyoffs, nodesz, hash_fn) == NULL)
@@ -183,7 +157,7 @@ icache_clear(void *p, ihash_hash_fn hash_fn) {
  */
 void
 icache_free(void *p) {
-    free((icache *)p);
+    free(p);
 }
 
 /**

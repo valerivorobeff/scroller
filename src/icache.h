@@ -92,6 +92,12 @@
 #define _ICACHE_H_
 
 #include "ihash.h"
+#include "ilist2.h"
+
+/**
+ * @brief Internal type of icache index
+ */
+typedef ssize_t icache_idx_t;
 
 /**
  * @struct icache
@@ -161,8 +167,7 @@ typedef struct icache {
  * This macro automatically computes field offsets using typeof() and
  * offsetof(), eliminating the need for manual offset calculation.
  *
- * @param p         Previously allocated pointer where icache is going to be initialized
- * @param h         Pointer to a variable that will receive the cache pointer
+ * @param h         Previously allocated pointer where icache is going to be initialized
  * @param bucketsz_ Number of slots in the cache (primary bucket count)
  * @param chainsz_  Number of slots in the chains table (overflow nodes)
  * @param hash_fn_  Pointer to user defined hash function of type ihash_hash_fn or
@@ -182,9 +187,9 @@ typedef struct icache {
  *
  * @see icache_init_fn()
  */
-#define icache_init(p, h, bucketsz_, chainsz_, hash_fn_) \
+#define icache_init(h, bucketsz_, chainsz_, hash_fn_) \
     (typeof(h))icache_init_fn( \
-        p, bucketsz_, chainsz_, \
+        h, bucketsz_, chainsz_, \
         offsetof(typeof(*h), key), \
         sizeof(*h), \
         hash_fn_)
@@ -224,7 +229,7 @@ void icache_free(void *p);
  * @see icache_get_fn()
  */
 #define icache_get(h, key_) \
-    ((typeof(h))ihash_get_fn((ihash *)((void *)h + ((icache *)(h))->hashoffs), key_))
+    ((typeof(h))ihash_get(icache_get_hash(h), key_))
 
 /**
  * @def icache_exists(h, key_)
@@ -463,8 +468,8 @@ void icache_free(void *p);
  */
 #define icache_get_required_memory_size(bucketsz, chainsz, usersz) \
     (sizeof(icache) + \
-        ihash_get_required_memory_size(bucketsz, chainsz, usersz) + \
-        ilist2_get_required_memory_size(bucketsz + chainsz, sizeof(icache_idx_t)) \
+        ihash_get_required_memory_size(bucketsz, chainsz, usersz + sizeof(icache_idx_t)) + \
+        ilist2_get_required_memory_size((bucketsz) + (chainsz), sizeof(icache_idx_t)) \
     )
 
 /**
@@ -472,6 +477,20 @@ void icache_free(void *p);
  * Inner functions and macros - implementation details
  * @endcond
  */
+
+/**
+ * @brief Internal helper to get pointer to cache's hash table
+ * @param h Pointer to cache
+ * @return Pointer to the hash table
+ */
+#define icache_get_hash(h)   ((ihash *)((void *)(h) + ((icache *)(h))->hashoffs))
+
+/**
+ * @brief Internal helper to get pointer to cache's lru list
+ * @param h Pointer to cache
+ * @return Pointer to the lru list
+ */
+#define icache_get_list(h)   ((icache_idx_t *)((void *)(h) + ((icache *)(h))->listoffs))
 
 /**
  * @brief Internal function for cache creation
