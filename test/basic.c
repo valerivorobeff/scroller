@@ -32,6 +32,7 @@
 #include "grid.h"
 #include "ilist2.h"
 #include "ihash.h"
+#include "icache.h"
 #include <malloc.h>
 #include <string.h>
 
@@ -482,7 +483,7 @@ TEST(basic)
         TEST_CASE(ihash_init) {
             size_t size = ihash_get_required_memory_size(16, 32, sizeof(hentry));
             hentry *hash = malloc(size), *tmp;
-            hash = ihash_init(hash, hash, 16, 32, NULL);
+            hash = ihash_init(hash, 16, 32, NULL);
 
             ihash_put(hash, 10, 100);
             tmp = ihash_get(hash, 10);
@@ -816,6 +817,37 @@ TEST(basic)
         }
 
     TEST_SUITE_END()  /* End of ihash test suite */
+
+    TEST_SUITE(icache)
+
+    typedef struct cache_t {
+        size_t key;
+    } cache_t;
+
+    TEST_CASE(basic) {
+        cache_t *cache, *val;
+
+        cache = icache_create(cache, 2, 2, NULL);
+
+        val = icache_put_key(cache, 1);
+        TEST_CHECK(val->key == 1);
+
+        icache_put_key(cache, 2);
+        icache_put_key(cache, 3);
+        icache_put_key(cache, 4);
+
+        TEST_CHECK(icache_exists(cache, 1));
+        val = icache_put_key(cache, 5);
+        TEST_CHECK(val->key == 5);
+        TEST_CHECK(!icache_exists(cache, 1));
+
+        TEST_CHECK(*icache_get_member_ptr(cache, 2, key) == 2);
+        TEST_CHECK(icache_get_member(cache, 3, key) == 3);
+
+        icache_free(cache);
+    }
+
+    TEST_SUITE_END()  /* End of icache test suite */
 
 TEST_END()  /* End of basic test unit */
 

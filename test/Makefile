@@ -14,7 +14,8 @@ endif
 SRC = basic.c \
     ../src/grid.c \
     ../src/ilist2.c \
-    ../src/ihash.c
+    ../src/ihash.c \
+    ../src/icache.c
 
 OBJ = $(SRC:.c=.o)
 
