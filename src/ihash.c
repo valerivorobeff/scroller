@@ -40,8 +40,7 @@
  *      ihash_get* and ihash_put* macro names don't match
  *      now: ihash_get -> ihash_put_struct maybe: ihash_get_struct, ihash_put_struct
  *      ihash_get_member_ptr and ihash_get_member don't have their analogs of ihash_put*s
- * 3. Investigate if it makes more sence to move all the entries including the first one
- *      into the chains pool and store in the buckets only the index of the first entry.
+ * 3. Checkk all the code for replacing ssize_t with ihash_idx_t
  */
 
 #include "ihash.h"
@@ -153,7 +152,6 @@ ihash_default_hash_fn(size_t key) {
  */
 ihash *
 ihash_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
-    /* Allocate contiguous memory */
     ihash *hash;
 
     if (bucketsz == 0)
@@ -726,7 +724,7 @@ ihash_dump_debug(void *h) {
 void ihash_dump_freelist(void *h) {
     ihash *hash = h;
     ssize_t count = 0;
-    ssize_t idx = hash->chain_head;
+    ihash_idx_t idx = hash->chain_head;
     const size_t nodesz = hash->nodesz;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     void *chains = ihash_get_chains(hash);

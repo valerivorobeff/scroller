@@ -43,6 +43,8 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
     static const char magic[] = { 's', 'c', 'r', ' ' };
     Grid *g = (Grid *)page;
 
+    assert(rowsz != 0);
+
     /* Compile-time/debug check for magic array size consistency */
     assert(sizeof(g->magic) == sizeof(magic));
 
@@ -58,6 +60,7 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
 
 Row
 grid_get_row(Grid *grid, uint16_t n) {
+    assert(n < grid->rown);
     return grid->datum + grid->rowsz * n;
 }
 
@@ -65,6 +68,8 @@ Column
 grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
     Row r = grid_get_row(grid, row);
     HColumn *hc = hgrid_get_column(hgrid, column);
+
+    assert(column < hgrid->occupied);
 
     return r + hc->offs;
 }
