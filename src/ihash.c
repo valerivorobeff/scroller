@@ -60,7 +60,7 @@
  * @param h Pointer to hash table header
  * @return Pointer to the start of primary hash buckets
  */
-#define ihash_get_buckets(h)   ((void *)((char *)h + sizeof(ihash)))
+#define ihash_get_buckets(h)   ((void *)((char *)(h) + sizeof(ihash)))
 
 /**
  * @brief Internal helper to get pointer to chain pool
@@ -370,7 +370,7 @@ ihash_touch_fn(ihash *hash, ssize_t key) {
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     const size_t idx = hash->hash_fn(key) % hash->bucketsz; /* Compute hash bucket index */
-    void *e = ihash_get_buckets(hash) + idx * nodesz;       /* buckets */
+    void *e = ihash_get_buckets(hash) + idx * nodesz;       /* certain bucket */
     void *chains = ihash_get_chains(hash);                  /* chains */
 
     /* Case 1: Primary slot is empty - insert here */

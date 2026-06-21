@@ -184,7 +184,7 @@ void ilist2_free(void *p);
  * @see ilist2_empty()
  */
 #define ilist2_get_back(h) \
-    ((typeof(*h))(*(typeof(h))ilist2_get_back_fn((ilist2 *)h)))
+    ((typeof(*h))(*(typeof(h))ilist2_get_back_fn((ilist2 *)(h))))
 
 /**
  * @def ilist2_get_front(h)
@@ -197,7 +197,7 @@ void ilist2_free(void *p);
  * @see ilist2_empty()
  */
 #define ilist2_get_front(h) \
-    ((typeof(*h))(*(typeof(h))ilist2_get_front_fn((ilist2 *)h)))
+    ((typeof(*h))(*(typeof(h))ilist2_get_front_fn((ilist2 *)(h))))
 
 /**
  * @def ilist2_pop_back(h)
@@ -216,7 +216,7 @@ void ilist2_free(void *p);
  * @endcode
  */
 #define ilist2_pop_back(h) \
-    ((typeof(*h))(*(typeof(h))ilist2_pop_back_fn((ilist2 *)h)))
+    ((typeof(*h))(*(typeof(h))ilist2_pop_back_fn((ilist2 *)(h))))
 
 /**
  * @def ilist2_pop_front(h)
@@ -229,7 +229,7 @@ void ilist2_free(void *p);
  * @warning Returns 0 if list is empty (may be indistinguishable from actual 0)
  */
 #define ilist2_pop_front(h) \
-    ((typeof(*h))(*(typeof(h))ilist2_pop_front_fn((ilist2 *)h)))
+    ((typeof(*h))(*(typeof(h))ilist2_pop_front_fn((ilist2 *)(h))))
 
 /**
  * @def ilist2_put_back(h, node)
@@ -249,7 +249,7 @@ void ilist2_free(void *p);
 #define ilist2_put_back(h, node) \
     ({ \
         ilist2_idx_t idx; \
-        typeof(h) e = (typeof(h))ilist2_touch_back_fn((ilist2 *)h, &idx); \
+        typeof(h) e = (typeof(h))ilist2_touch_back_fn((ilist2 *)(h), &idx); \
         if (e) { \
             *e = (node); \
         } \
@@ -269,7 +269,7 @@ void ilist2_free(void *p);
 #define ilist2_put_front(h, node) \
     ({ \
         ilist2_idx_t idx; \
-        typeof(h) e = (typeof(h))ilist2_touch_front_fn((ilist2 *)h, &idx); \
+        typeof(h) e = (typeof(h))ilist2_touch_front_fn((ilist2 *)(h), &idx); \
         if (e) { \
             *e = (node); \
         } \
@@ -296,7 +296,7 @@ void ilist2_free(void *p);
  * @endcode
  */
 #define ilist2_move_back_by_idx(h, idx) \
-    ilist2_move_back_by_idx_fn((ilist2 *)h, idx)
+    ilist2_move_back_by_idx_fn((ilist2 *)(h), idx)
 
 /**
  * @def ilist2_move_front_by_idx(h, idx)
@@ -311,7 +311,7 @@ void ilist2_free(void *p);
  * @warning Does NOT check if idx is valid in release builds
  */
 #define ilist2_move_front_by_idx(h, idx) \
-    ilist2_move_front_by_idx_fn((ilist2 *)h, idx)
+    ilist2_move_front_by_idx_fn((ilist2 *)(h), idx)
 
 /**
  * @def ilist2_empty(h)
@@ -341,7 +341,7 @@ void ilist2_free(void *p);
  * @endcode
  */
 #define ilist2_get_required_memory_size(listsz, usersz) \
-    (sizeof(ilist2) + (usersz + sizeof(ilist2_idx_t) + sizeof(ilist2_idx_t)) * listsz)
+    (sizeof(ilist2) + (usersz + sizeof(ilist2_idx_t) + sizeof(ilist2_idx_t)) * (listsz))
 
 
 ilist2 *ilist2_create_fn(size_t listsz, size_t usersz);
