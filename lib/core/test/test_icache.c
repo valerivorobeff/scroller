@@ -20,9 +20,6 @@
  */
 
 #include "quin.h"
-#include "grid.h"
-//#include "ilist2.h"
-//#include "ihash.h"
 #include "icache.h"
 #include <malloc.h>
 #include <string.h>
@@ -484,5 +481,5 @@ TEST(icache)
 
     TEST_SUITE_END()  /* End of edge_cases test suite */
 
-TEST_END()
+TEST_END() /* End of icache test unit */
 
