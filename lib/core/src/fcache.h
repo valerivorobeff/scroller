@@ -22,7 +22,7 @@ typedef struct fcache {
 #define fcache_free(h) \
     icache_free(h)
 
-void *fcache_touch_fn(icache *cache, ssize_t key);
+fcache *fcache_touch_fn(fcache *fc, Gid gid);
 
 #endif /* _FCACHE_H_ */
 
