@@ -17,7 +17,7 @@ typedef struct fcache {
 } fcache;
 
 #define fcache_create(h, bucketsz_, chainsz_, hash_fn_) \
-    icache_create(h, bucketsz_, chainsz_, hash_fn_)
+    icache_create(h, bucketsz_, chainsz_, hash_fn_, sizeof(Page))
 
 #define fcache_free(h) \
     icache_free(h)
