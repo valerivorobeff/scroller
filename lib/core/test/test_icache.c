@@ -45,7 +45,7 @@ TEST(icache)
     TEST_SUITE(basic)
 
         TEST_CASE(create) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
             icache *ic = (icache *)cache;
 
             TEST_CHECK(cache != NULL);
@@ -59,7 +59,7 @@ TEST(icache)
         }
 
         TEST_CASE(put_get) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
 
             /* Insert a value */
             centry *e = icache_put(cache, 42, 100);
@@ -91,12 +91,12 @@ TEST(icache)
         }
 
         TEST_CASE(init) {
-            size_t size = icache_get_required_memory_size(4, 8, sizeof(centry));
+            size_t size = icache_get_required_memory_size(4, 8, sizeof(centry), 0);
             centry *cache = malloc(size);
 
             TEST_CHECK(cache != NULL);
 
-            cache = icache_init(cache, 4, 8, NULL);
+            cache = icache_init(cache, 4, 8, NULL, 0);
             TEST_CHECK(cache != NULL);
 
             centry *e = icache_put(cache, 42, 100);
@@ -111,7 +111,7 @@ TEST(icache)
         }
 
         TEST_CASE(clear) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
 
             icache_put(cache, 1, 100);
             icache_put(cache, 2, 200);
@@ -138,7 +138,7 @@ TEST(icache)
     TEST_SUITE(collision)
 
         TEST_CASE(collision) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
 
             /* Keys that hash to same bucket (identity hash) */
             icache_put(cache, 4, 400);   /* bucket 0 */
@@ -162,7 +162,7 @@ TEST(icache)
 
         TEST_CASE(lru_eviction) {
             /* Cache with 4 slots total (2 buckets + 2 chain nodes) */
-            centry *cache = icache_create(cache, 2, 2, NULL);
+            centry *cache = icache_create(cache, 2, 2, NULL, 0);
 
             /* Fill the cacee */
             icache_put(cache, 1, 100);
@@ -189,7 +189,7 @@ TEST(icache)
         }
 
         TEST_CASE(lru_access_moves_to_front) {
-            centry *cache = icache_create(cache, 2, 2, NULL);
+            centry *cache = icache_create(cache, 2, 2, NULL, 0);
 
             /* Fill cache */
             icache_put(cache, 1, 100);
@@ -213,7 +213,7 @@ TEST(icache)
         }
 
         TEST_CASE(lru_update_moves_to_front) {
-            centry *cache = icache_create(cache, 2, 2, NULL);
+            centry *cache = icache_create(cache, 2, 2, NULL, 0);
 
             /* Fill cache */
             icache_put(cache, 1, 100);
@@ -238,7 +238,7 @@ TEST(icache)
 
         TEST_CASE(lru_eviction_chain) {
             /* Cache with small size */
-            centry *cache = icache_create(cache, 1, 1, NULL);
+            centry *cache = icache_create(cache, 1, 1, NULL, 0);
 
             /* Fill cache (all go to same bucket, causing chain) */
             icache_put(cache, 1, 100);
@@ -263,7 +263,7 @@ TEST(icache)
         }
 
         TEST_CASE(lru_full_capacity) {
-            centry *cache = icache_create(cache, 2, 0, NULL);  /* No overflow nodes */
+            centry *cache = icache_create(cache, 2, 0, NULL, 0);  /* No overflow nodes */
 
             /* Fill 2 buckets */
             icache_put(cache, 1, 100);
@@ -296,7 +296,7 @@ TEST(icache)
                 /* no value field */
             };
 
-            struct set_entry *cache = icache_create(cache, 4, 8, NULL);
+            struct set_entry *cache = icache_create(cache, 4, 8, NULL, 0);
             TEST_CHECK(cache != NULL);
 
             icache_put_key(cache, 100);
@@ -312,7 +312,7 @@ TEST(icache)
         }
 
         TEST_CASE(put_struct) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
 
             centry data1 = {42, 100};
             centry data2 = {43, 200};
@@ -332,7 +332,7 @@ TEST(icache)
         }
 
         TEST_CASE(get_member_ptr) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
             icache_put(cache, 42, 100);
 
             int *val = icache_get_member_ptr(cache, 42, value);
@@ -348,7 +348,7 @@ TEST(icache)
         }
 
         TEST_CASE(get_member) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
             icache_put(cache, 42, 100);
 
             int val = icache_get_member(cache, 42, value);
@@ -361,7 +361,7 @@ TEST(icache)
         }
 
         TEST_CASE(get_value_ptr) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
             icache_put(cache, 42, 100);
 
             int *val = icache_get_value_ptr(cache, 42);
@@ -372,7 +372,7 @@ TEST(icache)
         }
 
         TEST_CASE(get_value) {
-            centry *cache = icache_create(cache, 4, 8, NULL);
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
             icache_put(cache, 42, 100);
 
             int val = icache_get_value(cache, 42);
@@ -386,7 +386,7 @@ TEST(icache)
     TEST_SUITE(edge_cases)
 
         TEST_CASE(zero_chains) {
-            centry *cache = icache_create(cache, 4, 0, NULL);
+            centry *cache = icache_create(cache, 4, 0, NULL, 0);
 
             /* Can still store 4 entries */
             icache_put(cache, 1, 100);
@@ -408,7 +408,7 @@ TEST(icache)
         }
 
         TEST_CASE(single_bucket) {
-            centry *cache = icache_create(cache, 1, 8, NULL);
+            centry *cache = icache_create(cache, 1, 8, NULL, 0);
 
             /* All keys go to same bucket */
             icache_put(cache, 1, 100);
@@ -440,12 +440,12 @@ TEST(icache)
         }
 
         TEST_CASE(zero_buckets) {
-            centry *cache = icache_create(cache, 0, 8, NULL);
+            centry *cache = icache_create(cache, 0, 8, NULL, 0);
             TEST_CHECK(cache == NULL);  /* Should fail */
         }
 
         TEST_CASE(custom_hash) {
-            centry *cache = icache_create(cache, 4, 8, custom_hash_fn);
+            centry *cache = icache_create(cache, 4, 8, custom_hash_fn, 0);
             TEST_CHECK(cache != NULL);
 
             icache_put(cache, 1, 100);
@@ -457,6 +457,32 @@ TEST(icache)
             icache_free(cache);
         }
 
+        TEST_CASE(extra_data) {
+            int arr_in[] = { 5, 4, 7 };
+            int *arr_p;
+            int *arr_out;
+            centry *cache = icache_create(cache, 4, 8, custom_hash_fn, sizeof(arr_in));
+            TEST_CHECK(cache != NULL);
+
+            arr_p = icache_get_extra(cache);
+            TEST_CHECK(icache_get_extrasz(cache) == sizeof(arr_in));
+
+            memcpy(arr_p, arr_in, sizeof(arr_in));
+
+            icache_put(cache, 1, 100);
+            icache_put(cache, 2, 200);
+
+            TEST_CHECK(icache_get(cache, 1)->value == 100);
+            TEST_CHECK(icache_get(cache, 2)->value == 200);
+
+            arr_out = icache_get_extra(cache);
+            TEST_CHECK(arr_out[0] == 5);
+            TEST_CHECK(arr_out[1] == 4);
+            TEST_CHECK(arr_out[2] == 7);
+
+            icache_free(cache);
+        }
+
         TEST_CASE(large_values) {
             struct large_entry {
                 ssize_t key;
@@ -464,7 +490,7 @@ TEST(icache)
                 int value;
             };
 
-            struct large_entry *cache = icache_create(cache, 4, 8, NULL);
+            struct large_entry *cache = icache_create(cache, 4, 8, NULL, 0);
             TEST_CHECK(cache != NULL);
 
             struct large_entry e1 = {42, "Hello, World!", 100};

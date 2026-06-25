@@ -43,7 +43,7 @@
  * };
  *
  * // Create hash table with 16 primary slots and 32 overflow nodes
- * struct CacheEntry *cache = icache_create(cache, 16, 32);
+ * struct CacheEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  * if (!cache) {
  *     perror("Failed to create hash table");
  *     exit(1);
@@ -82,7 +82,7 @@
  * // Initialize (only once, in one process)
  * static int initialized = 0;
  * if (!initialized) {
- *     shared_cache = icache_create(shared_hash, 16, 32);
+ *     shared_cache = icache_create(shared_hash, 16, 32, NULL, 0);
  *     initialized = 1;
  * }
  * @endcode
@@ -114,8 +114,12 @@ typedef ssize_t icache_idx_t;
  *      Number of slots in the hash table (primary bucket array)
  * @var icache::listoffs
  *      Offset of inner ilist2 structure and data
+ * @var icache::extraoffs
+ *      Offset of extra data
  * @var icache::nodesz
  *      Total size of full entry (incl. internal data)
+ * @var icache::extrasz
+ *      Extra data size
  *
  * @note The actual entries follow this header in memory
  * @see icache_create_fn()
@@ -123,11 +127,13 @@ typedef ssize_t icache_idx_t;
 typedef struct icache {
     size_t hashoffs;        /** Offset of hash */
     size_t listoffs;        /** Offset of list */
+    size_t extraoffs;       /** Offset of extra data */
     size_t nodesz;          /** Node size, usersz + sizeof(size_t) */
+    size_t extrasz;         /** Extra data size */
 } icache;
 
 /**
- * @def icache_create(h, bucketsz_, chainsz_, hash_fn_)
+ * @def icache_create(h, bucketsz_, chainsz_, hash_fn_, usersz_)
  * @brief Creates a new hash table for a specific entry type
  *
  * This macro automatically computes field offsets using typeof() and
@@ -138,6 +144,7 @@ typedef struct icache {
  * @param chainsz_  Number of slots in the chains table (overflow nodes)
  * @param hash_fn_  Pointer to user defined hash function of type ihash_hash_fn or
  *                  NULL to use default function
+ * @param extrasz_  Extra data size
  * @return          Pointer to the created cache (cast to type of h)
  *
  * @pre The entry structure must have 'key' field
@@ -148,20 +155,21 @@ typedef struct icache {
  *     ssize_t key;
  *     int value;
  * };
- * struct MyEntry *cache = icache_create(cache, 16, 32, NULL);
+ * struct MyEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  * @endcode
  *
  * @see icache_create_fn()
  */
-#define icache_create(h, bucketsz_, chainsz_, hash_fn_) \
+#define icache_create(h, bucketsz_, chainsz_, hash_fn_, extrasz_) \
     (typeof(h))icache_create_fn( \
         bucketsz_, chainsz_, \
         offsetof(typeof(*h), key), \
         sizeof(*h), \
-        hash_fn_)
+        hash_fn_, \
+        extrasz_)
 
 /**
- * @def icache_init(h, bucketsz_, chainsz_, hash_fn_)
+ * @def icache_init(h, bucketsz_, chainsz_, hash_fn_, usersz_)
  * @brief Initializes a new cache for a specific entry type
  *
  * This macro automatically computes field offsets using typeof() and
@@ -172,6 +180,7 @@ typedef struct icache {
  * @param chainsz_  Number of slots in the chains table (overflow nodes)
  * @param hash_fn_  Pointer to user defined hash function of type ihash_hash_fn or
  *                  NULL to use default function
+ * @param extrasz_  Extra data size
  * @return          Pointer to the created cache (cast to type of h)
  *
  * @pre The entry structure must have 'key' field
@@ -182,17 +191,18 @@ typedef struct icache {
  *     ssize_t key;
  *     int value;
  * };
- * struct MyEntry *cache = icache_init(cache, 16, 32, NULL);
+ * struct MyEntry *cache = icache_init(cache, 16, 32, NULL, 0);
  * @endcode
  *
  * @see icache_init_fn()
  */
-#define icache_init(h, bucketsz_, chainsz_, hash_fn_) \
+#define icache_init(h, bucketsz_, chainsz_, hash_fn_, extrasz_) \
     (typeof(h))icache_init_fn( \
         h, bucketsz_, chainsz_, \
         offsetof(typeof(*h), key), \
         sizeof(*h), \
-        hash_fn_)
+        hash_fn_, \
+        extrasz_)
 
 /**
  * @brief Clears all entries from the cache
@@ -240,7 +250,7 @@ void icache_free(void *p);
  * @return       1 if key exists, 0 otherwise
  *
  * @code
- * struct MyEntry *cache = icache_create(cache, 16, 32);
+ * struct MyEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  * icache_put(cache, 42, 100);
  *
  * if (icache_exists(cache, 42)) {
@@ -266,7 +276,7 @@ void icache_free(void *p);
  *     int value;
  *     char name[32];
  * };
- * struct MyEntry *cache = icache_create(cache, 16, 32);
+ * struct MyEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  * icache_put(cache, 42, 100);
  *
  * int *val = icache_get_member_ptr(cache, 42, value);
@@ -296,7 +306,7 @@ void icache_free(void *p);
  *     ssize_t key;
  *     int value;
  * };
- * struct MyEntry *cache = icache_create(cache, 16, 32);
+ * struct MyEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  * icache_put(cache, 42, 100);
  *
  * int val = icache_get_member(cache, 42, value);
@@ -323,7 +333,7 @@ void icache_free(void *p);
  *     int value;
  *     char name[32];
  * };
- * struct MyEntry *cache = icache_create(cache, 16, 32);
+ * struct MyEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  * icache_put(cache, 42, 100);
  *
  * int *val = icache_get_value_ptr(cache, 42);
@@ -349,7 +359,7 @@ void icache_free(void *p);
  *     ssize_t key;
  *     int value;
  * };
- * struct MyEntry *cache = icache_create(cache, 16, 32);
+ * struct MyEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  * icache_put(cache, 42, 100);
  *
  * int val = icache_get_value(cache, 42);
@@ -402,7 +412,7 @@ void icache_free(void *p);
  *     ssize_t key;
  *     // no value field!
  * };
- * struct SetEntry *set = icache_create(set, 16, 32);
+ * struct SetEntry *set = icache_create(set, 16, 32, NULL, 0);
  * icache_put_key(set, 42);
  *
  * if (icache_get(set, 42)) {
@@ -430,7 +440,7 @@ void icache_free(void *p);
  *     int value;
  *     char name[32];
  * };
- * struct MyEntry *cache = icache_create(cache, 16, 32);
+ * struct MyEntry *cache = icache_create(cache, 16, 32, NULL, 0);
  *
  * struct MyEntry data = {42, 100, "Alice"};
  * icache_put_struct(cache, &data);
@@ -451,7 +461,8 @@ void icache_free(void *p);
  *
  * @param bucketsz  Number of slots in the cache (primary bucket count)
  * @param chainsz   Number of slots in the chains table (overflow nodes)
- * @param usersz   Total size of each user's entry in bytes
+ * @param usersz    Total size of each user's entry in bytes
+ * @param extrasz   Extra data size
  *
  * @return          Number of bytes
  *
@@ -460,17 +471,32 @@ void icache_free(void *p);
  *     ssize_t key;
  *     int value;
  * };
- * size_t size = icache_get_required_memory_size(16, 32, sizeof(MyEntry));
+ * size_t size = icache_get_required_memory_size(16, 32, sizeof(MyEntry), 0);
  * MyEntry *cache = malloc(size);
  * cache = icache_init(icache, 16, 32);
  * icache_put(hash, 42, 100);
  * @endcode
  */
-#define icache_get_required_memory_size(bucketsz, chainsz, usersz) \
+#define icache_get_required_memory_size(bucketsz, chainsz, usersz, extrasz) \
     (sizeof(icache) + \
         ihash_get_required_memory_size(bucketsz, chainsz, usersz + sizeof(icache_idx_t)) + \
-        ilist2_get_required_memory_size((bucketsz) + (chainsz), sizeof(icache_idx_t)) \
+        ilist2_get_required_memory_size((bucketsz) + (chainsz), sizeof(icache_idx_t)) + \
+        extrasz \
     )
+
+/**
+ * @brief Utility nacro to get pointer to cache's extra data
+ * @param h Pointer to cache
+ * @return Pointer to the extra data
+ */
+#define icache_get_extra(h)   ((void *)((void *)(h) + ((icache *)(h))->extraoffs))
+
+/**
+ * @brief Utility pointer to get cache's extra data size
+ * @param h Pointer to cache
+ * @return Extra data size
+ */
+#define icache_get_extrasz(h)   (((icache *)(h))->extrasz)
 
 /**
  * @cond PRIVATE
@@ -501,12 +527,13 @@ void icache_free(void *p);
  * @param usersz   Total size of each user's entry in bytes
  * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
  *                 NULL to use default function
+ * @param extrasz  Extra data size
  * @return         Pointer to initialized cache, or NULL on allocation failure
  *
  * @note Allocates memory with malloc
  * @see icache_create macro
  */
-icache *icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
+icache *icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, size_t extrasz);
 
 /**
  * @brief Internal function for cache initialization
@@ -518,12 +545,13 @@ icache *icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t
  * @param usersz   Total size of each user's entry in bytes
  * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
  *                 NULL to use default function
+ * @param extrasz  Extra data size
  * @return         Pointer to initialized cache, or NULL on allocation failure
  *
  * @see icache_init macro
  * @see icache_get_required_memory_size
  */
-icache *icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
+icache *icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, size_t extrasz);
 
 /**
  * @brief Internal function for key insertion/update
