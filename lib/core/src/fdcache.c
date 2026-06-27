@@ -25,7 +25,7 @@ static int fdcache_close(int fd);
  */
 FdCache *
 fdcache_touch_fn(FdCache *fc, Gid gid) {
-    icache *cache = (icache *)fc;
+    const icache *cache = (icache *)fc;
     const icache_idx_t idxoffs = cache->nodesz - sizeof(icache_idx_t);
     ihash *hash = icache_get_hash(cache);
     icache_idx_t *list = icache_get_list(cache);
@@ -47,7 +47,7 @@ fdcache_touch_fn(FdCache *fc, Gid gid) {
             *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, gid.full);
             assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         } else {
-            icache_idx_t lru_key = ilist2_pop_back(list);
+            const icache_idx_t lru_key = ilist2_pop_back(list);
 
             assert(lru_key != ILIST2_UNDEF);
 

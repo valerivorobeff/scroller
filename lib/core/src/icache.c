@@ -26,7 +26,6 @@
 
 #include "icache.h"
 #include <malloc.h>
-#include <string.h>
 #include <assert.h>
 
 /**
@@ -196,7 +195,7 @@ icache_touch_fn(icache *cache, ssize_t key) {
             *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
             assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         } else {
-            icache_idx_t lru_key = ilist2_pop_back(list);
+            const icache_idx_t lru_key = ilist2_pop_back(list);
 
             assert(lru_key != ILIST2_UNDEF);
 

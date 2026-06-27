@@ -50,22 +50,22 @@ pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size
     const size_t fullsz = bucketsz + chainsz;
     icache *cache = icache_init_fn(p, bucketsz, chainsz, keyoffs, usersz, hash_fn, 
             sizeof(struct FdCache *) + ilist2_get_required_memory_size(fullsz, sizeof(pagecache_idx_t)));
-    PageCacheExtra *PageCacheExtra;
+    PageCacheExtra *pcextra;
 
     if (cache == NULL)
         return NULL;
 
-    PageCacheExtra = icache_get_extra(cache);
-    PageCacheExtra->fdcache = fdcache_;
-    PageCacheExtra->page_idx_stack = (pagecache_idx_t *)(PageCacheExtra->fdcache + 1);
+    pcextra = icache_get_extra(cache);
+    pcextra->fdcache = fdcache_;
+    pcextra->page_idx_stack = (pagecache_idx_t *)(pcextra->fdcache + 1);
 
-    PageCacheExtra->page_idx_stack = ilist2_init(PageCacheExtra->page_idx_stack, fullsz);
+    pcextra->page_idx_stack = ilist2_init(pcextra->page_idx_stack, fullsz);
 
-    if (PageCacheExtra->page_idx_stack == NULL)
+    if (pcextra->page_idx_stack == NULL)
         return NULL;
 
     for (pagecache_idx_t i = fullsz - 1; i >= 0; --i)
-        ilist2_put_back(PageCacheExtra->page_idx_stack, i);
+        ilist2_put_back(pcextra->page_idx_stack, i);
 
     return (PageCache *)cache;
 }

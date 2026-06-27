@@ -297,8 +297,8 @@ void ihash_free(void *hash);
  */
 #define ihash_get_member_ptr(h, key_, member) \
     ({ \
-        typeof(h) _e = ihash_get(h, key_); \
-        _e ? &_e->member : NULL; \
+        typeof(h) _e_ = ihash_get(h, key_); \
+        _e_ ? &_e_->member : NULL; \
     })
 
 /**
@@ -327,8 +327,8 @@ void ihash_free(void *hash);
  */
 #define ihash_get_member(h, key_, member) \
     ({ \
-        typeof(h) _e = ihash_get(h, key_); \
-        _e ? _e->member : (typeof(_e->member)){0}; \
+        typeof(h) _e_ = ihash_get(h, key_); \
+        _e_ ? _e_->member : (typeof(_e_->member)){0}; \
     })
 
 /**
@@ -401,11 +401,11 @@ void ihash_free(void *hash);
  */
 #define ihash_put(h, key_, value_) \
     ({ \
-        typeof(h) _e = (typeof(h))ihash_touch_fn((ihash *)h, key_); \
-        if (_e) { \
-            _e->value = (value_); \
+        typeof(h) _e_ = (typeof(h))ihash_touch_fn((ihash *)h, key_); \
+        if (_e_) { \
+            _e_->value = (value_); \
         } \
-        _e; \
+        _e_; \
     })
 
 /**
@@ -460,11 +460,11 @@ void ihash_free(void *hash);
  */
 #define ihash_put_struct(h, struct_ptr) \
     ({ \
-        typeof(h) _e = ihash_put_key(h, (struct_ptr)->key); \
-        if (_e) { \
-            *_e = *(struct_ptr); \
+        typeof(h) _e_ = ihash_put_key(h, (struct_ptr)->key); \
+        if (_e_) { \
+            *_e_ = *(struct_ptr); \
         } \
-        _e; \
+        _e_; \
     })
 
 /**

@@ -285,8 +285,8 @@ void icache_free(void *p);
  */
 #define icache_get_member_ptr(h, key_, member) \
     ({ \
-        typeof(h) _e = icache_get(h, key_); \
-        _e ? &_e->member : NULL; \
+        typeof(h) _e_ = icache_get(h, key_); \
+        _e_ ? &_e_->member : NULL; \
     })
 
 /**
@@ -315,8 +315,8 @@ void icache_free(void *p);
  */
 #define icache_get_member(h, key_, member) \
     ({ \
-        typeof(h) _e = icache_get(h, key_); \
-        _e ? _e->member : (typeof(_e->member)){0}; \
+        typeof(h) _e_ = icache_get(h, key_); \
+        _e_ ? _e_->member : (typeof(_e_->member)){0}; \
     })
 
 /**
@@ -389,11 +389,11 @@ void icache_free(void *p);
  */
 #define icache_put(h, key_, value_) \
     ({ \
-        typeof(h) _e = (typeof(h))icache_touch_fn((icache *)h, key_); \
-        if (_e) { \
-            _e->value = (value_); \
+        typeof(h) _e_ = (typeof(h))icache_touch_fn((icache *)h, key_); \
+        if (_e_) { \
+            _e_->value = (value_); \
         } \
-        _e; \
+        _e_; \
     })
 
 /**
@@ -448,11 +448,11 @@ void icache_free(void *p);
  */
 #define icache_put_struct(h, struct_ptr) \
     ({ \
-        typeof(h) _e = icache_put_key(h, (struct_ptr)->key); \
-        if (_e) { \
-            *_e = *(struct_ptr); \
+        typeof(h) _e_ = icache_put_key(h, (struct_ptr)->key); \
+        if (_e_) { \
+            *_e_ = *(struct_ptr); \
         } \
-        _e; \
+        _e_; \
     })
 
 /**

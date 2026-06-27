@@ -248,12 +248,12 @@ void ilist2_free(void *p);
  */
 #define ilist2_put_back(h, node) \
     ({ \
-        ilist2_idx_t idx; \
-        typeof(h) e = (typeof(h))ilist2_touch_back_fn((ilist2 *)(h), &idx); \
+        ilist2_idx_t _idx_; \
+        typeof(h) e = (typeof(h))ilist2_touch_back_fn((ilist2 *)(h), &_idx_); \
         if (e) { \
             *e = (node); \
         } \
-        idx; \
+        _idx_; \
     })
 
 /**
@@ -268,12 +268,12 @@ void ilist2_free(void *p);
  */
 #define ilist2_put_front(h, node) \
     ({ \
-        ilist2_idx_t idx; \
-        typeof(h) e = (typeof(h))ilist2_touch_front_fn((ilist2 *)(h), &idx); \
+        ilist2_idx_t _idx_; \
+        typeof(h) e = (typeof(h))ilist2_touch_front_fn((ilist2 *)(h), &_idx_); \
         if (e) { \
             *e = (node); \
         } \
-        idx; \
+        _idx_; \
     })
 
 /**
