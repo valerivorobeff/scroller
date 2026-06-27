@@ -3,7 +3,7 @@
 
 int hsequence_init(Page page);
 
-int sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t startval, int64_t increment, bool cycle, Grid **sequence);
+int sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t startval, int64_t increment, bool cycle);
 int sequence_currval(Grid *hsequence, Grid *sequence, int64_t *outval);
 int sequence_nextval(Grid *hsequence, Grid *sequence, int64_t *outval);
 int sequence_setval(Grid *hsequence, Grid *sequence, int64_t newval, bool is_called);
@@ -39,9 +39,9 @@ hsequence_init(Page page) {
 }
 
 int
-sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t startval, int64_t increment, bool cycle, Grid **sequence) {
+sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t startval, int64_t increment, bool cycle) {
     Column c;
-    *sequence = p;
+    Grid *sequence = p;
 
     if (minval >= maxval) {
         return 1;
@@ -59,23 +59,23 @@ sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t s
         return 1;
     }
 
-    *sequence = dgrid_init(p, PAGESZ, GT_FIXED, hsequence);
-    c = dgrid_get_column(hsequence, *sequence, 0, 0);
+    sequence = dgrid_init(p, PAGESZ, GT_FIXED, hsequence);
+    c = dgrid_get_column(hsequence, sequence, 0, 0);
     put_bigint(c, minval);
 
-    c = dgrid_get_column(hsequence, *sequence, 0, 1);
+    c = dgrid_get_column(hsequence, sequence, 0, 1);
     put_bigint(c, maxval);
 
-    c = dgrid_get_column(hsequence, *sequence, 0, 2);
+    c = dgrid_get_column(hsequence, sequence, 0, 2);
     put_bigint(c, startval);
 
-    c = dgrid_get_column(hsequence, *sequence, 0, 3);
+    c = dgrid_get_column(hsequence, sequence, 0, 3);
     put_bigint(c, increment);
 
-    c = dgrid_get_column(hsequence, *sequence, 0, 4);
+    c = dgrid_get_column(hsequence, sequence, 0, 4);
     put_bigint(c, cycle);
 
-    c = dgrid_get_column(hsequence, *sequence, 0, 5);
+    c = dgrid_get_column(hsequence, sequence, 0, 5);
     put_bigint(c, 0);
 
     return 0;
