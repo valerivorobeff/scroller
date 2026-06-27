@@ -1,7 +1,7 @@
 #include "sequence.h"
 #include <assert.h>
 
-void hsequence_init();
+int hsequence_init(Page page);
 
 int sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t startval, int64_t increment, bool cycle, Grid **sequence);
 int sequence_currval(Grid *hsequence, Grid *sequence, int64_t *outval);
@@ -20,7 +20,11 @@ int sequence_set_cycle(Grid *hsequence, Grid *sequence, bool val);
 #define get_integer(c)          *(int32_t *)(c)
 #define get_bigint(c)           *(int64_t *)(c)
 
-void
+/**
+ * @note: This function should be called only fron scr_init utility to initialize
+ * sequence header grid, then it should be saved to dosk
+ */
+int
 hsequence_init(Page page) {
     Grid *hsequence = hgrid_init(page, PAGESZ, GT_FIXED);
 
@@ -30,29 +34,28 @@ hsequence_init(Page page) {
     hgrid_add_column(hsequence, "increment", sizeof(int64_t));
     hgrid_add_column(hsequence, "cycle", sizeof(int64_t));
     hgrid_add_column(hsequence, "is_called", sizeof(int64_t));
+
+    return 0;
 }
 
 int
 sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t startval, int64_t increment, bool cycle, Grid **sequence) {
     Column c;
+    *sequence = p;
 
     if (minval >= maxval) {
-        sequence = NULL;
         return 1;
     }
 
     if (startval < minval) {
-        sequence  = NULL;
         return 1;
     }
 
     if (startval > maxval) {
-        sequence  = NULL;
         return 1;
     }
 
     if (increment == 0) {
-        sequence  = NULL;
         return 1;
     }
 

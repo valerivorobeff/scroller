@@ -10,7 +10,7 @@
 #include "grid.h"
 #include <stdbool.h>
 
-void hsequence_init();
+int hsequence_init(Page page);
 
 int sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval, int64_t startval, int64_t increment, bool cycle, Grid **sequence);
 int sequence_currval(Grid *hsequence, Grid *sequence, int64_t *outval);
