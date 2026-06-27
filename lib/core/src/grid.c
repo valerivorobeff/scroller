@@ -26,6 +26,12 @@
 #include <string.h>
 
 /**
+ * Global variable PAGESZ with default value 4096
+ * You should better recalculate it at the beginning of your application
+ */
+size_t PAGESZ = 4096;
+
+/**
  * @cond PRIVATE
  * Forward declarations of public functions (implementation details)
  * @endcond

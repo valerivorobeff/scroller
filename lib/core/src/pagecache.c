@@ -13,6 +13,7 @@ typedef struct PageCacheExtra {
     FdCache *fdcache;
     pagecache_idx_t *page_idx_stack;
 } PageCacheExtra;
+
 /*
 PageCache *
 pagecache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, FdCache *fdcache_) {

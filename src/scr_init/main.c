@@ -29,19 +29,18 @@ init_cluster(const char *path) {
 }
 
 ssize_t
-block_size(const char *fname) {
+get_block_size(const char *fname) {
     struct stat st;
 
-    if (stat(fname, &st) == 0)
+    if (stat(fname ? fname : __FILE__, &st) == 0)
         return st.st_blksize;
     else
-        return -1;
+        return 1024;
 }
 
 int
 main(const int argc, const char *argv[]) {
     int result;
-    ssize_t blocksz;
     Page page_pool;
     FdCache *fdcache;
 
@@ -51,11 +50,11 @@ main(const int argc, const char *argv[]) {
     }
 
     result = init_cluster(argv[1]);
-    blocksz = block_size(argv[1]);
+    PAGESZ = get_block_size(argv[1]);
 
-    printf("block size: %lu\n", blocksz);
+    printf("block size: %lu\n", PAGESZ);
 
-    page_pool = aligned_alloc(blocksz, 8 * blocksz);
+    page_pool = aligned_alloc(PAGESZ, 8 * PAGESZ);
     fdcache = fdcache_create(fdcache, 4, 4, NULL);
 
     fdcache_free(fdcache);
