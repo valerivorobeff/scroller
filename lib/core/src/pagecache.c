@@ -136,7 +136,7 @@ pagecache_idx_t
 pagecache_read(icache *pc, Gid gid) {
     PageCacheExtra *pcextra = icache_get_extra(pc);
     pagecache_idx_t cur_idx = ilist2_pop_back(pcextra->page_idx_stack);
-    FdCache *e = fdcache_touch_fn(pcextra->fdcache, gid.full);
+    FdCache *e = fdcache_touch_fn((icache *)pcextra->fdcache, gid.full);
     ssize_t read_bytes;
 
     assert(cur_idx != ILIST2_UNDEF);
@@ -153,7 +153,7 @@ pagecache_idx_t
 pagecache_write(icache *pc, Gid gid, pagecache_idx_t idx) {
     PageCacheExtra *pcextra = icache_get_extra(pc);
     pagecache_idx_t cur_idx = ilist2_put_back(pcextra->page_idx_stack, idx);
-    FdCache *e = fdcache_touch_fn(pcextra->fdcache, gid.full);
+    FdCache *e = fdcache_touch_fn((icache *)pcextra->fdcache, gid.full);
     ssize_t written_bytes;
 
     assert(cur_idx != ILIST2_UNDEF);

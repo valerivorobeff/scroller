@@ -198,10 +198,13 @@ icache_touch_fn(icache *cache, ssize_t key) {
             const icache_idx_t lru_key = ilist2_pop_back(list);
 
             assert(lru_key != ILIST2_UNDEF);
+            assert(ihash_exists(hash, lru_key));
 
             ihash_erase(hash, lru_key);
             e = ihash_touch_fn(hash, key);
-            assert(e);
+            if (e == NULL)
+                return NULL;
+
             *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
             assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         }
