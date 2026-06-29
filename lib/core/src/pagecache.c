@@ -1,73 +1,67 @@
 #include "pagecache.h"
 #include "fdcache.h"
 #include <unistd.h>
+#include <malloc.h>
 #include <assert.h>
 
-PageCache *pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, FdCache *fdcache);
-PageCache *pagecache_touch_fn(PageCache *pc, Gid gid);
+Page g_page = NULL;
+FdCache *g_fdcache = NULL;
 
-static pagecache_idx_t pagecache_read(icache *pc, Gid gid);
-static pagecache_idx_t pagecache_write(icache *pc, Gid gid, pagecache_idx_t idx);
+PageCache *pagecache_create_fn(size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn);
+PageCache *pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn);
+void pagecache_clear(void *p, ihash_hash_fn hash_fn);
+void *pagecache_touch_fn(icache *cache, ssize_t key);
 
-typedef struct PageCacheExtra {
-    FdCache *fdcache;
-    pagecache_idx_t *page_idx_stack;
-} PageCacheExtra;
+static pagecache_idx_t pagecache_read(icache *pc, ssize_t key);
+static pagecache_idx_t pagecache_write(icache *pc, ssize_t key, pagecache_idx_t idx);
 
-/*
 PageCache *
-pagecache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, FdCache *fdcache_) {
+pagecache_create_fn(size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn) {
+    icache *cache;
 
+    if (bucketsz == 0)
+        return NULL;    /* Error, impossible to init a hash without buckets */
+
+    /* Allocate contiguous memory */
+    cache = malloc(icache_get_required_memory_size(bucketsz, chainsz, sizeof(PageCache),
+        pagecache_get_extra_size(bucketsz + chainsz)));
+
+    return cache ? pagecache_init_fn(cache, bucketsz, chainsz, hash_fn) : NULL;
 }
-*/
-/**
- * @brief Initializes a cache in pre-allocated memory
- *
- * Memory usage:
- * - Header: sizeof(icache) bytes
- * - Hash table
- * - LRU list
- *
- * @param p        Previously allocated pointer where icache is going to be initialized
- * @param bucketsz Number of primary hash slots (must be > 0)
- * @param chainsz  Size of overflow node pool (can be 0)
- * @param keyoffs  Byte offset of 'key' field within entry
- * @param usersz   Total size of each user's entry in bytes
- * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
- *                 NULL to use default function
- * @param extrasz  Extra data size
- * @return         Pointer to initialized cache, or NULL on allocation failure
- *
- * @pre bucketsz > 0
- * @pre usersz + sizeof(icache_idx_t) >= keyoffs + sizeof(ssize_t)
- *
- * @note The cache is relocatable - all references are indices, not pointers.
- * @note It does not allocate memory, the caller must provide a pre-allocated buffer.
- * @note Use icache_get_required_memory_size macro to know number of bytes required for cache.
- */
+
 PageCache *
-pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, FdCache *fdcache_) {
+pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn) {
     const size_t fullsz = bucketsz + chainsz;
-    icache *cache = icache_init_fn(p, bucketsz, chainsz, keyoffs, usersz, hash_fn, 
-            sizeof(struct FdCache *) + ilist2_get_required_memory_size(fullsz, sizeof(pagecache_idx_t)));
-    PageCacheExtra *pcextra;
+    icache *cache = (icache *)icache_init((PageCache *)p, bucketsz, chainsz, hash_fn, pagecache_get_extra_size(fullsz)); 
+    pagecache_idx_t *page_idx_stack;
 
     if (cache == NULL)
         return NULL;
 
-    pcextra = icache_get_extra(cache);
-    pcextra->fdcache = fdcache_;
-    pcextra->page_idx_stack = (pagecache_idx_t *)(pcextra->fdcache + 1);
+    page_idx_stack = icache_get_extra(cache);
+    page_idx_stack = ilist2_init(page_idx_stack, fullsz);
 
-    pcextra->page_idx_stack = ilist2_init(pcextra->page_idx_stack, fullsz);
-
-    if (pcextra->page_idx_stack == NULL)
+    if (page_idx_stack == NULL)
         return NULL;
 
     for (pagecache_idx_t i = fullsz - 1; i >= 0; --i)
-        ilist2_put_back(pcextra->page_idx_stack, i);
+        ilist2_put_back(page_idx_stack, i);
 
     return (PageCache *)cache;
+}
+
+void
+pagecache_clear(void *p, ihash_hash_fn hash_fn) {
+    icache *cache = p;
+    ihash *hash = icache_get_hash(cache);
+    const size_t fullsz = hash->bucketsz + hash->chainsz;
+    pagecache_idx_t *page_idx_stack = icache_get_extra(cache);
+
+    icache_clear(cache, hash_fn);
+    ilist2_clear(page_idx_stack);
+
+    for (pagecache_idx_t i = fullsz - 1; i >= 0; --i)
+        ilist2_put_back(page_idx_stack, i);
 }
 
 /**
@@ -84,27 +78,26 @@ pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size
  * @note This function does NOT copy any value - only manages key
  * @note The value field is left untouched (caller must fill it)
  */
-PageCache *
-pagecache_touch_fn(PageCache *pc, Gid gid) {
-    icache *cache = (icache *)pc;
+void *
+pagecache_touch_fn(icache *cache, ssize_t key) {
     const icache_idx_t idxoffs = cache->nodesz - sizeof(icache_idx_t);
     ihash *hash = icache_get_hash(cache);
     icache_idx_t *list = icache_get_list(cache);
-    PageCache *e = (PageCache *)icache_get(cache, gid.full);
+    void *e = icache_get(cache, key);
 
     if (e != NULL)
         ilist2_move_front_by_idx(list, *(icache_idx_t *)(e + idxoffs));
     else {
-        pagecache_idx_t new_page_idx = pagecache_read(cache, gid);
+        pagecache_idx_t new_page_idx = pagecache_read(cache, key);
 
         assert(new_page_idx != PAGECACHE_UNDEF);
 
-        e = ihash_touch_fn(hash, gid.full);
+        e = ihash_touch_fn(hash, key);
 
         if (e != NULL) {
-            e->page_idx = new_page_idx;
+            ((PageCache *)(e))->page_idx = new_page_idx;
 
-            *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, gid.full);
+            *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
             assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         } else {
             ilist2_idx_t lru_key = ilist2_pop_back(list);
@@ -118,13 +111,13 @@ pagecache_touch_fn(PageCache *pc, Gid gid) {
 
             ihash_erase(hash, lru_key);
 
-            e = ihash_touch_fn(hash, gid.full);
+            e = ihash_touch_fn(hash, key);
             assert(e);
 
-            pagecache_write(cache, gid, *old_idx);
-            e->page_idx = new_page_idx;
+            pagecache_write(cache, key, *old_idx);
+            ((PageCache *)(e))->page_idx = new_page_idx;
 
-            *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, gid.full);
+            *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
             assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         }
     }
@@ -133,10 +126,10 @@ pagecache_touch_fn(PageCache *pc, Gid gid) {
 }
 
 pagecache_idx_t
-pagecache_read(icache *pc, Gid gid) {
-    PageCacheExtra *pcextra = icache_get_extra(pc);
-    pagecache_idx_t cur_idx = ilist2_pop_back(pcextra->page_idx_stack);
-    FdCache *e = fdcache_touch_fn((icache *)pcextra->fdcache, gid.full);
+pagecache_read(icache *pc, ssize_t key) {
+    pagecache_idx_t *page_idx_stack = icache_get_extra(pc);
+    pagecache_idx_t cur_idx = ilist2_pop_back(page_idx_stack);
+/*    FdCache *e = fdcache_touch_fn((icache *)pcextra->fdcache, gid.full);
     ssize_t read_bytes;
 
     assert(cur_idx != ILIST2_UNDEF);
@@ -145,13 +138,15 @@ pagecache_read(icache *pc, Gid gid) {
     read_bytes = read(e->fd, (Page)icache_get_extra(pcextra->fdcache), 8096);
 
     assert(read_bytes == 8096);
-
+*/
     return cur_idx;
 }
 
 pagecache_idx_t
-pagecache_write(icache *pc, Gid gid, pagecache_idx_t idx) {
-    PageCacheExtra *pcextra = icache_get_extra(pc);
+pagecache_write(icache *pc, ssize_t key, pagecache_idx_t idx) {
+    pagecache_idx_t *page_idx_stack = icache_get_extra(pc);
+    pagecache_idx_t cur_idx = ilist2_pop_back(page_idx_stack);
+    /*pagecache_idx_t *pcextra = icache_get_extra(pc);
     pagecache_idx_t cur_idx = ilist2_put_back(pcextra->page_idx_stack, idx);
     FdCache *e = fdcache_touch_fn((icache *)pcextra->fdcache, gid.full);
     ssize_t written_bytes;
@@ -162,7 +157,7 @@ pagecache_write(icache *pc, Gid gid, pagecache_idx_t idx) {
     written_bytes = write(e->fd, (Page)icache_get_extra(pcextra->fdcache), 8096);
 
     assert(written_bytes == 8096);
-
+*/
     return cur_idx;
 }
 
