@@ -17,6 +17,7 @@
 
 static const char *TEST_DIR = "/tmp/scroller/test/";
 
+/* Helper function: create temporary test directory */
 static int
 create_test_dir() {
     int ret =  mkdir(TEST_DIR, 0755);
@@ -27,6 +28,12 @@ create_test_dir() {
     }
 
     return ret;
+}
+
+/* Helper function: delete temporary test directory */
+static int
+remove_test_dir() {
+    return rmdir(TEST_DIR);
 }
 
 /* Helper function: create temporary test files */
@@ -81,14 +88,13 @@ TEST(fdcache)
             FdCache *cache = fdcache_create(cache, 4, 8, gid_hash_fn);
             FdCache *entry;
             FdCache *retrieved;
-            char filename[64];
+            Gid gid = { .full = 12345 };
+            gid_hex_t filename = gid2hex(gid);
 
             TEST_CHECK(create_test_dir() == 0);
 
             /* Create test file */
-            Gid gid = { .full = 12345 };
-            snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gid.parts.file_id);
-            create_test_file(filename);
+            create_test_file(filename.value);
 
             /* Put into cache */
             entry = fdcache_put(cache, gid.full);
@@ -103,7 +109,7 @@ TEST(fdcache)
             TEST_CHECK(retrieved->fd == entry->fd);
 
             fdcache_free(cache);
-            delete_test_file(filename);
+            delete_test_file(filename.value);
         }
 
         TEST_CASE(put_multiple) {
@@ -114,13 +120,12 @@ TEST(fdcache)
                 { .full = 3 },
                 { .full = 4 }
             };
-            char filename[64];
 
             /* Create test files and put into cache */
             for (int i = 0; i < 4; i++) {
                 FdCache *entry;
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                create_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                create_test_file(filename.value);
 
                 entry = fdcache_put(cache, gids[i].full);
                 TEST_CHECK(entry != NULL);
@@ -139,8 +144,8 @@ TEST(fdcache)
 
             fdcache_free(cache);
             for (int i = 0; i < 4; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                delete_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                delete_test_file(filename.value);
             }
         }
 
@@ -159,7 +164,6 @@ TEST(fdcache)
                 { .full = 5 },
                 { .full = 6 }
             };
-            char filename[64];
             FdCache *entry5;
             FdCache *evicted;
             int evicted_fd;
@@ -192,8 +196,8 @@ TEST(fdcache)
 
             fdcache_free(cache);
             for (int i = 0; i < 6; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                delete_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                delete_test_file(filename.value);
             }
         }
 
@@ -208,18 +212,12 @@ TEST(fdcache)
                 { .full = 2 }
             };
             Gid gid3 = { .full = 3 };
-            char filename[64];
             FdCache *entry1;
             FdCache *entry2;
             FdCache *entry3;
             int fd1;
             int fd2;
             int fd3;
-
-            for (int i = 0; i < 2; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                create_test_file(filename);
-            }
 
             /* Insert first entry */
             entry1 = fdcache_put(cache, gids[0].full);
@@ -234,9 +232,6 @@ TEST(fdcache)
             TEST_CHECK(is_fd_valid(fd2));
 
             /* Try to insert third entry (cache is full, no chains) */
-            snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gid3.parts.file_id);
-            create_test_file(filename);
-
             entry3 = fdcache_put(cache, gid3.full);
             TEST_CHECK(entry3 != NULL);
             fd3 = entry3->fd;
@@ -250,8 +245,8 @@ TEST(fdcache)
 
             fdcache_free(cache);
             for (int i = 1; i <= 3; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)i);
-                delete_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                delete_test_file(filename.value);
             }
         }
 
@@ -262,12 +257,6 @@ TEST(fdcache)
                 { .full = 2 },
                 { .full = 3 }
             };
-            char filename[64];
-
-            for (int i = 0; i < 3; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                create_test_file(filename);
-            }
 
             /* Insert all entries */
             int fds[3];
@@ -288,8 +277,8 @@ TEST(fdcache)
 
             fdcache_free(cache);
             for (int i = 0; i < 3; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                delete_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                delete_test_file(filename.value);
             }
         }
 
@@ -300,12 +289,6 @@ TEST(fdcache)
                 { .full = 2 },
                 { .full = 3 }
             };
-            char filename[64];
-
-            for (int i = 0; i < 3; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                create_test_file(filename);
-            }
 
             /* Insert all entries */
             int fds[3];
@@ -325,8 +308,8 @@ TEST(fdcache)
             }
 
             for (int i = 0; i < 3; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                delete_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                delete_test_file(filename.value);
             }
         }
 
@@ -337,13 +320,10 @@ TEST(fdcache)
         TEST_CASE(put_existing_file) {
             FdCache *cache = fdcache_create(cache, 4, 8, gid_hash_fn);
             Gid gid = { .full = 777 };
-            char filename[64];
+            gid_hex_t filename = gid2hex(gid);
             FdCache *entry1;
             FdCache *entry2;
             int fd1;
-
-            snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gid.parts.file_id);
-            create_test_file(filename);
 
             /* First put should open file */
             entry1 = fdcache_put(cache, gid.full);
@@ -358,7 +338,7 @@ TEST(fdcache)
             TEST_CHECK(is_fd_valid(fd1));
 
             fdcache_free(cache);
-            delete_test_file(filename);
+            delete_test_file(filename.value);
         }
 
         TEST_CASE(cache_zero_buckets) {
@@ -370,38 +350,32 @@ TEST(fdcache)
             FdCache *cache = fdcache_create(cache, 1000, 1000, gid_hash_fn);
             FdCache *entry;
             Gid gid = { .full = 42 };
-            char filename[64];
+            gid_hex_t filename = gid2hex(gid);
             TEST_CHECK(cache != NULL);
-
-            snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gid.parts.file_id);
-            create_test_file(filename);
 
             entry = fdcache_put(cache, gid.full);
             TEST_CHECK(entry != NULL);
             TEST_CHECK(is_fd_valid(entry->fd));
 
             fdcache_free(cache);
-            delete_test_file(filename);
+            delete_test_file(filename.value);
         }
 
         TEST_CASE(custom_hash_function) {
             /* Use different hash function */
             FdCache *cache = fdcache_create(cache, 4, 8, gid_hash_fn);
             Gid gid = { .full = 123 };
-            char filename[64];
+            gid_hex_t filename = gid2hex(gid);
             FdCache *entry;
 
             TEST_CHECK(cache != NULL);
-
-            snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gid.parts.file_id);
-            create_test_file(filename);
 
             entry = fdcache_put(cache, gid.full);
             TEST_CHECK(entry != NULL);
             TEST_CHECK(is_fd_valid(entry->fd));
 
             fdcache_free(cache);
-            delete_test_file(filename);
+            delete_test_file(filename.value);
         }
 
     TEST_SUITE_END()
@@ -412,29 +386,24 @@ TEST(fdcache)
             void *buf = malloc(fdcache_get_required_memory_size(4, 8));
             FdCache *cache = fdcache_init((FdCache *)buf, 4, 8, gid_hash_fn);
             Gid gid = { .full = 456 };
-            char filename[64];
+            gid_hex_t filename = gid2hex(gid);
             FdCache *entry;
 
             TEST_CHECK(cache != NULL);
             TEST_CHECK((void *)cache == buf);
-
-            snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gid.parts.file_id);
-            create_test_file(filename);
 
             entry = fdcache_put(cache, gid.full);
             TEST_CHECK(entry != NULL);
             TEST_CHECK(is_fd_valid(entry->fd));
 
             free(buf);
-            delete_test_file(filename);
+            delete_test_file(filename.value);
         }
 
         TEST_CASE(get_fd_macro) {
             FdCache *cache = fdcache_create(cache, 4, 8, gid_hash_fn);
             Gid gid = { .full = 789 };
-            char filename[64];
-            snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gid.parts.file_id);
-            create_test_file(filename);
+            gid_hex_t filename = gid2hex(gid);
 
             fdcache_put(cache, gid.full);
 
@@ -451,7 +420,7 @@ TEST(fdcache)
             TEST_CHECK(fd_val == entry->fd);
 
             fdcache_free(cache);
-            delete_test_file(filename);
+            delete_test_file(filename.value);
         }
 
     TEST_SUITE_END()
@@ -461,7 +430,6 @@ TEST(fdcache)
         TEST_CASE(stress_many_operations) {
             FdCache *cache = fdcache_create(cache, 8, 16, gid_hash_fn);
             const int NUM_FILES = 50;
-            char filename[64];
             Gid gids[NUM_FILES];
 
             /* Create test files */
@@ -493,15 +461,14 @@ TEST(fdcache)
 
             fdcache_free(cache);
             for (int i = 0; i < NUM_FILES; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                delete_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                delete_test_file(filename.value);
             }
         }
 
         TEST_CASE(stress_concurrent_put) {
             FdCache *cache = fdcache_create(cache, 4, 4, gid_hash_fn);
             const int NUM_FILES = 20;
-            char filename[64];
             Gid gids[NUM_FILES];
 
             for (int i = 0; i < NUM_FILES; i++) {
@@ -519,9 +486,13 @@ TEST(fdcache)
 
             fdcache_free(cache);
             for (int i = 0; i < NUM_FILES; i++) {
-                snprintf(filename, sizeof(filename), "%s%lX", TEST_DIR, (uint64_t)gids[i].parts.file_id);
-                delete_test_file(filename);
+                gid_hex_t filename = gid2hex(gids[i]);
+                delete_test_file(filename.value);
             }
+        }
+
+        TEST_CASE(done) {
+            TEST_CHECK(remove_test_dir() == 0);
         }
 
     TEST_SUITE_END()
