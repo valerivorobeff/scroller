@@ -1,9 +1,16 @@
-#include "grid.h"
-#include "fdcache.h"
+#include "pagecache.h"
+#include "sequence.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
+
+#include <string.h>
+
+PageCache *g_pagecache = NULL;
+
+#define put_char(c, val, size)  strncpy(c, val, size - 1)
 
 int
 init_cluster(const char *path) {
@@ -14,7 +21,7 @@ init_cluster(const char *path) {
     if (result) {
         switch (errno) {
             case EEXIST:
-                result = 0;
+                fprintf(stderr, "Directory already exists\n");
                 break;
 
             default:
@@ -22,6 +29,52 @@ init_cluster(const char *path) {
                 break;
         }
     } else {
+        Page hsequence;
+        Page sequence;
+        Page hcluster;
+        Page cluster;
+        int64_t currval;
+        Row row;
+        Column column;
+
+        chdir(path);
+
+        /*
+         * Init main sequence
+         */
+        hsequence = pagecache_put_page(g_pagecache, 0);
+        hsequence_init(hsequence);
+
+        sequence = pagecache_put_page(g_pagecache, 1);
+        sequence_init(hsequence, sequence, 0, 100, 2, 1, 0);
+
+        sequence_nextval(hsequence, sequence, &currval);
+
+        /*
+         * Init main cluster table
+         */
+        hcluster = pagecache_put_page(g_pagecache, currval);
+        hcluster = hgrid_init(hcluster, PAGESZ, GT_FIXED);
+        hgrid_add_column(hcluster, "name", 32);
+        hgrid_add_column(hcluster, "value", 32);
+
+        sequence_nextval(hsequence, sequence, &currval);
+
+        cluster = pagecache_put_page(g_pagecache, currval);
+        cluster = dgrid_init(cluster, PAGESZ, GT_FIXED, hcluster);
+
+        row = dgrid_alloc_row(cluster);
+        column = dgrid_get_column(hcluster, cluster, 0, 0);
+        put_char(column, "Encoding", 32);
+
+        column = dgrid_get_column(hcluster, cluster, 0, 1);
+        put_char(column, "UTF-8", 32);
+
+        pagecache_write((icache *)g_pagecache, 0);
+        pagecache_write((icache *)g_pagecache, 1);
+        pagecache_write((icache *)g_pagecache, 2);
+        pagecache_write((icache *)g_pagecache, currval);
+
         printf("Cluster created\n");
     }
 
@@ -41,24 +94,25 @@ get_block_size(const char *fname) {
 int
 main(const int argc, const char *argv[]) {
     int result;
-    Page page_pool;
-    FdCache *fdcache;
 
     if (argc != 2) {
         fprintf(stderr, "usage: scr_init <PATH_TO_CLUSTER_HOME_DIR>\n");
         return EXIT_FAILURE;
     }
 
-    result = init_cluster(argv[1]);
-    PAGESZ = get_block_size(argv[1]);
+    PAGESZ = get_block_size(argv[0]);
 
     printf("block size: %lu\n", PAGESZ);
 
-    page_pool = aligned_alloc(PAGESZ, 8 * PAGESZ);
-    fdcache = fdcache_create(fdcache, 4, 4, NULL);
+    g_pages = aligned_alloc(PAGESZ, 16 * PAGESZ);
+    g_fdcache = fdcache_create(g_fdcache, 4, 4, NULL);
+    g_pagecache = pagecache_create(8, 8, NULL);
 
-    fdcache_free(fdcache);
-    free(page_pool);
+    result = init_cluster(argv[1]);
+
+    pagecache_free(g_pagecache);
+    fdcache_free(g_fdcache);
+    free(g_pages);
 
     return result;
 }

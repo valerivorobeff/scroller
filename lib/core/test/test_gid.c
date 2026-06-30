@@ -30,6 +30,7 @@
 
 #include "quin.h"
 #include "gid.h"
+#include <string.h>
 
 TEST(gid)
 
@@ -41,6 +42,14 @@ TEST(gid)
 
         TEST_CASE(size) {
             TEST_CHECK(sizeof(uint64_t) == sizeof(Gid));
+        }
+
+        TEST_CASE(gid2hex) {
+            const char *str = "00000000000085AF";
+            const size_t offs = strlen(str) - (GID_FILEIDBITS / GID_OCTETBITS) * 2;
+            Gid gid = { .parts.file_id = 0x85af, .parts.page = 0 };
+            gid_hex_t hex = gid2hex(gid);
+            TEST_CHECK(strcmp(hex.value, str + offs) == 0);
         }
 
     TEST_SUITE_END()  /* End of gid test suite */

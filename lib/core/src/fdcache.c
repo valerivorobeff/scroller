@@ -70,15 +70,13 @@ fdcache_touch_fn(icache *cache, ssize_t key) {
  */
 int
 fdcache_open(ssize_t key) {
-    Gid gid = { .full = (uint64_t)key };
-    char buffer[sizeof(Gid) * 2 + 1];
-
-    snprintf(buffer, sizeof(buffer), "%lX", (uint64_t)gid.parts.file_id);
+    const Gid gid = { .full = (uint64_t)key };
+    const gid_hex_t hex = gid2hex(gid);
 
 #ifdef O_DIRECT
-    return open(buffer, O_RDWR | O_CREAT | O_DIRECT, 0644);
+    return open(hex.value, O_RDWR | O_CREAT | O_DIRECT, 0644);
 #else
-    return open(buffer, O_RDWR | O_CREAT | O_SYNC, 0644);
+    return open(hex.value, O_RDWR | O_CREAT | O_SYNC, 0644);
 #endif
 }
 
