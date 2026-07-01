@@ -86,6 +86,7 @@ sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval,
     }
 
     sequence = dgrid_init(p, PAGESZ, GT_FIXED, hsequence);
+    dgrid_alloc_row(sequence);
     c = dgrid_get_column(hsequence, sequence, 0, 0);
     put_bigint(c, minval);
 

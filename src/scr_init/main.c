@@ -33,6 +33,10 @@ init_cluster(const char *path) {
         Page sequence;
         Page hcluster;
         Page cluster;
+        Page huser;
+        Page user;
+        Page harchive;
+        Page archive;
         int64_t currval;
         Row row;
         Column column;
@@ -50,8 +54,7 @@ init_cluster(const char *path) {
          * Init main sequence
          */
         sequence = pagecache_put_page(g_pagecache, 1);
-        sequence_init(hsequence, sequence, 0, 100, 2, 1, 0);
-        pagecache_flush(g_pagecache, 1);
+        sequence_init(hsequence, sequence, 0, INT64_MAX, 2, 1, 0);
 
         /*
          * Init main cluster header
@@ -81,6 +84,54 @@ init_cluster(const char *path) {
         put_char(column, "UTF-8", 32);
 
         pagecache_flush(g_pagecache, currval);
+
+        /*
+         * Init user header
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+
+        huser = pagecache_put_page(g_pagecache, currval);
+        huser = hgrid_init(huser, PAGESZ, GT_FIXED);
+        hgrid_add_column(huser, "name", 32);
+
+        pagecache_flush(g_pagecache, currval);
+
+        /*
+         * Init user table
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+
+        user = pagecache_put_page(g_pagecache, currval);
+        user = dgrid_init(user, PAGESZ, GT_FIXED, huser);
+
+        row = dgrid_alloc_row(user);
+        column = dgrid_get_column(huser, user, 0, 0);
+        put_char(column, "scroller", 32);
+
+        pagecache_flush(g_pagecache, currval);
+
+        /*
+         * Init archive header
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+
+        harchive = pagecache_put_page(g_pagecache, currval);
+        harchive = hgrid_init(harchive, PAGESZ, GT_FIXED);
+        hgrid_add_column(harchive, "name", 32);
+
+        pagecache_flush(g_pagecache, currval);
+
+        /*
+         * Init archive table
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+
+        archive = pagecache_put_page(g_pagecache, currval);
+        archive = dgrid_init(archive, PAGESZ, GT_FIXED, harchive);
+
+        pagecache_flush(g_pagecache, currval);
+
+        pagecache_flush(g_pagecache, 1); /* Flush main sequence */
 
         printf("Cluster created\n");
     }
