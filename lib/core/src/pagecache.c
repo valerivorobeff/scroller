@@ -10,9 +10,10 @@ PageCache *pagecache_create_fn(size_t bucketsz, size_t chainsz, ihash_hash_fn ha
 PageCache *pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn);
 void pagecache_clear(void *p, ihash_hash_fn hash_fn);
 void *pagecache_touch_fn(icache *cache, ssize_t key);
+ssize_t pagecache_flush(PageCache *cache, ssize_t key);
 
-pagecache_idx_t pagecache_read(icache *cache, ssize_t key);
-pagecache_idx_t pagecache_write(icache *cache, ssize_t key);
+static pagecache_idx_t pagecache_read(icache *cache, ssize_t key);
+static pagecache_idx_t pagecache_write(icache *cache, ssize_t key);
 
 PageCache *
 pagecache_create_fn(size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn) {
@@ -112,11 +113,25 @@ pagecache_touch_fn(icache *cache, ssize_t key) {
     return e;
 }
 
+ssize_t
+pagecache_flush(PageCache *cache, ssize_t key) {
+    const FdCache *e = fdcache_put(g_fdcache, key);
+    const size_t *idx = icache_get_member_ptr(cache, key, page_idx);
+    ssize_t written_bytes;
+
+    assert(e != NULL);
+    assert(idx != NULL);
+
+    written_bytes = write(e->fd, g_pages + *idx * PAGESZ, PAGESZ);
+
+    return written_bytes != (ssize_t)PAGESZ ? written_bytes : 0;
+}
+
 pagecache_idx_t
 pagecache_read(icache *cache, ssize_t key) {
-    pagecache_idx_t *page_idx_stack = icache_get_extra(cache);
-    pagecache_idx_t cur_idx = ilist2_pop_back(page_idx_stack);
-    FdCache *e = fdcache_put(g_fdcache, key);
+    const pagecache_idx_t *page_idx_stack = icache_get_extra(cache);
+    const pagecache_idx_t cur_idx = ilist2_pop_back(page_idx_stack);
+    const FdCache *e = fdcache_put(g_fdcache, key);
     ssize_t read_bytes;
 
     assert(cur_idx != ILIST2_UNDEF);
@@ -138,8 +153,8 @@ pagecache_idx_t
 pagecache_write(icache *cache, ssize_t key) {
     pagecache_idx_t *page_idx_stack = icache_get_extra(cache);
     pagecache_idx_t cur_idx;
-    FdCache *e = fdcache_put(g_fdcache, key);
-    size_t *idx = icache_get_member_ptr((PageCache *)cache, key, page_idx);
+    const FdCache *e = fdcache_put(g_fdcache, key);
+    const size_t *idx = icache_get_member_ptr((PageCache *)cache, key, page_idx);
     ssize_t written_bytes;
 
     assert(e != NULL);

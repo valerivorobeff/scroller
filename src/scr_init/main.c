@@ -40,24 +40,34 @@ init_cluster(const char *path) {
         chdir(path);
 
         /*
-         * Init main sequence
+         * Init sequence header
          */
         hsequence = pagecache_put_page(g_pagecache, 0);
         hsequence_init(hsequence);
-
-        sequence = pagecache_put_page(g_pagecache, 1);
-        sequence_init(hsequence, sequence, 0, 100, 2, 1, 0);
-
-        sequence_nextval(hsequence, sequence, &currval);
+        pagecache_flush(g_pagecache, 0);
 
         /*
-         * Init main cluster table
+         * Init main sequence
          */
+        sequence = pagecache_put_page(g_pagecache, 1);
+        sequence_init(hsequence, sequence, 0, 100, 2, 1, 0);
+        pagecache_flush(g_pagecache, 1);
+
+        /*
+         * Init main cluster header
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+
         hcluster = pagecache_put_page(g_pagecache, currval);
         hcluster = hgrid_init(hcluster, PAGESZ, GT_FIXED);
         hgrid_add_column(hcluster, "name", 32);
         hgrid_add_column(hcluster, "value", 32);
 
+        pagecache_flush(g_pagecache, currval);
+
+        /*
+         * Init main cluster table
+         */
         sequence_nextval(hsequence, sequence, &currval);
 
         cluster = pagecache_put_page(g_pagecache, currval);
@@ -70,10 +80,7 @@ init_cluster(const char *path) {
         column = dgrid_get_column(hcluster, cluster, 0, 1);
         put_char(column, "UTF-8", 32);
 
-        pagecache_write((icache *)g_pagecache, 0);
-        pagecache_write((icache *)g_pagecache, 1);
-        pagecache_write((icache *)g_pagecache, 2);
-        pagecache_write((icache *)g_pagecache, currval);
+        pagecache_flush(g_pagecache, currval);
 
         printf("Cluster created\n");
     }

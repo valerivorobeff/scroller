@@ -64,8 +64,7 @@ PageCache *pagecache_create_fn(size_t bucketsz, size_t chainsz, ihash_hash_fn ha
 PageCache *pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn);
 void pagecache_clear(void *p, ihash_hash_fn hash_fn);
 void *pagecache_touch_fn(icache *cache, ssize_t key);
-pagecache_idx_t pagecache_read(icache *cache, ssize_t key);
-pagecache_idx_t pagecache_write(icache *cache, ssize_t key);
+ssize_t pagecache_flush(PageCache *cache, ssize_t key);
 
 #endif /* _PAGECACHE_H_ */
 
