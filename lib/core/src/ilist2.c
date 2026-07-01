@@ -119,7 +119,7 @@ ilist2_clear(void *p) {
     const size_t listsz = list->listsz;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
-    void *nodes = list->nodes;
+    const void *nodes = list->nodes;
 
     list->back_idx =    ILIST2_UNDEF;
     list->front_idx =   ILIST2_UNDEF;
@@ -270,11 +270,13 @@ ilist2_touch_back_fn(ilist2 *list, ilist2_idx_t *idx) {
         void *nodes = list->nodes;
         const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
         const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
+        const void *back_node;
+        void *new_node;
 
         ilist2_idx_t new_idx = *idx;
 
-        void *back_node = nodes + list->back_idx * nodesz;          /* get back node */
-        void *new_node = nodes + new_idx * nodesz;                  /* get new node */
+        back_node = nodes + list->back_idx * nodesz;                /* get back node */
+        new_node = nodes + new_idx * nodesz;                        /* get new node */
 
         *(ilist2_idx_t *)(back_node + nextoffs) = new_idx; /* update previous node's nextoffs */
 
@@ -313,11 +315,13 @@ ilist2_touch_front_fn(ilist2 *list, ilist2_idx_t *idx) {
         void *nodes = list->nodes;
         const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
         const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
+        const void *front_node;
+        void *new_node;
 
         ilist2_idx_t new_idx = *idx;
 
-        void *front_node = nodes + list->front_idx * nodesz;        /* get front node */
-        void *new_node = nodes + new_idx * nodesz;                  /* get new node */
+        front_node = nodes + list->front_idx * nodesz;              /* get front node */
+        new_node = nodes + new_idx * nodesz;                        /* get new node */
 
         *(ilist2_idx_t *)(front_node + prevoffs) = new_idx; /* update next node's prevoffs */
 
@@ -347,7 +351,7 @@ void
 ilist2_move_back_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const size_t nodesz = list->nodesz;
     void *nodes = list->nodes;
-    void *node = nodes + idx * nodesz;
+    const void *node = nodes + idx * nodesz;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
@@ -394,7 +398,7 @@ void
 ilist2_move_front_by_idx_fn(ilist2 *list, ilist2_idx_t idx) {
     const size_t nodesz = list->nodesz;
     void *nodes = list->nodes;
-    void *node = nodes + idx * nodesz;
+    const void *node = nodes + idx * nodesz;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
 
@@ -442,7 +446,7 @@ ilist2_touch_new_fn(ilist2 *list) {
     void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
     const size_t prevoffs = nextoffs - sizeof(ilist2_idx_t);
-    ilist2_idx_t new_idx = list->freelist_head;
+    const ilist2_idx_t new_idx = list->freelist_head;
     void *new_node = nodes + new_idx * nodesz;                      /* get new node */
 
     assert(new_idx != ILIST2_UNDEF);
@@ -471,7 +475,7 @@ ilist2_touch_new_fn(ilist2 *list) {
  */
 void
 ilist2_dump_list(void *p) {
-    ilist2 *list = p;
+    const ilist2 *list = p;
     const size_t nodesz = list->nodesz;
     const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
@@ -489,9 +493,9 @@ ilist2_dump_list(void *p) {
             list->front_idx, list->back_idx, list->freelist_head);
 
         for (;;) {
-                ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
-                ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
-                size_t idx = (node - nodes) / nodesz;
+                const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
+                const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
+                const size_t idx = (node - nodes) / nodesz;
 
                 prev_idx != ILIST2_UNDEF ? printf("[%3zu]  [%5zu]", idx, prev_idx) : printf("[%3zu]  [UNDEF]", idx);
                 printf(" %i ", *(int *)node);
@@ -518,7 +522,7 @@ ilist2_dump_list(void *p) {
  */
 void
 ilist2_dump_idx(void *p) {
-    ilist2 *list = p;
+    const ilist2 *list = p;
     const size_t nodesz = list->nodesz;
     const void *nodes = list->nodes;
     const size_t nextoffs = nodesz - sizeof(ilist2_idx_t);
@@ -534,8 +538,8 @@ ilist2_dump_idx(void *p) {
             list->front_idx, list->back_idx, list->freelist_head);
 
         for (size_t i = 0, ie = list->listsz; i != ie; ++i) {
-                ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
-                ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
+                const ilist2_idx_t prev_idx = *((ilist2_idx_t *)(node + prevoffs));
+                const ilist2_idx_t next_idx = *((ilist2_idx_t *)(node + nextoffs));
 
                 prev_idx != ILIST2_UNDEF ? printf("[%3zu]  [%5zu]", i, prev_idx) : printf("[%3zu]  [UNDEF]", i);
                 printf(" %i ", *(int *)node);
@@ -558,7 +562,7 @@ ilist2_dump_idx(void *p) {
  * @see ilist2_dump_idx()
  */
 void ilist2_dump_freelist(void *p) {
-    ilist2 *list = p;
+    const ilist2 *list = p;
     ssize_t count = 0;
     const size_t listsz = list->listsz;
     ilist2_idx_t idx = list->freelist_head;
@@ -570,16 +574,23 @@ void ilist2_dump_freelist(void *p) {
         list->front_idx, list->back_idx, list->freelist_head);
 
     while (idx != ILIST2_UNDEF) {
+        const char *node;
+
         if (idx < 0 || idx >= (ilist2_idx_t)listsz) {
             printf("ERROR: freelist index %zd out of range\n", idx);
             break;
         }
+
         printf("%zd -> ", idx);
-        count++;
-        if (count > 1000) break;
-        const char *node = nodes + idx * nodesz;
+        ++count;
+
+        if (count > 1000)
+            break;
+
+        node = nodes + idx * nodesz;
         idx = *(ilist2_idx_t *)(node + nextoffs);
     }
+
     printf("ILIST2_UNDEF, ");
     printf("Freelist contains %zd nodes\n", count);
 }

@@ -23,15 +23,15 @@ CORE_OBJS	= $(patsubst lib/core/src/%.c, build/$(BUILD)/core/%.o, $(CORE_SRCS))
 CORE_LIB	= build/$(BUILD)/libcore.a
 
 # Utils
-#UTILS = # utility_1 utility_2
-#UTIL_SRCS = $(foreach util,$(UTILS), src/$(util)/main.c)
-#UTIL_OBJS = $(patsubst src/%/main.c, build/$(BUILD)/%/main.o, $(UTIL_SRCS))
-#UTIL_BINS = $(patsubst src/%/main.c, build/$(BUILD)/%, $(UTIL_SRCS))
+UTILS		= scr_init
+UTIL_SRCS 	= $(foreach util,$(UTILS), src/$(util)/main.c)
+UTIL_OBJS 	= $(patsubst src/%/main.c, build/$(BUILD)/%.o, $(UTIL_SRCS))
+UTIL_BINS 	= $(patsubst src/%/main.c, build/$(BUILD)/%, $(UTIL_SRCS))
 
 # Tests
-TEST_SRCS = $(wildcard lib/core/test/test_*.c)
-TEST_OBJS = $(patsubst lib/core/test/%.c, build/$(BUILD)/test/%.o, $(TEST_SRCS))
-TEST_BINS = $(TEST_OBJS:.o=)
+TEST_SRCS 	= $(wildcard lib/core/test/test_*.c)
+TEST_OBJS 	= $(patsubst lib/core/test/%.c, build/$(BUILD)/test/%.o, $(TEST_SRCS))
+TEST_BINS 	= $(TEST_OBJS:.o=)
 
 #
 #
@@ -39,17 +39,16 @@ TEST_BINS = $(TEST_OBJS:.o=)
 #
 #
 
-#all: $(UTIL_BINS)
-all: $(CORE_LIB)
+all: $(UTIL_BINS)
 
 # Utils
-# $(UTIL_BINS): build/$(BUILD)/%: build/$(BUILD)/%.o $(CORE_LIB)
-# 	@mkdir -p $(dir $@)
-# 	$(CC) $(CFLAGS) $^ -o $@
-#
-# $(UTIL_OBJS): build/$(BUILD)/%/main.o: src/%/main.c
-# 	@mkdir -p $(dir $@)
-# 	$(CC) $(CFLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
+$(UTIL_BINS): build/$(BUILD)/%: build/$(BUILD)/%.o $(CORE_LIB)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(UTIL_OBJS): build/$(BUILD)/%.o: src/%/main.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
 
 # Core lib
 $(CORE_LIB): $(CORE_OBJS)

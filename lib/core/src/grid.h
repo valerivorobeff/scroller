@@ -26,6 +26,12 @@
 #include <stddef.h>
 
 /**
+ * Global extern variable PAGESZ with default value 4096
+ * You should better recalculate it at the beginning of your application
+ */
+extern size_t PAGESZ;
+
+/**
  * @brief Opaque handle to a memory page.
  *
  * Points to a contiguous block of memory used as a storage page.

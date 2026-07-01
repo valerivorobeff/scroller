@@ -444,14 +444,14 @@ ihash_erase_fn(ihash *hash, ssize_t key) {
 
     /* Case 2: Key is in bucket slot */
     if (key == *(ssize_t *)(e + keyoffs)) {
-        ssize_t next_idx = *(ssize_t *)(e + nextoffs);
+        const ssize_t next_idx = *(ssize_t *)(e + nextoffs);
 
         if (IHASH_UNDEF == next_idx) {
             /* There is no chain, just clear the bucket */
             *(ssize_t *)(e + keyoffs) = IHASH_UNDEF;
             *(ssize_t *)(e + nextoffs) = IHASH_UNDEF;
         } else {
-            void *first_node = chains + next_idx * nodesz;
+            const void *first_node = chains + next_idx * nodesz;
             /* Move the first node from chain to bucket */
             memcpy(e, first_node, nodesz);
 
@@ -468,14 +468,14 @@ ihash_erase_fn(ihash *hash, ssize_t key) {
         ssize_t cur_idx = *(ssize_t *)(e + nextoffs);
 
         while (IHASH_UNDEF != cur_idx) {
-            void *prev = e;                 /* Remember previous node */
+            const void *prev = e;           /* Remember previous node */
             e = chains + cur_idx * nodesz;  /* Move to next node in chain */
 
             if (key == *(ssize_t *)(e + keyoffs)) {
                 /* Key exists */
 
                 /* Unlink current node (e) from the chain */
-                ssize_t next_idx = *(ssize_t *)(e + nextoffs);
+                const ssize_t next_idx = *(ssize_t *)(e + nextoffs);
                 *(ssize_t *)(prev + nextoffs) = next_idx;
 
                 /* Move current node (e) to top of free chain */
@@ -612,33 +612,36 @@ ihash_dump_simple(void *h) {
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     const size_t total_buckets = hash->bucketsz;
-    char *buckets = (char *)ihash_get_buckets(hash);
-    char *chains = (char *)ihash_get_chains(hash);
+    void *buckets = ihash_get_buckets(hash);
+    void *chains = ihash_get_chains(hash);
 
     printf("\n=== HASH TABLE (buckets=%zu, chains=%zu, freelist=%zd) ===\n",
            hash->bucketsz, hash->chainsz, hash->chain_head);
 
     for (size_t i = 0; i < total_buckets; ++i) {
-        char *bucket = buckets + i * nodesz;
-        ssize_t key = *(ssize_t *)(bucket + keyoffs);
-        ssize_t next = *(ssize_t *)(bucket + nextoffs);
+        const char *bucket = buckets + i * nodesz;
+        const ssize_t key = *(ssize_t *)(bucket + keyoffs);
+        const ssize_t next = *(ssize_t *)(bucket + nextoffs);
 
-        if (key == IHASH_UNDEF) {
+        if (key == IHASH_UNDEF)
             printf("  [%3zu] EMPTY\n", i);
-        } else {
+        else {
+            ssize_t chain_idx = next;
+
             printf("  [%3zu] key=%4ld", i, key);
 
             /* Traverse chain */
-            ssize_t chain_idx = next;
             while (chain_idx != IHASH_UNDEF) {
-                char *chain_node = chains + chain_idx * nodesz;
-                ssize_t chain_key = *(ssize_t *)(chain_node + keyoffs);
+                const char *chain_node = chains + chain_idx * nodesz;
+                const ssize_t chain_key = *(ssize_t *)(chain_node + keyoffs);
                 printf(" -> %ld", chain_key);
                 chain_idx = *(ssize_t *)(chain_node + nextoffs);
             }
+
             printf("\n");
         }
     }
+
     printf("=================================\n");
 }
 
@@ -662,8 +665,8 @@ ihash_dump_debug(void *h) {
     const size_t keyoffs = hash->keyoffs;
     const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
     const size_t total_nodes = hash->bucketsz + hash->chainsz;
-    char *buckets = (char *)ihash_get_buckets(hash);
-    char *chains = (char *)ihash_get_chains(hash);
+    void *buckets = ihash_get_buckets(hash);
+    void *chains = ihash_get_chains(hash);
 
     printf("\n=== HASH TABLE DEBUG ===\n");
     printf("bucketsz=%zu, chainsz=%zu, total_slots=%zu\n",
@@ -674,29 +677,30 @@ ihash_dump_debug(void *h) {
 
     /* Dump all slots (buckets + chains) */
     for (size_t i = 0; i < total_nodes; ++i) {
-        char *slot = buckets + i * nodesz;
-        ssize_t key = *(ssize_t *)(slot + keyoffs);
-        ssize_t next = *(ssize_t *)(slot + nextoffs);
+        const char *slot = buckets + i * nodesz;
+        const ssize_t key = *(ssize_t *)(slot + keyoffs);
+        const ssize_t next = *(ssize_t *)(slot + nextoffs);
         const char *type = (i < hash->bucketsz) ? "BUCKET" : "CHAIN";
 
-        if (key == IHASH_UNDEF) {
+        if (key == IHASH_UNDEF)
             printf("%s[%3zu]: EMPTY (next=%zd)\n", type, i, next);
-        } else {
+        else
             printf("%s[%3zu]: key=%4ld (next=%zd)\n", type, i, key, next);
-        }
     }
 
     /* Dump freelist */
     if (hash->chain_head != IHASH_UNDEF) {
-        printf("\nFreelist: ");
         ssize_t idx = hash->chain_head;
+        printf("\nFreelist: ");
         while (idx != IHASH_UNDEF && idx < (ssize_t)total_nodes) {
+            const void  *node = chains + idx * nodesz;
             printf("%zd", idx);
-            char *node = chains + idx * nodesz;
             idx = *(ssize_t *)(node + nextoffs);
             printf(" -> ");
-            if (idx == hash->chain_head) break; /* loop detection */
+            if (idx == hash->chain_head)
+                break;                          /* loop detection */
         }
+
         printf("IHASH_UNDEF\n");
     }
 
@@ -730,17 +734,22 @@ void ihash_dump_freelist(void *h) {
     void *chains = ihash_get_chains(hash);
 
     printf("Freelist: ");
+
     while (idx != IHASH_UNDEF) {
+        void *node;
+
         if (idx < 0 || idx >= (ihash_idx_t)hash->chainsz) {
             printf("ERROR: freelist index %zd out of range\n", idx);
             break;
         }
+
         printf("%zd -> ", idx);
-        count++;
+        ++count;
         if (count > 1000) break;
-        char *node = chains + idx * hash->nodesz;
+        node = chains + idx * hash->nodesz;
         idx = *(ssize_t *)(node + nextoffs);
     }
+
     printf("IHASH_UNDEF, ");
     printf("Freelist contains %zd nodes\n", count);
 }

@@ -26,6 +26,12 @@
 #include <string.h>
 
 /**
+ * Global variable PAGESZ with default value 4096
+ * You should better recalculate it at the beginning of your application
+ */
+size_t PAGESZ = 4096;
+
+/**
  * @cond PRIVATE
  * Forward declarations of public functions (implementation details)
  * @endcond
@@ -66,8 +72,8 @@ grid_get_row(Grid *grid, uint16_t n) {
 
 Column
 grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
-    Row r = grid_get_row(grid, row);
-    HColumn *hc = hgrid_get_column(hgrid, column);
+    const Row r = grid_get_row(grid, row);
+    const HColumn *hc = hgrid_get_column(hgrid, column);
 
     assert(column < hgrid->occupied);
 
@@ -108,7 +114,7 @@ hgrid_add_column(Grid *grid, const char *name, size_t size) {
 size_t
 hgrid_get_row_size(Grid *grid) {
     if (grid->occupied) {
-        HColumn *hc = grid_get_row(grid, grid->occupied - 1);
+        const HColumn *hc = grid_get_row(grid, grid->occupied - 1);
         return hc->offs + hc->size;
     } else
        return 0;

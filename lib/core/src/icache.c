@@ -17,6 +17,8 @@
  * +-------------+
  * | ilist2      | LRU list
  * +-------------+
+ * | Extra data  | Extra data
+ * +-------------+
  * ```
  *
  * @see icache.h
@@ -24,7 +26,6 @@
 
 #include "icache.h"
 #include <malloc.h>
-#include <string.h>
 #include <assert.h>
 
 /**
@@ -33,8 +34,8 @@
  * @endcond
  */
 
-icache *icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
-icache *icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn);
+icache *icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, size_t extrasz);
+icache *icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, size_t extrasz);
 void icache_clear(void *p, ihash_hash_fn hash_fn);
 void icache_free(void *p);
 void *icache_touch_fn(icache *cache, ssize_t key);
@@ -53,6 +54,7 @@ void *icache_touch_fn(icache *cache, ssize_t key);
  * @param usersz   Total size of each user's entry in bytes
  * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
  *                 NULL to use default function
+ * @param extrasz  Extra data size
  * @return         Pointer to initialized cache, or NULL on allocation failure
  *
  * @pre bucketsz > 0
@@ -61,16 +63,16 @@ void *icache_touch_fn(icache *cache, ssize_t key);
  * @note The cache is relocatable - all references are indices, not pointers
  */
 icache *
-icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
+icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, size_t extrasz) {
     icache *cache;
 
     if (bucketsz == 0)
         return NULL;    /* Error, impossible to init a hash without buckets */
 
     /* Allocate contiguous memory */
-    cache = malloc(icache_get_required_memory_size(bucketsz, chainsz, usersz) + 10256);
+    cache = malloc(icache_get_required_memory_size(bucketsz, chainsz, usersz, extrasz));
 
-    return cache ? icache_init_fn(cache, bucketsz, chainsz, keyoffs, usersz, hash_fn) : NULL;
+    return cache ? icache_init_fn(cache, bucketsz, chainsz, keyoffs, usersz, hash_fn, extrasz) : NULL;
 }
 
 /**
@@ -88,6 +90,7 @@ icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz,
  * @param usersz   Total size of each user's entry in bytes
  * @param hash_fn  Pointer to user defined hash function of type ihash_hash_fn or
  *                 NULL to use default function
+ * @param extrasz  Extra data size
  * @return         Pointer to initialized cache, or NULL on allocation failure
  *
  * @pre bucketsz > 0
@@ -98,7 +101,7 @@ icache_create_fn(size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz,
  * @note Use icache_get_required_memory_size macro to know number of bytes required for cache.
  */
 icache *
-icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn) {
+icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t usersz, ihash_hash_fn hash_fn, size_t extrasz) {
     icache *cache = p;
     const size_t nodesz = usersz + sizeof(icache_idx_t);
 
@@ -106,8 +109,10 @@ icache_init_fn(void *p, size_t bucketsz, size_t chainsz, size_t keyoffs, size_t 
         return NULL;    /* Error, impossible to init a hash without buckets */
 
     cache->hashoffs = sizeof(icache);
-    cache->listoffs = sizeof(icache) + ihash_get_required_memory_size(bucketsz, chainsz, nodesz);
+    cache->listoffs = cache->hashoffs + ihash_get_required_memory_size(bucketsz, chainsz, nodesz);
+    cache->extraoffs = cache->listoffs + ilist2_get_required_memory_size(bucketsz + chainsz, sizeof(icache_idx_t));
     cache->nodesz = nodesz;
+    cache->extrasz = extrasz;
 
     if (ihash_init_fn(icache_get_hash(cache), bucketsz, chainsz, keyoffs, nodesz, hash_fn) == NULL)
         return NULL;
@@ -190,13 +195,16 @@ icache_touch_fn(icache *cache, ssize_t key) {
             *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
             assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         } else {
-            icache_idx_t lru_key = ilist2_pop_back(list);
+            const icache_idx_t lru_key = ilist2_pop_back(list);
 
             assert(lru_key != ILIST2_UNDEF);
+            assert(ihash_exists(hash, lru_key));
 
             ihash_erase(hash, lru_key);
             e = ihash_touch_fn(hash, key);
-            assert(e);
+            if (e == NULL)
+                return NULL;
+
             *(icache_idx_t *)(e + idxoffs) = ilist2_put_front(list, key);
             assert(*(icache_idx_t *)(e + idxoffs) != ILIST2_UNDEF);
         }
