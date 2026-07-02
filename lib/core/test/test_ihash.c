@@ -117,7 +117,7 @@ TEST(ihash)
             ihash_free(hash);
         }
 
-        TEST_CASE(ihash_foreach) {
+        TEST_CASE(ihash_iterator) {
             hentry *hash = ihash_create(hash, 4, 8, NULL), *tmp;
 
             ihash_put(hash, 1, 100);
@@ -127,9 +127,19 @@ TEST(ihash)
             ihash_put(hash, 1, 150);
             ihash_put(hash, 6, 500);
 
-            ihash_foreach(tmp, hash) {
-                /* @todo make this test work */
-                /* printf("%lu: %lu\n", tmp->key, tmp->value); */
+            for (ihash_iterator i = ihash_begin(hash); ihash_is_valid(hash, i); i = ihash_next(hash, i)) {
+                tmp = i.datum;
+                TEST_CHECK(ihash_exists(hash, tmp->key));
+            }
+
+            ihash_free(hash);
+        }
+
+        TEST_CASE(ihash_iterator_empty) {
+            hentry *hash = ihash_create(hash, 4, 8, NULL);
+
+            for (ihash_iterator i = ihash_begin(hash); ihash_is_valid(hash, i); i = ihash_next(hash, i)) {
+                TEST_FAIL();
             }
 
             ihash_free(hash);

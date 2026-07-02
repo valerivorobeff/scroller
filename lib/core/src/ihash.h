@@ -148,6 +148,11 @@ typedef struct ihash {
     ihash_hash_fn hash_fn;  /** Pointer to hash function */
 } ihash;
 
+typedef struct ihash_iterator {
+    size_t bucket_idx;
+    void *datum;
+} ihash_iterator;
+
 /**
  * @def ihash_create(h, bucketsz_, chainsz_, hash_fn_)
  * @brief Creates a new hash table for a specific entry type
@@ -490,34 +495,47 @@ void ihash_free(void *hash);
     ihash_erase_fn((ihash *)(h), key_)
 
 /**
- * @def ihash_foreach(node, h)
- * @brief Iterates over all occupied entries in the hash table
+ * @brief Returns the first valid iterator
  *
- * This macro provides a convenient way to traverse all non-empty entries
- * in the hash table, including both primary bucket slots and chain nodes.
- *
- * @param node  Name of the entry pointer variable (will be declared in the loop)
- * @param h     Pointer to the hash table (will be cast to ihash*)
- *
- * @note The iterator visits entries in bucket order, then chain order
- * @warning Do NOT insert or erase entries while iterating
- * @warning The loop variable 'node' must not be modified inside the loop
+ * @param h         Pointer to hash table
+ * @return          Iterator to the first node
  *
  * @code
- * struct MyEntry *entry;
- * ihash_foreach(entry, hash) {
- *     printf("key: %ld, value: %d\n", entry->key, entry->value);
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ * };
+ * struct MyEntry *hash = ihash_create(hash, 16, 32), *tmp;
+ *
+ * for (ihash_iterator i = ihash_begin(hash); ihash_is_valid(hash, i); i = ihash_next(hash, i)) {
+ *     tmp = i.datum;
+ *     printf("key: %li, value: %i\n", tmp->key, tmp->value);
  * }
  * @endcode
- *
-* @note _node_ is just used not to throw _bucket_idx_ out of the scope
  */
-#define ihash_foreach(node, h) \
-    for (size_t _bucket_idx_ = 0, \
-        _node_ __attribute__((unused)) = \
-        (size_t)(node = ihash_first_node_fn((ihash *)h, &_bucket_idx_)); \
-        node; \
-        node = ihash_next_node_fn(node, (ihash *)h, &_bucket_idx_))
+ihash_iterator ihash_begin(void *h);
+
+/**
+ * @brief Returns the next valid iterator
+ *
+ * @param h         Pointer to hash table
+ * @i               Previously initialized iterator
+ * @return          Iterator to the next node
+ *
+ * @see ihash_begin
+ */
+ihash_iterator ihash_next(void *h, ihash_iterator i);
+
+/**
+ * @def ihash_is_valid
+ * @brief Returns true if iterator is valid
+ *
+ * @param h         Pointer to hash table
+ * @i               Previously initialized iterator
+ *
+ * @see ihash_begin
+ */
+#define ihash_is_valid(h, i) (i.bucket_idx != ((ihash *)(h))->bucketsz)
 
 /**
  * @cond PRIVATE

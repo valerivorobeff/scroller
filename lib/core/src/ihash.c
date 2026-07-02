@@ -93,6 +93,9 @@ void *ihash_touch_fn(ihash *hash, ssize_t key);
 int ihash_erase_fn(ihash *hash, ssize_t key);
 void *ihash_first_node_fn(ihash *hash, size_t *bucket_idx);
 void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
+ihash_iterator ihash_begin(void *h);
+ihash_iterator ihash_next(void *h, ihash_iterator i);
+static size_t ihash_next_occupied_bucket(const ihash *hash, size_t idx);
 
 #ifndef NDEBUG
 void ihash_dump_simple(void *h);
@@ -496,91 +499,81 @@ ihash_erase_fn(ihash *hash, ssize_t key) {
 }
 
 /**
- * @brief Returns the first occupied entry in the hash table
+ * @brief Returns the first valid iterator
  *
- * Scans buckets sequentially from index 0 and returns the first
- * slot that contains a valid key (not IHASH_UNDEF).
+ * @param h         Pointer to hash table
+ * @return          Iterator to the first node
  *
- * @param hash       Pointer to hash table
- * @param bucket_idx Pointer to store the bucket index of the found entry
- * @return           Pointer to the first occupied entry, or NULL if table is empty
- *
- * @post bucket_idx is set to the index of the found bucket, or bucketsz if empty
- * @see ihash_next_node_fn()
- * @see ihash_foreach
  */
-void *
-ihash_first_node_fn(ihash *hash, size_t *bucket_idx) {
-    const size_t nodesz = hash->nodesz;
-    const size_t keyoffs = hash->keyoffs;
-    const size_t bucketsz = hash->bucketsz;
-    void *e = ihash_get_buckets(hash);
+ihash_iterator
+ihash_begin(void *h) {
+    const ihash *hash = h;
+    ihash_iterator ret = { .bucket_idx = ihash_next_occupied_bucket(hash, 0) };
 
-    for (size_t i = 0; i != bucketsz; ++i, e += nodesz) {
-        if (IHASH_UNDEF != *(ssize_t *)(e + keyoffs)) {
-            *bucket_idx = i;
-            return e;
-        }
-    }
+    if (ret.bucket_idx != hash->bucketsz)
+        ret.datum = ihash_get_buckets(h) + ret.bucket_idx * hash->nodesz;
+    else
+        ret.datum = NULL;
 
-    *bucket_idx = bucketsz;
-    return NULL;    /* Hash is empty */
+    return ret;
 }
 
 /**
- * @brief Returns the next occupied entry after the given node
+ * @brief Returns the next valid iterator
+ *
+ * @param h         Pointer to hash table
+ * @return          Iterator to the next node
+ *
+ */
+ihash_iterator
+ihash_next(void *h, ihash_iterator i) {
+    const ihash *hash = h;
+    const size_t bucketsz = hash->bucketsz;
+    const size_t nodesz = hash->nodesz;
+    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
+    const ihash_idx_t next_idx = *(ssize_t *)(i.datum + nextoffs);
+
+    if (next_idx == IHASH_UNDEF) {
+        i.bucket_idx = ihash_next_occupied_bucket(hash, ++i.bucket_idx);
+
+        if (i.bucket_idx == bucketsz)
+            i.datum = NULL;
+        else
+            i.datum = ihash_get_buckets(hash) + i.bucket_idx * nodesz;
+    } else
+        i.datum = ihash_get_chains(hash) + next_idx * nodesz;
+
+    return i;
+}
+
+/**
+ * @brief Returns the next occupied bucket index after the given one starting with it
  *
  * Implements depth-first traversal:
  * 1. If current node has a chain, returns the first node in the chain
  * 2. Otherwise, scans subsequent buckets for the next occupied slot
  *
- * @param node       Current node pointer (must be from previous call)
- * @param hash       Pointer to hash table
- * @param bucket_idx Pointer to current bucket index (updated on each call)
- * @return           Pointer to next occupied entry, or NULL if no more entries
+ * @param hash      Pointer to hash table
+ * @param idx       Bucket index to start with
+ * @return          Next occupied bucket index or hash->bucketsz if no more occupied indices left
  *
- * @pre node must be a valid pointer returned by ihash_first_node_fn() or previous ihash_next_node_fn()
- * @post bucket_idx is updated to the bucket index of the returned entry
- * @see ihash_first_node_fn()
  * @see ihash_foreach
  */
-void *
-ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx) {
+size_t
+ihash_next_occupied_bucket(const ihash *hash, size_t idx) {
+    const size_t bucketsz = hash->bucketsz;
     const size_t nodesz = hash->nodesz;
     const size_t keyoffs = hash->keyoffs;
-    const size_t nextoffs = nodesz - sizeof(ihash_idx_t);
-    void *buckets = ihash_get_buckets(hash);                    /* buckets */
-    const size_t bucketsz = hash->bucketsz;
 
-    assert((node - buckets) % nodesz == 0);
-
-    if (node == NULL)
-        return NULL;
-
-    for(;;) {
-        if (IHASH_UNDEF != *(ssize_t *)(node + nextoffs))
-            return buckets + *(ssize_t *)(node + nextoffs) * nodesz; /* Return next node in chain */
-        else {
-            ++*bucket_idx;                                      /* Move to the next bucket */
-            if (*bucket_idx >= bucketsz)
-                return NULL;                                    /* No more buckets */
-
-            node = buckets + *bucket_idx * nodesz;              /* Move to the top of the next bucket */
-
-            if (IHASH_UNDEF != *(ssize_t *)(node + keyoffs))    /* Next node found in bucket */
-                return node;
-            else {
-                /* Find next occupied bucket */
-                for (++*bucket_idx; *bucket_idx < bucketsz; ++*bucket_idx) {
-                    node += nodesz;
-                    if (IHASH_UNDEF != *(ssize_t *)(node + keyoffs))
-                        return node;
-                }
-
-                return NULL;                                    /* No more buckets */
-            }
-        }
+    while (idx < bucketsz) {
+        void *e = ihash_get_buckets(hash) + idx * nodesz;
+        if (IHASH_UNDEF != *(ssize_t *)(e + keyoffs))
+            break;
+        else
+            ++idx;
     }
+
+    return idx;
 }
 
 #ifndef NDEBUG
