@@ -4,10 +4,55 @@
 #include <unistd.h>
 #include <assert.h>
 
+void fdcache_clear(FdCache *cache, ihash_hash_fn hash_fn);
+void fdcache_free(FdCache *cache);
 void *fdcache_touch_fn(icache *cache, ssize_t key);
 
 static int fdcache_open(ssize_t key);
 static int fdcache_close(int fd);
+
+/**
+ * @brief Clears all entries from the cache
+ *
+ * Resets the cache to empty state, as if it was just initialized.
+ * @note This function closes all open file descriptors that it holds
+ *
+ * @param cache     Pointer to cache to clear
+ * @param hash_fn   Pointer to user defined hash function of type ihash_hash_fn or
+ *                  NULL to use default function
+ *
+ * @pre cache must be a valid, initialized cache
+ *
+ * @note Time complexity: O(bucketsz + chainsz)
+ * @warning All previously returned pointers become invalid
+ *
+ */
+void
+fdcache_clear(FdCache *cache, ihash_hash_fn hash_fn) {
+    for (fdcache_iterator i = fdcache_begin(cache); fdcache_is_valid(cache, i); i = fdcache_next(cache, i)) {
+        FdCache *node = i.datum;
+        close(node->fd);
+    }
+
+    icache_clear(cache, hash_fn);
+}
+
+/**
+ * @brief Frees a cache created with fdcache_create()
+ *
+ * @param cache Pointer to the cache to free
+ *
+ * @note This function closes all open file descriptors that it holds
+ */
+void
+fdcache_free(FdCache *cache) {
+    for (fdcache_iterator i = fdcache_begin(cache); fdcache_is_valid(cache, i); i = fdcache_next(cache, i)) {
+        FdCache *node = i.datum;
+        close(node->fd);
+    }
+
+    icache_free(cache);
+}
 
 /**
  * @brief Touch or create cache entry for given key

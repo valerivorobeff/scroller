@@ -22,6 +22,14 @@ typedef struct FdCache {
 } FdCache;
 
 /**
+ * @struct fdcache_iterator
+ * @brief Structure for iterating over fdcache
+ *
+ * @see fdcache_begin, fdcache_next, fdcache_is_valid
+ */
+typedef icache_iterator fdcache_iterator;
+
+/**
  * @brief Create new fdcache
  * @param h Buffer for cache (or NULL to allocate)
  * @param bucketsz_ Number of buckets
@@ -45,18 +53,16 @@ typedef struct FdCache {
 
 /**
  * @brief Clear cache (closes all open files)
- * @param h Cache handle
+ * @param cache Cache handle
  * @param hash_fn Hash function (optional)
  */
-#define fdcache_clear(h, hash_fn) \
-    icache_clear(h, hash_fn)
+void fdcache_clear(FdCache *cache, ihash_hash_fn hash_fn);
 
 /**
  * @brief Free cache (closes all open files)
- * @param h Cache handle
+ * @param cache Cache handle
  */
-#define fdcache_free(h) \
-    icache_free(h)
+void fdcache_free(FdCache *cache);
 
 /**
  * @brief Get cached entry by key
@@ -102,6 +108,51 @@ typedef struct FdCache {
  */
 #define fdcache_put(h, key_) \
     (typeof(h))fdcache_touch_fn((icache *)h, key_);
+
+/**
+ * @def fdcache_begin
+ * @brief Returns the first valid iterator
+ *
+ * @param h         Pointer to fdcache
+ * @return          Iterator to the first node
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ * };
+ * FdCache *cache = fdcache_create(cache, 16, 32), *tmp;
+ *
+ * for (fdcache_iterator i = fdcache_begin(cache); fdcache_is_valid(cache, i); i = fdcache_next(cache, i)) {
+ *     tmp = i.datum;
+ *     printf("key: %li, value: %i\n", tmp->key, tmp->value);
+ * }
+ * @endcode
+ */
+#define fdcache_begin(h) icache_begin(h)
+
+/**
+ * @def fdcache_next
+ * @brief Returns the next valid iterator
+ *
+ * @param h         Pointer to fdcache
+ * @i               Previously initialized iterator
+ * @return          Iterator to the next node
+ *
+ * @see fdcache_begin
+ */
+#define fdcache_next(h, i) icache_next(h, (i))
+
+/**
+ * @def fdcache_is_valid
+ * @brief Returns true if iterator is valid
+ *
+ * @param h         Pointer to fdcache
+ * @i               Previously initialized iterator
+ *
+ * @see fdcache_begin
+ */
+#define fdcache_is_valid(h, i) icache_is_valid(h, (i))
 
 /**
  * @brief Get required memory size for cache
