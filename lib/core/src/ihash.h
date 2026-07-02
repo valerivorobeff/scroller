@@ -148,6 +148,12 @@ typedef struct ihash {
     ihash_hash_fn hash_fn;  /** Pointer to hash function */
 } ihash;
 
+/**
+ * @struct ihash_iterator
+ * @brief Structure for iterating over hash table
+ *
+ * @see ihash_begin, ihash_next, ihash_is_valid
+ */
 typedef struct ihash_iterator {
     size_t bucket_idx;
     void *datum;

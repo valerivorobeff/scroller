@@ -133,6 +133,14 @@ typedef struct icache {
 } icache;
 
 /**
+ * @struct icache_iterator
+ * @brief Structure for iterating over cache
+ *
+ * @see icache_begin, icache_next, icache_is_valid
+ */
+typedef ihash_iterator icache_iterator;
+
+/**
  * @def icache_create(h, bucketsz_, chainsz_, hash_fn_, usersz_)
  * @brief Creates a new hash table for a specific entry type
  *
@@ -454,6 +462,51 @@ void icache_free(void *p);
         } \
         _e_; \
     })
+
+/**
+ * @def icache_begin
+ * @brief Returns the first valid iterator
+ *
+ * @param h         Pointer to cache
+ * @return          Iterator to the first node
+ *
+ * @code
+ * struct MyEntry {
+ *     ssize_t key;
+ *     int value;
+ * };
+ * struct MyEntry *cache = icache_create(hash, 16, 32, 0), *tmp;
+ *
+ * for (icache_iterator i = icache_begin(hash); icache_is_valid(hash, i); i = icache_next(hash, i)) {
+ *     tmp = i.datum;
+ *     printf("key: %li, value: %i\n", tmp->key, tmp->value);
+ * }
+ * @endcode
+ */
+#define icache_begin(h) ihash_begin(icache_get_hash(h))
+
+/**
+ * @def icache_next
+ * @brief Returns the next valid iterator
+ *
+ * @param h         Pointer to cache
+ * @i               Previously initialized iterator
+ * @return          Iterator to the next node
+ *
+ * @see icache_begin
+ */
+#define icache_next(h, i) ihash_next(icache_get_hash(h), (i))
+
+/**
+ * @def icache_is_valid
+ * @brief Returns true if iterator is valid
+ *
+ * @param h         Pointer to icache
+ * @i               Previously initialized iterator
+ *
+ * @see icache_begin
+ */
+#define icache_is_valid(h, i) ihash_is_valid(icache_get_hash(h), (i))
 
 /**
  * @def icache_get_required_memory_size

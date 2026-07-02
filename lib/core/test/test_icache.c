@@ -383,6 +383,38 @@ TEST(icache)
 
     TEST_SUITE_END()  /* End of helpers test suite */
 
+    TEST_SUITE(iterators)
+
+        TEST_CASE(iterator) {
+            centry *cache = icache_create(cache, 4, 8, NULL, 0), *tmp;
+
+            icache_put(cache, 1, 100);
+            icache_put(cache, 2, 200);
+            icache_put(cache, 30, 300);
+            icache_put(cache, 40, 400);
+            icache_put(cache, 1, 150);
+            icache_put(cache, 6, 500);
+
+            for (icache_iterator i = icache_begin(cache); icache_is_valid(cache, i); i = icache_next(cache, i)) {
+                tmp = i.datum;
+                TEST_CHECK(icache_exists(cache, tmp->key));
+            }
+
+            icache_free(cache);
+        }
+
+        TEST_CASE(iterator_empty) {
+            centry *cache = icache_create(cache, 4, 8, NULL, 0);
+
+            for (icache_iterator i = icache_begin(cache); icache_is_valid(cache, i); i = icache_next(cache, i)) {
+                TEST_FAIL();
+            }
+
+            ihash_free(cache);
+        }
+
+    TEST_SUITE_END()  /* End of iterators test suite */
+
     TEST_SUITE(edge_cases)
 
         TEST_CASE(zero_chains) {
