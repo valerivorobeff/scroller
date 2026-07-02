@@ -134,7 +134,7 @@ typedef struct icache {
 
 /**
  * @struct icache_iterator
- * @brief Structure for iterating over cache
+ * @brief Structure for iterating over icache
  *
  * @see icache_begin, icache_next, icache_is_valid
  */
@@ -467,7 +467,7 @@ void icache_free(void *p);
  * @def icache_begin
  * @brief Returns the first valid iterator
  *
- * @param h         Pointer to cache
+ * @param h         Pointer to icache
  * @return          Iterator to the first node
  *
  * @code
@@ -475,9 +475,9 @@ void icache_free(void *p);
  *     ssize_t key;
  *     int value;
  * };
- * struct MyEntry *cache = icache_create(hash, 16, 32, 0), *tmp;
+ * struct MyEntry *cache = icache_create(cache, 16, 32, 0), *tmp;
  *
- * for (icache_iterator i = icache_begin(hash); icache_is_valid(hash, i); i = icache_next(hash, i)) {
+ * for (icache_iterator i = icache_begin(cache); icache_is_valid(cache, i); i = icache_next(cache, i)) {
  *     tmp = i.datum;
  *     printf("key: %li, value: %i\n", tmp->key, tmp->value);
  * }
@@ -489,7 +489,7 @@ void icache_free(void *p);
  * @def icache_next
  * @brief Returns the next valid iterator
  *
- * @param h         Pointer to cache
+ * @param h         Pointer to icache
  * @i               Previously initialized iterator
  * @return          Iterator to the next node
  *
