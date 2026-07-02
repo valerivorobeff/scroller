@@ -26,8 +26,6 @@ extern FdCache *g_fdcache;
  */
 #define PAGECACHE_UNDEF (ssize_t)-1
 
-typedef struct FdCache FdCache;
-
 typedef ssize_t pagecache_idx_t;
 
 typedef struct PageCache {
