@@ -46,11 +46,11 @@ typedef void *Page;
 typedef void *Row;
 
 /**
- * @brief Opaque handle to a grid column.
+ * @brief Opaque handle to a grid cell.
  *
- * Represents a single column cell within a grid at a specific row.
- */
-typedef void *Column;
+ * Represents a single cell within a grid at a specific row and column.
+*/
+typedef void *Cell;
 
 /**
  * @brief Grid type enumeration.
@@ -125,7 +125,7 @@ Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
 
 /**
- * @brief Retrieves a pointer to a specific column cell within a data grid.
+ * @brief Retrieves a pointer to a specific cell within a data grid.
  *
  * @param hgrid     Header grid containing column definitions
  * @param grid      Data grid containing the actual row data
@@ -136,7 +136,7 @@ Row grid_get_row(Grid *grid, uint16_t n);
  * @note This function uses the HColumn definitions from hgrid to calculate
  *       the exact offset within the data row.
  */
-Column grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 
 /**
  * @brief Allocates a new row in the grid.
@@ -235,7 +235,7 @@ size_t hgrid_get_row_size(Grid *grid);
 #define dgrid_alloc_row(grid) grid_alloc_row(grid)
 
 /**
- * @brief Retrieves a column cell from a data grid using header definitions.
+ * @brief Retrieves a cell from a data grid using header definitions.
  *
  * @param hgrid     Header grid containing column definitions
  * @param grid      Data grid containing the actual row data
@@ -245,8 +245,8 @@ size_t hgrid_get_row_size(Grid *grid);
  *
  * @note This macro is an alias for grid_get_column() for API symmetry.
  */
-#define dgrid_get_column(hgrid, grid, row, column) \
-    grid_get_column(hgrid, grid, row, column)
+#define dgrid_get_cell(hgrid, grid, row, column) \
+    grid_get_cell(hgrid, grid, row, column)
 
 #endif /* _GRID_H_ */
 
