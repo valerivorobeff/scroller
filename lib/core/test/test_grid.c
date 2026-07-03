@@ -48,7 +48,7 @@ TEST(grid)
             Page *hp = malloc(8096), *p = malloc(8096);
             Grid *hg = hgrid_init(hp, 8096, GT_FIXED), *g;
             Column *hc;
-            Row row;
+            uint16_t row;
 
             /* ===== Schema Definition (DDL Operations) ===== */
 
@@ -85,7 +85,7 @@ TEST(grid)
 
             /* INSERT ROW INTO TABLE - Add a new row and populate it */
             row = dgrid_alloc_row(g);    /* Allocate a new row slot */
-            if (row) {
+            if (grid_idx_valid(row)) {
                 Cell c;
 
                 /* Verify that one row is now occupied */

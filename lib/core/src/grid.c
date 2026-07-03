@@ -39,7 +39,7 @@ size_t PAGESZ = 4096;
 Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
 Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
-Row grid_alloc_row(Grid *grid);
+uint16_t grid_alloc_row(Grid *grid);
 
 Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
 size_t hgrid_get_row_size(Grid *grid);
@@ -80,17 +80,23 @@ grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
     return r + hc->offs;
 }
 
-Row
+uint16_t
 grid_alloc_row(Grid *grid) {
     if (grid->occupied < grid->rown)
-        return grid_get_row(grid, grid->occupied++);
+        return grid->occupied++;
     else
-        return NULL;
+        return GRID_INVALID_IDX;
 }
 
 Column *
 hgrid_add_column(Grid *grid, const char *name, size_t size) {
-    Column *hc = grid_alloc_row(grid);
+    uint16_t column_idx = grid_alloc_row(grid);
+    Column *hc;
+
+    if (!grid_idx_valid(column_idx))
+        return NULL;
+
+    hc = grid_get_row(grid, column_idx);
 
     if (hc) {
         /* @todo: now the maximum copied bytes are NAMESZ - 1

@@ -35,7 +35,7 @@ init_cluster(const char *path) {
         Page harchive;
         Page archive;
         int64_t currval;
-        Row row;
+        uint16_t row;
         Cell cell;
 
         chdir(path);
@@ -74,10 +74,10 @@ init_cluster(const char *path) {
         cluster = dgrid_init(cluster, PAGESZ, GT_FIXED, hcluster);
 
         row = dgrid_alloc_row(cluster);
-        cell = dgrid_get_cell(hcluster, cluster, 0, 0);
+        cell = dgrid_get_cell(hcluster, cluster, row, 0);
         put_char(cell, "Encoding", 32);
 
-        cell = dgrid_get_cell(hcluster, cluster, 0, 1);
+        cell = dgrid_get_cell(hcluster, cluster, row, 1);
         put_char(cell, "UTF-8", 32);
 
         pagecache_flush(g_pagecache, currval);
@@ -102,7 +102,7 @@ init_cluster(const char *path) {
         user = dgrid_init(user, PAGESZ, GT_FIXED, huser);
 
         row = dgrid_alloc_row(user);
-        cell = dgrid_get_cell(huser, user, 0, 0);
+        cell = dgrid_get_cell(huser, user, row, 0);
         put_char(cell, "scroller", 32);
 
         pagecache_flush(g_pagecache, currval);

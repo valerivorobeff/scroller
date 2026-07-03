@@ -92,6 +92,10 @@ typedef struct Column {
     size_t size;         /** Size of this column's data in bytes */
 } Column;
 
+#define GRID_INVALID_IDX    ((uint16_t)-1)
+
+#define grid_idx_valid(idx) ((idx) != GRID_INVALID_IDX)
+
 /**
  * @brief Initializes a new grid within a memory page.
  *
@@ -137,12 +141,12 @@ Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
  * Finds the first unused row slot and marks it as occupied.
  *
  * @param grid      Pointer to the grid structure
- * @return          Pointer to the newly allocated row, or NULL if grid is full
+ * @return          Index of the newly allocated row, or GRID_INVALID_IDXif grid is full
  *
  * @note The returned row's memory is zero-initialized.
  * @see grid_get_row()
  */
-Row grid_alloc_row(Grid *grid);
+uint16_t grid_alloc_row(Grid *grid);
 
 /**
  * @brief Adds a new column definition to a header grid.
@@ -221,7 +225,7 @@ size_t hgrid_get_row_size(Grid *grid);
  * @brief Allocates a new row in a data grid.
  *
  * @param grid      Pointer to the data grid
- * @return          Pointer to the newly allocated row
+ * @return          Newly allocated row index or GRID_INVALID_IDX if grid is full
  *
  * @note This macro is an alias for grid_alloc_row() for API symmetry.
  */
