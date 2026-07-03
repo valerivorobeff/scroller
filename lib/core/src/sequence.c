@@ -4,20 +4,8 @@
  */
 
 #include "sequence.h"
+#include "cell.h"
 #include <assert.h>
-
-/**
- * @cond INTERNAL
- * Helper macros for reading/writing typed values from columns
- * @endcond
- */
-#define put_smallint(c, val)    *(int16_t *)(c) = val
-#define put_integer(c, val)     *(int32_t *)(c) = val
-#define put_bigint(c, val)      *(int64_t *)(c) = val
-
-#define get_smallint(c)         *(const int16_t *)(c)
-#define get_integer(c)          *(const int32_t *)(c)
-#define get_bigint(c)           *(const int64_t *)(c)
 
 /* Forward declarations */
 int hsequence_init(Page page);
@@ -66,7 +54,7 @@ hsequence_init(Page page) {
 int
 sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval,
               int64_t startval, int64_t increment, bool cycle) {
-    Column c;
+    Cell c;
     Grid *sequence = p;
 
     if (minval >= maxval) {
@@ -87,22 +75,22 @@ sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval,
 
     sequence = dgrid_init(p, PAGESZ, GT_FIXED, hsequence);
     dgrid_alloc_row(sequence);
-    c = dgrid_get_column(hsequence, sequence, 0, 0);
+    c = dgrid_get_cell(hsequence, sequence, 0, 0);
     put_bigint(c, minval);
 
-    c = dgrid_get_column(hsequence, sequence, 0, 1);
+    c = dgrid_get_cell(hsequence, sequence, 0, 1);
     put_bigint(c, maxval);
 
-    c = dgrid_get_column(hsequence, sequence, 0, 2);
+    c = dgrid_get_cell(hsequence, sequence, 0, 2);
     put_bigint(c, startval);
 
-    c = dgrid_get_column(hsequence, sequence, 0, 3);
+    c = dgrid_get_cell(hsequence, sequence, 0, 3);
     put_bigint(c, increment);
 
-    c = dgrid_get_column(hsequence, sequence, 0, 4);
+    c = dgrid_get_cell(hsequence, sequence, 0, 4);
     put_bigint(c, cycle);
 
-    c = dgrid_get_column(hsequence, sequence, 0, 5);
+    c = dgrid_get_cell(hsequence, sequence, 0, 5);
     put_bigint(c, 0);
 
     return 0;
@@ -117,8 +105,8 @@ sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval,
  */
 int
 sequence_currval(Grid *hsequence, Grid *sequence, int64_t *outval) {
-    const Column c_currval = dgrid_get_column(hsequence, sequence, 0, 2);
-    const Column c_is_called = dgrid_get_column(hsequence, sequence, 0, 5);
+    const Cell c_currval = dgrid_get_cell(hsequence, sequence, 0, 2);
+    const Cell c_is_called = dgrid_get_cell(hsequence, sequence, 0, 5);
 
     if (get_bigint(c_is_called)) {
         *outval = get_bigint(c_currval);
@@ -136,12 +124,12 @@ sequence_currval(Grid *hsequence, Grid *sequence, int64_t *outval) {
  */
 int
 sequence_nextval(Grid *hsequence, Grid *sequence, int64_t *outval) {
-    const Column c_minval = dgrid_get_column(hsequence, sequence, 0, 0);
-    const Column c_maxval = dgrid_get_column(hsequence, sequence, 0, 1);
-    const Column c_currval = dgrid_get_column(hsequence, sequence, 0, 2);
-    const Column c_increment = dgrid_get_column(hsequence, sequence, 0, 3);
-    const Column c_cycle = dgrid_get_column(hsequence, sequence, 0, 4);
-    const Column c_is_called = dgrid_get_column(hsequence, sequence, 0, 5);
+    const Cell c_minval = dgrid_get_cell(hsequence, sequence, 0, 0);
+    const Cell c_maxval = dgrid_get_cell(hsequence, sequence, 0, 1);
+    const Cell c_currval = dgrid_get_cell(hsequence, sequence, 0, 2);
+    const Cell c_increment = dgrid_get_cell(hsequence, sequence, 0, 3);
+    const Cell c_cycle = dgrid_get_cell(hsequence, sequence, 0, 4);
+    const Cell c_is_called = dgrid_get_cell(hsequence, sequence, 0, 5);
     const int64_t minval = get_bigint(c_minval);
     const int64_t maxval = get_bigint(c_maxval);
     const int64_t current = get_bigint(c_currval);
@@ -192,10 +180,10 @@ sequence_nextval(Grid *hsequence, Grid *sequence, int64_t *outval) {
  */
 int
 sequence_setval(Grid *hsequence, Grid *sequence, int64_t val, bool is_called) {
-    const Column c_minval = dgrid_get_column(hsequence, sequence, 0, 0);
-    const Column c_maxval = dgrid_get_column(hsequence, sequence, 0, 1);
-    const Column c_currval = dgrid_get_column(hsequence, sequence, 0, 2);
-    const Column c_is_called = dgrid_get_column(hsequence, sequence, 0, 5);
+    const Cell c_minval = dgrid_get_cell(hsequence, sequence, 0, 0);
+    const Cell c_maxval = dgrid_get_cell(hsequence, sequence, 0, 1);
+    const Cell c_currval = dgrid_get_cell(hsequence, sequence, 0, 2);
+    const Cell c_is_called = dgrid_get_cell(hsequence, sequence, 0, 5);
     const int64_t minval = get_bigint(c_minval);
     const int64_t maxval = get_bigint(c_maxval);
 
@@ -220,9 +208,9 @@ sequence_setval(Grid *hsequence, Grid *sequence, int64_t val, bool is_called) {
  */
 int
 sequence_set_minval(Grid *hsequence, Grid *sequence, int64_t val) {
-    const Column c_minval = dgrid_get_column(hsequence, sequence, 0, 0);
-    const Column c_maxval = dgrid_get_column(hsequence, sequence, 0, 1);
-    const Column c_currval = dgrid_get_column(hsequence, sequence, 0, 2);
+    const Cell c_minval = dgrid_get_cell(hsequence, sequence, 0, 0);
+    const Cell c_maxval = dgrid_get_cell(hsequence, sequence, 0, 1);
+    const Cell c_currval = dgrid_get_cell(hsequence, sequence, 0, 2);
     const int64_t maxval = get_bigint(c_maxval);
     const int64_t current = get_bigint(c_currval);
 
@@ -246,9 +234,9 @@ sequence_set_minval(Grid *hsequence, Grid *sequence, int64_t val) {
  */
 int
 sequence_set_maxval(Grid *hsequence, Grid *sequence, int64_t val) {
-    const Column c_minval = dgrid_get_column(hsequence, sequence, 0, 0);
-    const Column c_maxval = dgrid_get_column(hsequence, sequence, 0, 1);
-    const Column c_currval = dgrid_get_column(hsequence, sequence, 0, 2);
+    const Cell c_minval = dgrid_get_cell(hsequence, sequence, 0, 0);
+    const Cell c_maxval = dgrid_get_cell(hsequence, sequence, 0, 1);
+    const Cell c_currval = dgrid_get_cell(hsequence, sequence, 0, 2);
     const int64_t minval = get_bigint(c_minval);
     const int64_t current = get_bigint(c_currval);
 
@@ -272,12 +260,12 @@ sequence_set_maxval(Grid *hsequence, Grid *sequence, int64_t val) {
  */
 int
 sequence_set_increment(Grid *hsequence, Grid *sequence, int64_t val) {
-    Column c_increment;
+    Cell c_increment;
 
     if (val == 0)
         return 1;
 
-    c_increment = dgrid_get_column(hsequence, sequence, 0, 3);
+    c_increment = dgrid_get_cell(hsequence, sequence, 0, 3);
 
     put_bigint(c_increment, val);
 
@@ -293,7 +281,7 @@ sequence_set_increment(Grid *hsequence, Grid *sequence, int64_t val) {
  */
 int
 sequence_set_cycle(Grid *hsequence, Grid *sequence, bool val) {
-    const Column c_cycle = dgrid_get_column(hsequence, sequence, 0, 4);
+    const Cell c_cycle = dgrid_get_cell(hsequence, sequence, 0, 4);
 
     put_bigint(c_cycle, val);
 

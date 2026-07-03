@@ -7,7 +7,7 @@
  * with dynamically defined schemas.
  *
  * The system supports two types of grids:
- * - Header grid (hgrid): stores column definitions (HColumn structures)
+ * - Header grid (hgrid): stores column definitions (Column structures)
  * - Data grid (dgrid): stores actual row data with fixed-size rows
  *
  * Memory Layout:
@@ -38,10 +38,10 @@ size_t PAGESZ = 4096;
  */
 Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
-Column grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
-Row grid_alloc_row(Grid *grid);
+Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+uint16_t grid_alloc_row(Grid *grid);
 
-HColumn *hgrid_add_column(Grid *grid, const char *name, size_t size);
+Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
 size_t hgrid_get_row_size(Grid *grid);
 
 Grid *
@@ -70,27 +70,33 @@ grid_get_row(Grid *grid, uint16_t n) {
     return grid->datum + grid->rowsz * n;
 }
 
-Column
-grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
+Cell
+grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
     const Row r = grid_get_row(grid, row);
-    const HColumn *hc = hgrid_get_column(hgrid, column);
+    const Column *hc = hgrid_get_column(hgrid, column);
 
     assert(column < hgrid->occupied);
 
     return r + hc->offs;
 }
 
-Row
+uint16_t
 grid_alloc_row(Grid *grid) {
     if (grid->occupied < grid->rown)
-        return grid_get_row(grid, grid->occupied++);
+        return grid->occupied++;
     else
-        return NULL;
+        return GRID_INVALID_IDX;
 }
 
-HColumn *
+Column *
 hgrid_add_column(Grid *grid, const char *name, size_t size) {
-    HColumn *hc = grid_alloc_row(grid);
+    uint16_t column_idx = grid_alloc_row(grid);
+    Column *hc;
+
+    if (!grid_idx_valid(column_idx))
+        return NULL;
+
+    hc = grid_get_row(grid, column_idx);
 
     if (hc) {
         /* @todo: now the maximum copied bytes are NAMESZ - 1
@@ -114,7 +120,7 @@ hgrid_add_column(Grid *grid, const char *name, size_t size) {
 size_t
 hgrid_get_row_size(Grid *grid) {
     if (grid->occupied) {
-        const HColumn *hc = grid_get_row(grid, grid->occupied - 1);
+        const Column *hc = grid_get_row(grid, grid->occupied - 1);
         return hc->offs + hc->size;
     } else
        return 0;

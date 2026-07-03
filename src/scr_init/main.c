@@ -1,16 +1,13 @@
 #include "pagecache.h"
 #include "sequence.h"
+#include "cell.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
 
-#include <string.h>
-
 PageCache *g_pagecache = NULL;
-
-#define put_char(c, val, size)  strncpy(c, val, size - 1)
 
 int
 init_cluster(const char *path) {
@@ -38,8 +35,8 @@ init_cluster(const char *path) {
         Page harchive;
         Page archive;
         int64_t currval;
-        Row row;
-        Column column;
+        uint16_t row;
+        Cell cell;
 
         chdir(path);
 
@@ -77,11 +74,11 @@ init_cluster(const char *path) {
         cluster = dgrid_init(cluster, PAGESZ, GT_FIXED, hcluster);
 
         row = dgrid_alloc_row(cluster);
-        column = dgrid_get_column(hcluster, cluster, 0, 0);
-        put_char(column, "Encoding", 32);
+        cell = dgrid_get_cell(hcluster, cluster, row, 0);
+        put_char(cell, "Encoding", 32);
 
-        column = dgrid_get_column(hcluster, cluster, 0, 1);
-        put_char(column, "UTF-8", 32);
+        cell = dgrid_get_cell(hcluster, cluster, row, 1);
+        put_char(cell, "UTF-8", 32);
 
         pagecache_flush(g_pagecache, currval);
 
@@ -105,8 +102,8 @@ init_cluster(const char *path) {
         user = dgrid_init(user, PAGESZ, GT_FIXED, huser);
 
         row = dgrid_alloc_row(user);
-        column = dgrid_get_column(huser, user, 0, 0);
-        put_char(column, "scroller", 32);
+        cell = dgrid_get_cell(huser, user, row, 0);
+        put_char(cell, "scroller", 32);
 
         pagecache_flush(g_pagecache, currval);
 

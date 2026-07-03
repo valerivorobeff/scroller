@@ -22,7 +22,7 @@
 #ifndef _GRID_H_
 #define _GRID_H_
 
-#include <stdint.h>
+#include "cell.h"
 #include <stddef.h>
 
 /**
@@ -44,13 +44,6 @@ typedef void *Page;
  * Represents a single row within a grid structure.
  */
 typedef void *Row;
-
-/**
- * @brief Opaque handle to a grid column.
- *
- * Represents a single column cell within a grid at a specific row.
- */
-typedef void *Column;
 
 /**
  * @brief Grid type enumeration.
@@ -93,11 +86,15 @@ typedef struct Grid {
  * @see hgrid_add_column()
  * @see hgrid_get_column()
  */
-typedef struct HColumn {
+typedef struct Column {
     char name[NAMESZ];   /** Column name, null-terminated string */
     size_t offs;         /** Byte offset of this column within a row */
     size_t size;         /** Size of this column's data in bytes */
-} HColumn;
+} Column;
+
+#define GRID_INVALID_IDX    ((uint16_t)-1)
+
+#define grid_idx_valid(idx) ((idx) != GRID_INVALID_IDX)
 
 /**
  * @brief Initializes a new grid within a memory page.
@@ -125,7 +122,7 @@ Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
 
 /**
- * @brief Retrieves a pointer to a specific column cell within a data grid.
+ * @brief Retrieves a pointer to a specific cell within a data grid.
  *
  * @param hgrid     Header grid containing column definitions
  * @param grid      Data grid containing the actual row data
@@ -133,10 +130,10 @@ Row grid_get_row(Grid *grid, uint16_t n);
  * @param column    Column index (0-based) as defined in the header grid
  * @return          Pointer to the requested cell, or NULL if indices are invalid
  *
- * @note This function uses the HColumn definitions from hgrid to calculate
+ * @note This function uses the Column definitions from hgrid to calculate
  *       the exact offset within the data row.
  */
-Column grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 
 /**
  * @brief Allocates a new row in the grid.
@@ -144,26 +141,26 @@ Column grid_get_column(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
  * Finds the first unused row slot and marks it as occupied.
  *
  * @param grid      Pointer to the grid structure
- * @return          Pointer to the newly allocated row, or NULL if grid is full
+ * @return          Index of the newly allocated row, or GRID_INVALID_IDXif grid is full
  *
  * @note The returned row's memory is zero-initialized.
  * @see grid_get_row()
  */
-Row grid_alloc_row(Grid *grid);
+uint16_t grid_alloc_row(Grid *grid);
 
 /**
  * @brief Adds a new column definition to a header grid.
  *
- * @param grid      Pointer to the header grid (must contain HColumn entries)
+ * @param grid      Pointer to the header grid (must contain Column entries)
  * @param name      Column name (must be unique within the grid)
  * @param size      Size of the column's data in bytes
- * @return          Pointer to the newly created HColumn structure, or NULL on error
+ * @return          Pointer to the newly created Column structure, or NULL on error
  *
  * @note This function automatically calculates the byte offset for the new column
  *       based on previously added columns.
- * @note The header grid must have been initialized with row size sizeof(HColumn).
+ * @note The header grid must have been initialized with row size sizeof(Column).
  */
-HColumn *hgrid_add_column(Grid *grid, const char *name, size_t size);
+Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
 
 /**
  * @brief Calculates the total row size needed for a data grid.
@@ -181,30 +178,30 @@ size_t hgrid_get_row_size(Grid *grid);
 /**
  * @brief Initializes a header grid within a memory page.
  *
- * A header grid stores HColumn structures that define the schema for data grids.
+ * A header grid stores Column structures that define the schema for data grids.
  *
  * @param page      Pointer to the memory page for the header grid
  * @param pagesz    Size of the memory page in bytes
  * @param type      Grid type (typically GT_FIXED)
  * @return          Pointer to the initialized Grid structure
  *
- * @note This macro automatically sets the row size to sizeof(HColumn).
+ * @note This macro automatically sets the row size to sizeof(Column).
  * @see grid_init()
  */
 #define hgrid_init(page, pagesz, type) \
-    grid_init(page, pagesz, type, sizeof(HColumn))
+    grid_init(page, pagesz, type, sizeof(Column))
 
 /**
  * @brief Retrieves a column definition from a header grid.
  *
  * @param grid      Pointer to the header grid
  * @param n         Column index (0-based)
- * @return          Pointer to the HColumn structure at the specified index
+ * @return          Pointer to the Column structure at the specified index
  *
- * @note This macro casts the row pointer to HColumn* for convenience.
+ * @note This macro casts the row pointer to Column* for convenience.
  * @see grid_get_row()
  */
-#define hgrid_get_column(grid, n) ((HColumn *)grid_get_row(grid, n))
+#define hgrid_get_column(grid, n) ((Column *)grid_get_row(grid, n))
 
 /**
  * @brief Initializes a data grid within a memory page.
@@ -228,14 +225,14 @@ size_t hgrid_get_row_size(Grid *grid);
  * @brief Allocates a new row in a data grid.
  *
  * @param grid      Pointer to the data grid
- * @return          Pointer to the newly allocated row
+ * @return          Newly allocated row index or GRID_INVALID_IDX if grid is full
  *
  * @note This macro is an alias for grid_alloc_row() for API symmetry.
  */
 #define dgrid_alloc_row(grid) grid_alloc_row(grid)
 
 /**
- * @brief Retrieves a column cell from a data grid using header definitions.
+ * @brief Retrieves a cell from a data grid using header definitions.
  *
  * @param hgrid     Header grid containing column definitions
  * @param grid      Data grid containing the actual row data
@@ -245,8 +242,8 @@ size_t hgrid_get_row_size(Grid *grid);
  *
  * @note This macro is an alias for grid_get_column() for API symmetry.
  */
-#define dgrid_get_column(hgrid, grid, row, column) \
-    grid_get_column(hgrid, grid, row, column)
+#define dgrid_get_cell(hgrid, grid, row, column) \
+    grid_get_cell(hgrid, grid, row, column)
 
 #endif /* _GRID_H_ */
 
