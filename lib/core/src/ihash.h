@@ -640,31 +640,6 @@ void *ihash_touch_fn(ihash *hash, ssize_t key);
  */
 int ihash_erase_fn(ihash *hash, ssize_t key);
 
-/**
- * @brief Returns the first occupied entry in the hash table
- *
- * @param hash       Pointer to hash table
- * @param bucket_idx Pointer to store the bucket index of the found entry
- * @return           Pointer to the first occupied entry, or NULL if table is empty
- *
- * @see ihash_next_node_fn()
- * @see ihash_foreach
- */
-void *ihash_first_node_fn(ihash *hash, size_t *bucket_idx);
-
-/**
- * @brief Returns the next occupied entry after the given node
- *
- * @param node       Current node pointer (must be from previous call)
- * @param hash       Pointer to hash table
- * @param bucket_idx Pointer to current bucket index (updated on each call)
- * @return           Pointer to next occupied entry, or NULL if no more entries
- *
- * @see ihash_first_node_fn()
- * @see ihash_foreach
- */
-void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
-
 #ifndef NDEBUG
 
 /**

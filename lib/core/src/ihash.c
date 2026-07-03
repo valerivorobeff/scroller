@@ -91,8 +91,6 @@ void ihash_free(void *hash);
 void *ihash_get_fn(ihash *hash, ssize_t key);
 void *ihash_touch_fn(ihash *hash, ssize_t key);
 int ihash_erase_fn(ihash *hash, ssize_t key);
-void *ihash_first_node_fn(ihash *hash, size_t *bucket_idx);
-void *ihash_next_node_fn(void *node, ihash *hash, size_t *bucket_idx);
 ihash_iterator ihash_begin(void *h);
 ihash_iterator ihash_next(void *h, ihash_iterator i);
 static size_t ihash_next_occupied_bucket(const ihash *hash, size_t idx);
