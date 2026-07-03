@@ -86,25 +86,25 @@ TEST(grid)
             /* INSERT ROW INTO TABLE - Add a new row and populate it */
             row = dgrid_alloc_row(g);    /* Allocate a new row slot */
             if (row) {
-                Column c;
+                Cell c;
 
                 /* Verify that one row is now occupied */
                 TEST_CHECK(g->occupied == 1);
 
                 /* Insert data into the "id_user" column (column index 0) */
-                c = dgrid_get_column(hg, g, 0, 0);
+                c = dgrid_get_cell(hg, g, 0, 0);
                 strncpy(c, "123", hgrid_get_column(hg, 0)->size);
 
                 /* Insert data into the "name" column (column index 1) */
-                c = dgrid_get_column(hg, g, 0, 1);
+                c = dgrid_get_cell(hg, g, 0, 1);
                 strncpy(c, "12345678", hgrid_get_column(hg, 1)->size);
 
                 /* Verify the data we just inserted in "id_user" column */
-                c = dgrid_get_column(hg, g, 0, 0);
+                c = dgrid_get_cell(hg, g, 0, 0);
                 TEST_CHECK(!strcmp(c, "123"));
 
                 /* Verify the data we just inserted in "name" column */
-                c = dgrid_get_column(hg, g, 0, 1);
+                c = dgrid_get_cell(hg, g, 0, 1);
                 TEST_CHECK(!strcmp(c, "12345678"));
             } else
                 TEST_FAIL();  /* Row allocation failed - grid might be full */

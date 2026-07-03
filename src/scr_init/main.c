@@ -1,16 +1,13 @@
 #include "pagecache.h"
 #include "sequence.h"
+#include "cell.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
 
-#include <string.h>
-
 PageCache *g_pagecache = NULL;
-
-#define put_char(c, val, size)  strncpy(c, val, size - 1)
 
 int
 init_cluster(const char *path) {

@@ -4,20 +4,8 @@
  */
 
 #include "sequence.h"
+#include "cell.h"
 #include <assert.h>
-
-/**
- * @cond INTERNAL
- * Helper macros for reading/writing typed values from columns
- * @endcond
- */
-#define put_smallint(c, val)    *(int16_t *)(c) = val
-#define put_integer(c, val)     *(int32_t *)(c) = val
-#define put_bigint(c, val)      *(int64_t *)(c) = val
-
-#define get_smallint(c)         *(const int16_t *)(c)
-#define get_integer(c)          *(const int32_t *)(c)
-#define get_bigint(c)           *(const int64_t *)(c)
 
 /* Forward declarations */
 int hsequence_init(Page page);

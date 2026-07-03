@@ -22,7 +22,7 @@
 #ifndef _GRID_H_
 #define _GRID_H_
 
-#include <stdint.h>
+#include "cell.h"
 #include <stddef.h>
 
 /**
@@ -44,13 +44,6 @@ typedef void *Page;
  * Represents a single row within a grid structure.
  */
 typedef void *Row;
-
-/**
- * @brief Opaque handle to a grid cell.
- *
- * Represents a single cell within a grid at a specific row and column.
-*/
-typedef void *Cell;
 
 /**
  * @brief Grid type enumeration.
