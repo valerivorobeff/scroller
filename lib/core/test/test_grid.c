@@ -47,7 +47,7 @@ TEST(grid)
             /* Allocate memory pages for header grid and data grid */
             Page *hp = malloc(8096), *p = malloc(8096);
             Grid *hg = hgrid_init(hp, 8096, GT_FIXED), *g;
-            HColumn *hc;
+            Column *hc;
             Row row;
 
             /* ===== Schema Definition (DDL Operations) ===== */

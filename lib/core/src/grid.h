@@ -86,11 +86,11 @@ typedef struct Grid {
  * @see hgrid_add_column()
  * @see hgrid_get_column()
  */
-typedef struct HColumn {
+typedef struct Column {
     char name[NAMESZ];   /** Column name, null-terminated string */
     size_t offs;         /** Byte offset of this column within a row */
     size_t size;         /** Size of this column's data in bytes */
-} HColumn;
+} Column;
 
 /**
  * @brief Initializes a new grid within a memory page.
@@ -126,7 +126,7 @@ Row grid_get_row(Grid *grid, uint16_t n);
  * @param column    Column index (0-based) as defined in the header grid
  * @return          Pointer to the requested cell, or NULL if indices are invalid
  *
- * @note This function uses the HColumn definitions from hgrid to calculate
+ * @note This function uses the Column definitions from hgrid to calculate
  *       the exact offset within the data row.
  */
 Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
@@ -147,16 +147,16 @@ Row grid_alloc_row(Grid *grid);
 /**
  * @brief Adds a new column definition to a header grid.
  *
- * @param grid      Pointer to the header grid (must contain HColumn entries)
+ * @param grid      Pointer to the header grid (must contain Column entries)
  * @param name      Column name (must be unique within the grid)
  * @param size      Size of the column's data in bytes
- * @return          Pointer to the newly created HColumn structure, or NULL on error
+ * @return          Pointer to the newly created Column structure, or NULL on error
  *
  * @note This function automatically calculates the byte offset for the new column
  *       based on previously added columns.
- * @note The header grid must have been initialized with row size sizeof(HColumn).
+ * @note The header grid must have been initialized with row size sizeof(Column).
  */
-HColumn *hgrid_add_column(Grid *grid, const char *name, size_t size);
+Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
 
 /**
  * @brief Calculates the total row size needed for a data grid.
@@ -174,30 +174,30 @@ size_t hgrid_get_row_size(Grid *grid);
 /**
  * @brief Initializes a header grid within a memory page.
  *
- * A header grid stores HColumn structures that define the schema for data grids.
+ * A header grid stores Column structures that define the schema for data grids.
  *
  * @param page      Pointer to the memory page for the header grid
  * @param pagesz    Size of the memory page in bytes
  * @param type      Grid type (typically GT_FIXED)
  * @return          Pointer to the initialized Grid structure
  *
- * @note This macro automatically sets the row size to sizeof(HColumn).
+ * @note This macro automatically sets the row size to sizeof(Column).
  * @see grid_init()
  */
 #define hgrid_init(page, pagesz, type) \
-    grid_init(page, pagesz, type, sizeof(HColumn))
+    grid_init(page, pagesz, type, sizeof(Column))
 
 /**
  * @brief Retrieves a column definition from a header grid.
  *
  * @param grid      Pointer to the header grid
  * @param n         Column index (0-based)
- * @return          Pointer to the HColumn structure at the specified index
+ * @return          Pointer to the Column structure at the specified index
  *
- * @note This macro casts the row pointer to HColumn* for convenience.
+ * @note This macro casts the row pointer to Column* for convenience.
  * @see grid_get_row()
  */
-#define hgrid_get_column(grid, n) ((HColumn *)grid_get_row(grid, n))
+#define hgrid_get_column(grid, n) ((Column *)grid_get_row(grid, n))
 
 /**
  * @brief Initializes a data grid within a memory page.
