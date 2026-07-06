@@ -43,6 +43,7 @@ uint16_t grid_alloc_row(Grid *grid);
 
 Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
 size_t hgrid_get_row_size(Grid *grid);
+uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
 
 Grid *
 grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
@@ -124,5 +125,18 @@ hgrid_get_row_size(Grid *grid) {
         return hc->offs + hc->size;
     } else
        return 0;
+}
+
+uint16_t
+hgrid_get_column_idx(Grid *grid, const char *name) {
+    const uint16_t occupied = grid->occupied;
+    Column *c = (Column *)grid->datum;
+
+    for (size_t i = 0; i != occupied; ++i, ++c) {
+        if (strcmp(c->name, name) == 0)
+            return i;
+    }
+
+    return GRID_INVALID_IDX;
 }
 

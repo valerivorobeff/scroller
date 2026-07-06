@@ -176,6 +176,18 @@ Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
 size_t hgrid_get_row_size(Grid *grid);
 
 /**
+ * @brief Returns column index by its name.
+ *
+ * @param grid      Pointer to the header grid containing column definitions
+ * @param name      Column name.
+ * @return          Column index.
+ *
+ * @note This value should be used as the rowsz parameter when initializing
+ *       a data grid with dgrid_init().
+ */
+uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
+
+/**
  * @brief Initializes a header grid within a memory page.
  *
  * A header grid stores Column structures that define the schema for data grids.
