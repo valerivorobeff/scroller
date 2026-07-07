@@ -72,10 +72,10 @@ typedef struct SType {
 } SType;
 
 /** @brief Type group metadata */
-extern STypeGroup g_type_groups[TG_MAX];
+extern const STypeGroup g_type_groups[TG_MAX];
 
 /** @brief Type metadata */
-extern SType g_types[T_MAX];
+extern const SType g_types[T_MAX];
 
 /**
  * @brief Convert smallint to bigint
@@ -154,9 +154,9 @@ ssize_t cmp_character(Datum d1, Datum d2);
 /** @brief Create T_BIGINT datum */
 #define make_bigint(v) (Datum){ T_BIGINT, g_types[T_BIGINT].size, .value.bigint = (v) }
 /** @brief Create T_CHAR datum (string length is set) */
-#define make_char(v) (Datum){ T_CHAR, strlen(v), .value.character = (v) }
+#define make_char(v) (Datum){ T_CHAR, (v) ? strlen(v) : 0, .value.character = (v) }
 /** @brief Create T_VARCHAR datum (string length is set) */
-#define make_varchar(v) (Datum){ T_VARCHAR, strlen(v), .value.character = (v) }
+#define make_varchar(v) (Datum){ T_VARCHAR, (v) ? strlen(v) : 0, .value.character = (v) }
 
 #endif /* _TYPE_H_ */
 

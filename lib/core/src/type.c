@@ -12,7 +12,7 @@
  * Type group descriptors
  * @endcond
  */
-STypeGroup g_type_groups[TG_MAX] = {
+const STypeGroup g_type_groups[TG_MAX] = {
     { TG_UNKNOWN, T_UNKNOWN },
     { TG_INTEGER, T_BIGINT },
     { TG_CHARACTER, T_VARCHAR },
@@ -23,7 +23,7 @@ STypeGroup g_type_groups[TG_MAX] = {
  * Type descriptors with conversion functions
  * @endcond
  */
-SType g_types[T_MAX] = {
+const SType g_types[T_MAX] = {
     { T_UNKNOWN, TG_UNKNOWN, 0, NULL },
     { T_SMALLINT, TG_INTEGER, sizeof(int16_t), smallint2bigint },
     { T_INTEGER, TG_INTEGER, sizeof(int32_t), integer2bigint },
@@ -131,6 +131,6 @@ cmp_character(Datum d1, Datum d2) {
     ret = memcmp(d1.value.character, d2.value.character,
         d1.size < d2.size ? d1.size : d2.size);
 
-    return ret == 0 ? (ssize_t)d1.size - (ssize_t)d2.size : ret;
+    return ret == 0 ? (d1.size < d2.size ? -1 : (d1.size > d2.size ? 1 : 0)) : ret;
 }
 
