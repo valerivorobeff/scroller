@@ -1,26 +1,28 @@
+/**
+ * @file type.c
+ * @brief Type system implementation
+ */
+
 #include "type.h"
 #include <string.h>
 #include <assert.h>
-/*
-struct {
-    TypeGroup group;
-    Type base_type;
-}
-*/
+
+/**
+ * @cond INTERNAL
+ * Type group descriptors
+ * @endcond
+ */
 STypeGroup g_type_groups[TG_MAX] = {
     { TG_UNKNOWN, T_UNKNOWN },
     { TG_INTEGER, T_BIGINT },
     { TG_CHARACTER, T_VARCHAR },
 };
 
-/*
-struct {
-    Type type;
-    TypeGroup group;
-    size_t size;
-    convert_fn to_base_type;
-}
-*/
+/**
+ * @cond INTERNAL
+ * Type descriptors with conversion functions
+ * @endcond
+ */
 SType g_types[T_MAX] = {
     { T_UNKNOWN, TG_UNKNOWN, 0, NULL },
     { T_SMALLINT, TG_INTEGER, sizeof(int16_t), smallint2bigint },
@@ -30,6 +32,11 @@ SType g_types[T_MAX] = {
     { T_VARCHAR, TG_CHARACTER, 0, NULL },
 };
 
+/**
+ * @brief Convert smallint to bigint
+ * @param src Source datum (must be T_SMALLINT)
+ * @return Converted T_BIGINT datum
+ */
 Datum
 smallint2bigint(Datum src) {
     assert(src.type == T_SMALLINT);
@@ -41,6 +48,11 @@ smallint2bigint(Datum src) {
     return src;
 }
 
+/**
+ * @brief Convert integer to bigint
+ * @param src Source datum (must be T_INTEGER)
+ * @return Converted T_BIGINT datum
+ */
 Datum
 integer2bigint(Datum src) {
     assert(src.type == T_INTEGER);
@@ -52,6 +64,11 @@ integer2bigint(Datum src) {
     return src;
 }
 
+/**
+ * @brief Convert char to varchar (trims trailing spaces)
+ * @param src Source datum (must be T_CHAR)
+ * @return Converted T_VARCHAR datum
+ */
 Datum
 char2varchar(Datum src) {
     assert(src.type == T_CHAR);
@@ -63,6 +80,11 @@ char2varchar(Datum src) {
     return src;
 }
 
+/**
+ * @brief Convert to base type (bigint for integers, varchar for chars)
+ * @param src Source datum
+ * @return Converted datum, or src if already base type
+ */
 Datum
 to_base_type(Datum src) {
     convert_fn convert = g_types[src.type].to_base_type;
@@ -73,6 +95,12 @@ to_base_type(Datum src) {
     return src;
 }
 
+/**
+ * @brief Compare two integer values
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return Negative if d1 < d2, zero if equal, positive if d1 > d2
+ */
 ssize_t
 cmp_integer(Datum d1, Datum d2) {
     assert(g_types[d1.type].group == TG_INTEGER);
@@ -84,6 +112,12 @@ cmp_integer(Datum d1, Datum d2) {
     return d1.value.bigint - d2.value.bigint;
 }
 
+/**
+ * @brief Compare two character values
+ * @param d1 First character datum
+ * @param d2 Second character datum
+ * @return Negative if d1 < d2, zero if equal, positive if d1 > d2
+ */
 ssize_t
 cmp_character(Datum d1, Datum d2) {
     ssize_t ret;
@@ -99,19 +133,4 @@ cmp_character(Datum d1, Datum d2) {
 
     return ret == 0 ? (ssize_t)d1.size - (ssize_t)d2.size : ret;
 }
-/*
-#include <stdio.h>
-
-int main() {
-    Datum d1 = make_smallint(9);
-    Datum d2 = make_bigint(10);
-    Datum c1 = make_char("Hello");
-    Datum c2 = make_varchar("Hello");
-
-    printf("%i\n", le_integer(d1, d2));
-    printf("%i\n", eq_character(c1, c2));
-
-    return 0;
-}
-*/
 
