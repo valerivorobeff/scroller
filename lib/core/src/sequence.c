@@ -30,12 +30,12 @@ int
 hsequence_init(Page page) {
     Grid *hsequence = hgrid_init(page, PAGESZ, GT_FIXED);
 
-    hgrid_add_column(hsequence, "min_val", sizeof(int64_t));
-    hgrid_add_column(hsequence, "max_val", sizeof(int64_t));
-    hgrid_add_column(hsequence, "last_val", sizeof(int64_t));
-    hgrid_add_column(hsequence, "increment", sizeof(int64_t));
-    hgrid_add_column(hsequence, "cycle", sizeof(int64_t));
-    hgrid_add_column(hsequence, "is_called", sizeof(int64_t));
+    hgrid_add_column(hsequence, "min_val", T_BIGINT, sizeof(int64_t));
+    hgrid_add_column(hsequence, "max_val", T_BIGINT, sizeof(int64_t));
+    hgrid_add_column(hsequence, "last_val", T_BIGINT, sizeof(int64_t));
+    hgrid_add_column(hsequence, "increment", T_BIGINT, sizeof(int64_t));
+    hgrid_add_column(hsequence, "cycle", T_BIGINT, sizeof(int64_t));
+    hgrid_add_column(hsequence, "is_called", T_BIGINT, sizeof(int64_t));
 
     return 0;
 }

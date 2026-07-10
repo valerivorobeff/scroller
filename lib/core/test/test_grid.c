@@ -55,14 +55,14 @@ TEST(grid)
             /* CREATE TABLE HEADER - Initialize empty schema */
 
             /* ALTER TABLE ADD COLUMN - Add first column to schema */
-            if (!hgrid_add_column(hg, "id_user", 4)) {
+            if (!hgrid_add_column(hg, "id_user", T_INTEGER, 4)) {
                 TEST_FAIL();  /* Column addition failed - critical error */
             }
             /* Verify that one column was successfully added */
             TEST_CHECK(hg->occupied == 1);
 
             /* ALTER TABLE ADD COLUMN - Add second column to schema */
-            if (!hgrid_add_column(hg, "name", 12)) {
+            if (!hgrid_add_column(hg, "name", T_CHAR, 12)) {
                 TEST_FAIL();  /* Column addition failed - critical error */
             }
             /* Verify that both columns are now present */

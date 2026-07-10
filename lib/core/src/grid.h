@@ -23,6 +23,7 @@
 #define _GRID_H_
 
 #include "cell.h"
+#include "type.h"
 #include <stddef.h>
 
 /**
@@ -89,6 +90,7 @@ typedef struct Grid {
 typedef struct Column {
     char name[NAMESZ];   /** Column name, null-terminated string */
     size_t offs;         /** Byte offset of this column within a row */
+    Type type;           /** Column type */
     size_t size;         /** Size of this column's data in bytes */
 } Column;
 
@@ -153,6 +155,7 @@ uint16_t grid_alloc_row(Grid *grid);
  *
  * @param grid      Pointer to the header grid (must contain Column entries)
  * @param name      Column name (must be unique within the grid)
+ * @param type      Data type
  * @param size      Size of the column's data in bytes
  * @return          Pointer to the newly created Column structure, or NULL on error
  *
@@ -160,7 +163,7 @@ uint16_t grid_alloc_row(Grid *grid);
  *       based on previously added columns.
  * @note The header grid must have been initialized with row size sizeof(Column).
  */
-Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
+Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
 
 /**
  * @brief Calculates the total row size needed for a data grid.
