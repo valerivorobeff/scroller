@@ -91,8 +91,8 @@ server_init(const char *path, Server *server) {
     cluster = pagecache_put_page(g_pagecache, 3);
 
     for (int i = 0; i; ++i) {
-        Cell name = dgrid_get_cell(hcluster, cluster, i, name_idx);
-        Cell value = dgrid_get_cell(hcluster, cluster, i, value_idx);
+        Datum name = dgrid_get_datum(hcluster, cluster, i, name_idx);
+        Datum value = dgrid_get_datum(hcluster, cluster, i, value_idx);
     }
 
     tcp_init(server);

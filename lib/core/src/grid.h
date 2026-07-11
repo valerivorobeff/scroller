@@ -138,6 +138,20 @@ Row grid_get_row(Grid *grid, uint16_t n);
 Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 
 /**
+ * @brief Retrieves a Datum to a specific cell within a data grid.
+ *
+ * @param hgrid     Header grid containing column definitions
+ * @param grid      Data grid containing the actual row data
+ * @param row       Row index within the data grid (0-based)
+ * @param column    Column index (0-based) as defined in the header grid
+ * @return          Datum from the requested cell
+ *
+ * @note This function uses the Column definitions from hgrid to calculate
+ *       the exact offset within the data row.
+ */
+Datum grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+
+/**
  * @brief Allocates a new row in the grid.
  *
  * Finds the first unused row slot and marks it as occupied.
@@ -259,6 +273,21 @@ uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
  */
 #define dgrid_get_cell(hgrid, grid, row, column) \
     grid_get_cell(hgrid, grid, row, column)
+
+/**
+ * @brief Retrieves a Datum to a specific cell within a data grid.
+ *
+ * @param hgrid     Header grid containing column definitions
+ * @param grid      Data grid containing the actual row data
+ * @param row       Row index within the data grid (0-based)
+ * @param column    Column index (0-based) as defined in the header grid
+ * @return          Datum from the requested cell
+ *
+ * @note This function uses the Column definitions from hgrid to calculate
+ *       the exact offset within the data row.
+ */
+#define dgrid_get_datum(hgrid, grid, row, column) \
+    grid_get_datum(hgrid, grid, row, column)
 
 #endif /* _GRID_H_ */
 
