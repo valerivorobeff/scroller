@@ -24,12 +24,12 @@ const STypeGroup g_type_groups[TG_MAX] = {
  * @endcond
  */
 const SType g_types[T_MAX] = {
-    { T_UNKNOWN, TG_UNKNOWN, 0, NULL },
-    { T_SMALLINT, TG_INTEGER, sizeof(int16_t), smallint2bigint },
-    { T_INTEGER, TG_INTEGER, sizeof(int32_t), integer2bigint },
-    { T_BIGINT, TG_INTEGER, sizeof(int64_t), NULL },
-    { T_CHAR, TG_CHARACTER, 0, char2varchar },
-    { T_VARCHAR, TG_CHARACTER, 0, NULL },
+    { T_UNKNOWN, TG_UNKNOWN, SM_TYPESZ, 0, NULL },
+    { T_SMALLINT, TG_INTEGER, SM_TYPESZ, sizeof(int16_t), smallint2bigint },
+    { T_INTEGER, TG_INTEGER, SM_TYPESZ, sizeof(int32_t), integer2bigint },
+    { T_BIGINT, TG_INTEGER, SM_TYPESZ, sizeof(int64_t), NULL },
+    { T_CHAR, TG_CHARACTER, SM_COLUMNSZ, 0, char2varchar },
+    { T_VARCHAR, TG_CHARACTER, SM_TYPESZ, sizeof(int16_t), NULL },
 };
 
 /**

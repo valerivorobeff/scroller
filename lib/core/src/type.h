@@ -67,6 +67,10 @@ typedef struct STypeGroup {
 typedef struct SType {
     Type type;              /**< Type enum */
     TypeGroup group;        /**< Type group */
+    enum {
+        SM_TYPESZ,          /**< Size is defined in SType:size, e.g. T_INTEGER, T_VARCHAR */
+        SM_COLUMNSZ         /**< Size is defined in Column:size, e.g. T_CHAR */
+    } size_meaning;
     size_t size;            /**< Size in bytes (0 for variable-length) */
     convert_fn to_base_type;/**< Conversion to base type, or NULL */
 } SType;

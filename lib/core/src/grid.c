@@ -39,10 +39,13 @@ size_t PAGESZ = 4096;
 Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
 Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+Datum grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 uint16_t grid_alloc_row(Grid *grid);
 
-Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
+Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
 size_t hgrid_get_row_size(Grid *grid);
+uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
+
 
 Grid *
 grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
@@ -80,6 +83,17 @@ grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
     return r + hc->offs;
 }
 
+Datum
+grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
+    const Row r = grid_get_row(grid, row);
+    const Column *hc = hgrid_get_column(hgrid, column);
+
+    assert(column < hgrid->occupied);
+
+    /* @todo: it makes incorrect size of varchar */
+    return (Datum){ .type = hc->type, .size = hc->size, .value.unknown = r + hc->offs };
+}
+
 uint16_t
 grid_alloc_row(Grid *grid) {
     if (grid->occupied < grid->rown)
@@ -89,7 +103,7 @@ grid_alloc_row(Grid *grid) {
 }
 
 Column *
-hgrid_add_column(Grid *grid, const char *name, size_t size) {
+hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
     uint16_t column_idx = grid_alloc_row(grid);
     Column *hc;
 
@@ -104,12 +118,23 @@ hgrid_add_column(Grid *grid, const char *name, size_t size) {
          * and we can only work with 15 byte (NAMESZ - 1) length
          * strings, is it suitable? */
         strncpy(hc->name, name, NAMESZ - 1);
-        hc->size = size;
+        hc->type = type;
+        hc->size = size; /* hc->size means something for only flexible size types
+                          * for T_CHAR the absolute size in grid
+                          * for T_CARCHAR size in grid comes from SType:size and
+                          *     hc->size means maximum length of varchar
+                          * for other types size in grid comes from SType:size */
 
         /* Calculate byte offset based on the previous column */
-        if (grid->occupied > 1)
+        if (grid->occupied > 1) {
+            /* Correct size depending on type size meaning */
+            switch (g_types[type].size_meaning) {
+                case SM_TYPESZ: size = g_types[type].size; break;
+                case SM_COLUMNSZ: break;
+            }
+
             hc->offs = (hc - 1)->offs + size;
-        else
+        } else
             hc->offs = 0;
 
         return hc;
@@ -124,5 +149,18 @@ hgrid_get_row_size(Grid *grid) {
         return hc->offs + hc->size;
     } else
        return 0;
+}
+
+uint16_t
+hgrid_get_column_idx(Grid *grid, const char *name) {
+    const uint16_t occupied = grid->occupied;
+    Column *c = (Column *)grid->datum;
+
+    for (size_t i = 0; i != occupied; ++i, ++c) {
+        if (strcmp(c->name, name) == 0)
+            return i;
+    }
+
+    return GRID_INVALID_IDX;
 }
 

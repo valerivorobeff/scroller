@@ -60,8 +60,8 @@ init_cluster(const char *path) {
 
         hcluster = pagecache_put_page(g_pagecache, currval);
         hcluster = hgrid_init(hcluster, PAGESZ, GT_FIXED);
-        hgrid_add_column(hcluster, "name", 32);
-        hgrid_add_column(hcluster, "value", 32);
+        hgrid_add_column(hcluster, "name", T_CHAR, 32);
+        hgrid_add_column(hcluster, "value", T_CHAR, 32);
 
         pagecache_flush(g_pagecache, currval);
 
@@ -89,7 +89,7 @@ init_cluster(const char *path) {
 
         huser = pagecache_put_page(g_pagecache, currval);
         huser = hgrid_init(huser, PAGESZ, GT_FIXED);
-        hgrid_add_column(huser, "name", 32);
+        hgrid_add_column(huser, "name", T_CHAR, 32);
 
         pagecache_flush(g_pagecache, currval);
 
@@ -114,7 +114,7 @@ init_cluster(const char *path) {
 
         harchive = pagecache_put_page(g_pagecache, currval);
         harchive = hgrid_init(harchive, PAGESZ, GT_FIXED);
-        hgrid_add_column(harchive, "name", 32);
+        hgrid_add_column(harchive, "name", T_CHAR, 32);
 
         pagecache_flush(g_pagecache, currval);
 

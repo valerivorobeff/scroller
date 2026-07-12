@@ -23,6 +23,7 @@
 #define _GRID_H_
 
 #include "cell.h"
+#include "type.h"
 #include <stddef.h>
 
 /**
@@ -89,6 +90,7 @@ typedef struct Grid {
 typedef struct Column {
     char name[NAMESZ];   /** Column name, null-terminated string */
     size_t offs;         /** Byte offset of this column within a row */
+    Type type;           /** Column type */
     size_t size;         /** Size of this column's data in bytes */
 } Column;
 
@@ -136,6 +138,20 @@ Row grid_get_row(Grid *grid, uint16_t n);
 Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 
 /**
+ * @brief Retrieves a Datum to a specific cell within a data grid.
+ *
+ * @param hgrid     Header grid containing column definitions
+ * @param grid      Data grid containing the actual row data
+ * @param row       Row index within the data grid (0-based)
+ * @param column    Column index (0-based) as defined in the header grid
+ * @return          Datum from the requested cell
+ *
+ * @note This function uses the Column definitions from hgrid to calculate
+ *       the exact offset within the data row.
+ */
+Datum grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+
+/**
  * @brief Allocates a new row in the grid.
  *
  * Finds the first unused row slot and marks it as occupied.
@@ -153,6 +169,7 @@ uint16_t grid_alloc_row(Grid *grid);
  *
  * @param grid      Pointer to the header grid (must contain Column entries)
  * @param name      Column name (must be unique within the grid)
+ * @param type      Data type
  * @param size      Size of the column's data in bytes
  * @return          Pointer to the newly created Column structure, or NULL on error
  *
@@ -160,7 +177,7 @@ uint16_t grid_alloc_row(Grid *grid);
  *       based on previously added columns.
  * @note The header grid must have been initialized with row size sizeof(Column).
  */
-Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
+Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
 
 /**
  * @brief Calculates the total row size needed for a data grid.
@@ -174,6 +191,18 @@ Column *hgrid_add_column(Grid *grid, const char *name, size_t size);
  *       a data grid with dgrid_init().
  */
 size_t hgrid_get_row_size(Grid *grid);
+
+/**
+ * @brief Returns column index by its name.
+ *
+ * @param grid      Pointer to the header grid containing column definitions
+ * @param name      Column name.
+ * @return          Column index.
+ *
+ * @note This value should be used as the rowsz parameter when initializing
+ *       a data grid with dgrid_init().
+ */
+uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
 
 /**
  * @brief Initializes a header grid within a memory page.
@@ -244,6 +273,21 @@ size_t hgrid_get_row_size(Grid *grid);
  */
 #define dgrid_get_cell(hgrid, grid, row, column) \
     grid_get_cell(hgrid, grid, row, column)
+
+/**
+ * @brief Retrieves a Datum to a specific cell within a data grid.
+ *
+ * @param hgrid     Header grid containing column definitions
+ * @param grid      Data grid containing the actual row data
+ * @param row       Row index within the data grid (0-based)
+ * @param column    Column index (0-based) as defined in the header grid
+ * @return          Datum from the requested cell
+ *
+ * @note This function uses the Column definitions from hgrid to calculate
+ *       the exact offset within the data row.
+ */
+#define dgrid_get_datum(hgrid, grid, row, column) \
+    grid_get_datum(hgrid, grid, row, column)
 
 #endif /* _GRID_H_ */
 
