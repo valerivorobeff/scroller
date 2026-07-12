@@ -12,7 +12,24 @@ extern Context *g_context;
 
 extern size_t MEMORY_PAGESZ;
 
-void memory_init(void); /** This function should be called before any other */
+/**
+ * @brief Default memory size (1 MB)
+ */
+#define CONTEXT_DEFAULTSZ (get_memory_page_size() * 256)
+
+/**
+ * @code
+ *
+ * memory_init(bump_context_create(get_memory_page_size()));
+ *
+ * memory_drop();
+ *
+ * @endcode
+ */
+void memory_init(Context *context); /** This function should be called before any other */
+#define memory_init_default() memory_init(bump_context_create(CONTEXT_DEFAULTSZ))
+void memory_destroy(void);
+size_t get_memory_page_size(void);
 
 typedef void *(*alloc_fn)(Context *context, size_t size);
 typedef void *(*realloc_fn)(Context *context, void *p, size_t size);

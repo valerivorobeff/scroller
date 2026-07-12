@@ -41,9 +41,10 @@ TEST(memory)
     TEST_SUITE(memory_init)
 
         TEST_CASE(init) {
-            memory_init();
+            memory_init_default();
             TEST_CHECK(MEMORY_PAGESZ > 0);
             TEST_CHECK(MEMORY_PAGESZ == (size_t)sysconf(_SC_PAGESIZE));
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -51,38 +52,35 @@ TEST(memory)
     TEST_SUITE(bump_context)
 
         TEST_CASE(create) {
-            memory_init();
-            Context *ctx = bump_context_create(MEMORY_PAGESZ);
-            TEST_CHECK(ctx != NULL);
+            memory_init(bump_context_create(MEMORY_PAGESZ));
 
-            context_drop(ctx);
+            TEST_CHECK(g_context != NULL);
+
+            memory_destroy();
         }
 
         TEST_CASE(create_zero_size) {
-            memory_init();
-            Context *ctx = bump_context_create(0);
+            memory_init(bump_context_create(0));
             /* Should handle zero size gracefully */
-            TEST_CHECK(ctx == NULL);
+            TEST_CHECK(g_context == NULL);
 
-            if (ctx)
-                context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_basic) {
-            memory_init();
-            Context *ctx = bump_context_create(MEMORY_PAGESZ);
-            TEST_CHECK(ctx != NULL);
+            memory_init_default();
+            TEST_CHECK(g_context != NULL);
 
-            int *p = context_alloc(ctx, sizeof(int));
+            int *p = context_alloc(g_context, sizeof(int));
             TEST_CHECK(p != NULL);
             *p = 42;
             TEST_CHECK(*p == 42);
 
-            context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_multiple) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -107,10 +105,11 @@ TEST(memory)
             TEST_CHECK((char *)p3 - (char *)p2 > 0);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_large) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ * 4);
             TEST_CHECK(ctx != NULL);
 
@@ -122,10 +121,11 @@ TEST(memory)
             TEST_CHECK(check_pattern(p, large_size, 0xAA));
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_exceed) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -138,10 +138,11 @@ TEST(memory)
             TEST_CHECK(p2 == NULL);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_zero) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -149,6 +150,7 @@ TEST(memory)
             TEST_CHECK(p == NULL);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -156,7 +158,7 @@ TEST(memory)
     TEST_SUITE(bump_realloc)
 
         TEST_CASE(realloc_grow) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -174,10 +176,11 @@ TEST(memory)
             TEST_CHECK(np[2] == 9);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(realloc_shrink) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -191,10 +194,11 @@ TEST(memory)
             TEST_CHECK(np[2] == 2);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(realloc_null) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -205,10 +209,11 @@ TEST(memory)
             TEST_CHECK(*p == 42);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(realloc_zero) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -219,6 +224,7 @@ TEST(memory)
             TEST_CHECK(np == NULL);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -226,7 +232,7 @@ TEST(memory)
     TEST_SUITE(bump_free)
 
         TEST_CASE(free_tail) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -248,10 +254,11 @@ TEST(memory)
             TEST_CHECK(*p4 == 4);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(free_null) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -259,10 +266,11 @@ TEST(memory)
             context_free(ctx, NULL);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(free_non_tail) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -282,6 +290,7 @@ TEST(memory)
             TEST_CHECK(*p3 == 3);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -289,7 +298,7 @@ TEST(memory)
     TEST_SUITE(bump_reset)
 
         TEST_CASE(reset) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -306,10 +315,11 @@ TEST(memory)
             TEST_CHECK(*np == 42);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(reset_with_children) {
-            memory_init();
+            memory_init_default();
             Context *parent = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(parent != NULL);
 
@@ -331,6 +341,7 @@ TEST(memory)
             TEST_CHECK(child_num((BumpContext *)parent) == 0);
 
             context_drop(parent);
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -338,7 +349,7 @@ TEST(memory)
     TEST_SUITE(bump_drop)
 
         TEST_CASE(drop) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -349,10 +360,11 @@ TEST(memory)
             TEST_CHECK(ret == 0);
 
             /* Context should be freed */
+            memory_destroy();
         }
 
         TEST_CASE(drop_with_children) {
-            memory_init();
+            memory_init_default();
             Context *parent = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(parent != NULL);
 
@@ -369,6 +381,7 @@ TEST(memory)
             TEST_CHECK(ret == 0);
 
             /* Children should be automatically dropped */
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -376,7 +389,7 @@ TEST(memory)
     TEST_SUITE(bump_children)
 
         TEST_CASE(add_child) {
-            memory_init();
+            memory_init_default();
             Context *parent = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(parent != NULL);
 
@@ -391,10 +404,11 @@ TEST(memory)
             TEST_CHECK(child_num((BumpContext *)parent) == 1);
 
             context_drop(parent);
+            memory_destroy();
         }
 
         TEST_CASE(add_child_multiple) {
-            memory_init();
+            memory_init_default();
             Context *parent = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(parent != NULL);
 
@@ -415,10 +429,11 @@ TEST(memory)
 
             context_drop(extra);
             context_drop(parent);
+            memory_destroy();
         }
 
         TEST_CASE(parent_child_allocation) {
-            memory_init();
+            memory_init_default();
             Context *parent = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(parent != NULL);
 
@@ -434,6 +449,7 @@ TEST(memory)
             TEST_CHECK(*p == 42);
 
             context_drop(parent);
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -441,15 +457,16 @@ TEST(memory)
     TEST_SUITE(linear_context)
 
         TEST_CASE(create) {
-            memory_init();
+            memory_init_default();
             Context *ctx = linear_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_basic) {
-            memory_init();
+            memory_init_default();
             Context *ctx = linear_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -459,10 +476,11 @@ TEST(memory)
             TEST_CHECK(*p == 42);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_multiple) {
-            memory_init();
+            memory_init_default();
             Context *ctx = linear_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -483,10 +501,11 @@ TEST(memory)
             TEST_CHECK(*p3 == 3);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(alloc_exceed) {
-            memory_init();
+            memory_init_default();
             Context *ctx = linear_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -499,10 +518,11 @@ TEST(memory)
             TEST_CHECK(p2 == NULL);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(linear_no_realloc) {
-            memory_init();
+            memory_init_default();
             Context *ctx = linear_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -518,10 +538,11 @@ TEST(memory)
             */
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(linear_no_free) {
-            memory_init();
+            memory_init_default();
             Context *ctx = linear_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -535,10 +556,11 @@ TEST(memory)
             */
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(linear_reset) {
-            memory_init();
+            memory_init_default();
             Context *ctx = linear_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -555,6 +577,7 @@ TEST(memory)
             TEST_CHECK(*np == 42);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -562,7 +585,7 @@ TEST(memory)
     TEST_SUITE(global_context)
 
         TEST_CASE(set_get) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -574,10 +597,11 @@ TEST(memory)
 
             context_switch(old);
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(global_alloc) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -589,10 +613,11 @@ TEST(memory)
             TEST_CHECK(*p == 42);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(global_realloc) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -606,10 +631,11 @@ TEST(memory)
             TEST_CHECK(np[0] == 42);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(global_free) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx != NULL);
 
@@ -625,11 +651,12 @@ TEST(memory)
             TEST_CHECK(np != NULL);
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(global_switch_restore) {
-            memory_init();
-            Context *ctx1 = bump_context_create(MEMORY_PAGESZ);
+            memory_init(bump_context_create(MEMORY_PAGESZ));
+            Context *ctx1 = g_context;
             Context *ctx2 = bump_context_create(MEMORY_PAGESZ);
             TEST_CHECK(ctx1 != NULL);
             TEST_CHECK(ctx2 != NULL);
@@ -648,8 +675,8 @@ TEST(memory)
             context_switch(ctx2);
             TEST_CHECK(*p2 == 2);
 
-            context_drop(ctx1);
             context_drop(ctx2);
+            memory_destroy();
         }
 
     TEST_SUITE_END()
@@ -657,7 +684,7 @@ TEST(memory)
     TEST_SUITE(memory_stress)
 
         TEST_CASE(many_allocations) {
-            memory_init();
+            memory_init_default();
             Context *ctx = bump_context_create(MEMORY_PAGESZ * 4);
             TEST_CHECK(ctx != NULL);
 
@@ -677,10 +704,11 @@ TEST(memory)
             }
 
             context_drop(ctx);
+            memory_destroy();
         }
 
         TEST_CASE(nested_contexts) {
-            memory_init();
+            memory_init_default();
             const int DEPTH = 5;
             Context *contexts[DEPTH];
 
@@ -703,10 +731,7 @@ TEST(memory)
 
             /* Drop all contexts (should cascade) */
             context_drop(contexts[0]);
-
-            /* Clean up remaining (should be already freed) */
-            /* Cannot test directly, but should not crash */
-            TEST_CHECK(1);
+            memory_destroy();
         }
 
     TEST_SUITE_END()

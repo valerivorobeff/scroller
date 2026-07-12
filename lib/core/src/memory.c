@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include <unistd.h>
+static Context *g_root_context = NULL; /**< Root context for cleanup */
 Context *g_context = NULL;
 
 size_t MEMORY_PAGESZ = 4096;
@@ -13,7 +14,9 @@ size_t MEMORY_PAGESZ = 4096;
     static const uint32_t magic = 0xFEEDFACE;
 #endif
 
-void memory_init(void);
+void memory_init(Context *context);
+void memory_destroy(void);
+size_t get_memory_page_size(void);
 
 Context *bump_context_create(size_t size);
 
@@ -42,8 +45,33 @@ static inline size_t align_max(size_t sz);
  * Memory init
  */
 
-void memory_init(void) {
-    MEMORY_PAGESZ = sysconf(_SC_PAGESIZE);
+void
+memory_init(Context *context) {
+    get_memory_page_size();
+
+    g_root_context = g_context = context;
+}
+
+void
+memory_destroy(void) {
+    if (g_root_context) {
+        context_drop(g_root_context);
+        g_root_context = NULL;
+    }
+
+    g_context = NULL;
+}
+
+size_t
+get_memory_page_size(void) {
+    static int initialized = 0;
+
+    if (!initialized) {
+        MEMORY_PAGESZ = sysconf(_SC_PAGESIZE);
+        initialized = 1;
+    }
+
+    return MEMORY_PAGESZ;
 }
 
 /*
