@@ -13,8 +13,8 @@ main(const int argc, const char *argv[]) {
     }
 
     result = server_init(argv[1], &server);
-    result = server_run(&server);
-    result = server_drop(&server);
+    result &= server_run(&server);
+    result &= server_destroy(&server);
 
     return result;
 }
