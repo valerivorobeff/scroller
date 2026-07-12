@@ -71,6 +71,7 @@ static inline Context *context_switch(Context *context) {
 #define context_alloc(context, sz) ((Context *)(context))->vt->alloc(context, sz)
 #define context_realloc(context, p, sz) ((Context *)(context))->vt->realloc(context, p, sz)
 #define context_free(context, p) ((Context *)(context))->vt->free(context, p)
+#define context_reset(context) ((Context *)(context))->vt->reset(context)
 #define context_drop(context) ((Context *)(context))->vt->drop(context)
 #define context_add_child(context, child) ((Context *)(context))->vt->add_child(context, child)
 

@@ -7,7 +7,7 @@
 #include <unistd.h>
 Context *g_context = NULL;
 
-size_t MEMORY_PAGESZ;
+size_t MEMORY_PAGESZ = 4096;
 
 #ifndef NDEBUG
     static const uint32_t magic = 0xFEEDFACE;
@@ -64,7 +64,12 @@ static const ContextVt bump_context_vt = {
 
 Context *
 bump_context_create(size_t size) {
-    BumpContext *ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    BumpContext *ret;
+
+    if (size == 0)
+        return NULL;
+
+    ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
     if (ret == NULL) {
         assert(ret);
@@ -107,6 +112,9 @@ bump_context_reset(Context *context) {
 int
 bump_context_drop(Context *context) {
     BumpContext *bcontext = (BumpContext *)context;
+
+    if (context == NULL)
+        return 0;
 
 #ifndef NDEBUG
     assert(bcontext->magic == magic);
@@ -174,7 +182,6 @@ bump_context_alloc(Context *context, size_t sz) {
 void *
 bump_context_realloc(Context *context, void *p, size_t sz) {
     size_t sizesz = align_max(sizeof(size_t));
-    size_t totalsz;
 
     if (sz == 0) {
         bump_context_free(context, p);
@@ -197,13 +204,14 @@ bump_context_realloc(Context *context, void *p, size_t sz) {
     assert(psz > 0 && psz <= ((BumpContext *)context)->size);
 
     sz = align_max(sz);
-    totalsz = sz + sizesz;
 
     assert(sz <= SIZE_MAX - sizesz);
 
     if (sz > psz) {
         void *np = bump_context_alloc(context, sz);
-        memcpy(np, p, psz);
+
+        if (np)
+            memcpy(np, p, psz);
 
         return np;
     } else
@@ -276,7 +284,12 @@ static const ContextVt linear_context_vt = {
 
 Context *
 linear_context_create(size_t size) {
-    BumpContext *ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    BumpContext *ret;
+
+    if (size == 0)
+        return NULL;
+
+    ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 
     if (ret == NULL) {
         assert(ret);
@@ -346,43 +359,5 @@ static inline size_t align_up(size_t sz, int align) {
 
 static inline size_t align_max(size_t sz) {
     return align_up(sz, MAX_ALIGN);
-}
-
-#include <unistd.h>
-#include <stdio.h>
-
-int main() {
-    memory_init();
-
-    g_context = bump_context_create(MEMORY_PAGESZ);
-    if (!g_context) {
-        fprintf(stderr, "Failed to create main context\n");
-        return 1;
-    }
-
-    Context *child_context = linear_context_create(MEMORY_PAGESZ * 2);
-    if (!child_context) {
-        fprintf(stderr, "Failed to create child context\n");
-        context_drop(g_context);
-        return 1;
-    }
-
-    context_add_child(g_context, child_context);
-
-    int *i = salloc(sizeof(int));
-
-    *i = 5;
-
-    i = srealloc(i, sizeof(int) * 3);
-
-    i[1] = 7;
-
-    i[2] = 9;
-
-    sfree(i);
-
-    context_drop(g_context);
-
-    return 0;
 }
 
