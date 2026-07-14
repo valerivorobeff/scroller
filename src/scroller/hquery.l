@@ -1,15 +1,15 @@
 %{
-
+#include "hquery.y.h"
+#include <stdio.h>
 %}
 
 %option noyywrap
 %option never-interactive
 %option yylineno
- //%option bison-bridge
+%option bison-bridge
  //%option bison-locations
 %option reentrant
-%option prefix="YY"
-%option read
+%option prefix="yy"
 %option full
 %option nodefault
 %option warn
@@ -22,22 +22,12 @@ SPACE   [ \t\r]
 
 %%
 
-{SPACE}+    { puts("space"); }
-{ID}        { puts("id"); }
-":"         puts(":");
-"\n"        { puts("enter"); }
+{SPACE}+    /* eat */
+{ID}        puts(yytext); yylval->str = yytext; return STRING;
+":"         puts(":"); return ':';
+"@"         puts("@"); return '@';
+";"         { return ';'; }
+"\n"        /* eat */
 
 %%
-/*
-int
-main() {
-    yyscan_t scanner;
-
-    yylex_init ( &scanner );
-    yylex ( scanner );
-    yylex_destroy ( scanner );
-
-    return 0;
-}
-*/
 

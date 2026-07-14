@@ -1,40 +1,71 @@
 #include "worker.h"
 #include "flog.h"
+#include "hquery.y.h"
+#include "hquery.l.h"
 #include <sys/socket.h>
-#include <unistd.h>
-#include <string.h>
 
 int worker_main(Server *server);
 
 int
 worker_main(Server *server) {
-    char buffer[1024];
+    int ret = 0;
     const int client_fd = server->client_fd;
-    ssize_t bytes_read;
+    FILE *fstream;
 
-    while ((bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0)) > 0) {
-        buffer[bytes_read] = '\0';
-        flog("[Child %d] Received: %s", getpid(), buffer);
+    flog("[Child %d] Client connected\n", getpid());
 
-        /* Send back */
-        send(client_fd, "Answer: ", 8, 0);
-        send(client_fd, buffer, bytes_read, 0);
+    /* @todo: we have to create file stream because flex requires it
+     * for file reading. But there is another way, that we can redefine
+     * YY_INPUT macro and pass socket fd somehow via global variable,
+     * but this method seems to be faster because we avoid creating file
+     * stream, we should think over which method is the bast one, now the
+     * first methood works.
+     */
+    fstream = fdopen(client_fd, "r+b");
+    if (fstream == NULL)
+        ffatal(1, "Cannot create fstream");
 
-        if (memcmp(buffer, "exit", 4) == 0) {
-            send(client_fd, "Bye!", 4, 0);
-            break;
+    setbuf(fstream, NULL);
+
+    for (;;) {
+        yyscan_t scanner;
+
+        yylex_init(&scanner);
+        yyset_in(fstream, scanner);
+
+        ret = yyparse(scanner);
+
+        flog("ret: %i", ret);
+
+        switch(ret) {
+            case 0:
+                ferr("Query parsed successfully");
+                //flog_flush();
+                send(client_fd, "Good\n", 5, 0);
+                break;
+
+            case 1:
+                ferr("Parser error");
+                send(client_fd, "Error\n", 6, 0);
+                break;
+
+            case 2:
+                ferr("Parser memory exhaustion");
+                send(client_fd, "Memory error!\n", 14, 0);
+                break;
+
+            default:
+                ferr("Unknown parser error code: %i", ret);
+                send(client_fd, "Unknown error code!\n", 20, 0);
         }
+
+        yylex_destroy(scanner);
     }
 
-    if (bytes_read == 0) {
-        flog("[Child %d] Client disconnected\n", getpid());
-    } else if (bytes_read < 0) {
-        flog("recv");
-    }
 
     /* Drop worker */
     close(client_fd);
 
-    return 0;
+    return ret;
 }
 
