@@ -1,18 +1,29 @@
-%{
+%code requires{
+#include "../../../../src/scroller/server.h"
+}
 
+%code {
 #include "hquery.y.h"
 #include "hquery.l.h"
 
+#include <sys/socket.h>
+
 int yylex(YYSTYPE *lvalp, yyscan_t scanner);
 //, YYLTYPE *llocp);
-void yyerror(yyscan_t scanner, char const *s);
-%}
+void yyerror(yyscan_t scanner, Server *server, char const *s);
+}
 
 %define api.pure full
 %define api.prefix {yy}
  //%locations
 %lex-param      {yyscan_t scanner}
 %parse-param    {void *scanner}
+%parse-param    {Server *server}
+
+/* @todo: write the functions */
+%initial-action { }
+ //%destructor { } <>
+
 
 %union {
     const char* str;
@@ -27,7 +38,8 @@ header:
     %empty
     |
     header_exprs '\n' {
-        fprintf(stderr, "WOW\n");
+        const char *response = "Status: Ready\n\n";
+        send(server->client_fd, response, strlen(response), 0);
         YYACCEPT;
     }
     ;
@@ -40,7 +52,7 @@ header_exprs:
 
 header_expr:
     USER ':' STRING '\n' {
-        fprintf(stderr, "user: '%s'\n", $3 ? $3 : "<NULL>");
+
     }
     ;
 
@@ -50,8 +62,9 @@ header_expr:
 
 /* Called by yyparse on error. */
 void
-yyerror(yyscan_t scanner, char const *s) {
+yyerror(yyscan_t scanner, Server *server, char const *s) {
     (void)scanner;
+    (void)server;
     fprintf(stderr, "%s\n", s);
 }
 

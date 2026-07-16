@@ -37,29 +37,28 @@ worker_main(Server *server) {
         yylex_init(&scanner);
         yyset_in(fstream, scanner);
 
-        ret = yyparse(scanner);
+        ret = yyparse(scanner, server);
 
         flog("ret: %i", ret);
 
         switch(ret) {
             case 0:
                 flog("Query parsed successfully");
-                send(client_fd, "Good\n", 5, 0);
                 break;
 
             case 1:
                 ferr("Parser error");
-                send(client_fd, "Error\n", 6, 0);
+                send(client_fd, "Status: Parse error\n\n", 21, 0);
                 break;
 
             case 2:
                 ferr("Parser memory exhaustion");
-                send(client_fd, "Memory error!\n", 14, 0);
+                send(client_fd, "Status: Memory error\n\n", 22, 0);
                 break;
 
             default:
                 ferr("Unknown parser error code: %i", ret);
-                send(client_fd, "Unknown error code!\n", 20, 0);
+                send(client_fd, "Status: Unknown error\n\n", 23, 0);
         }
 
         yylex_destroy(scanner);
