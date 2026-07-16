@@ -6,7 +6,6 @@
 int yylex(YYSTYPE *lvalp, yyscan_t scanner);
 //, YYLTYPE *llocp);
 void yyerror(yyscan_t scanner, char const *s);
-int parse_query(void);
 %}
 
 %define api.pure full
@@ -19,18 +18,29 @@ int parse_query(void);
     const char* str;
 }
 
+%token <str> USER
 %token <str> STRING
 
 %%
 
-program:
+header:
     %empty
-    | program expr ';'
+    |
+    header_exprs '\n' {
+        fprintf(stderr, "WOW\n");
+        YYACCEPT;
+    }
     ;
 
-expr:
-    ':' '@' {
-        fprintf(stderr, "Wow\n");
+header_exprs:
+    header_expr
+    |
+    header_exprs header_expr
+    ;
+
+header_expr:
+    USER ':' STRING '\n' {
+        fprintf(stderr, "user: '%s'\n", $3 ? $3 : "<NULL>");
     }
     ;
 

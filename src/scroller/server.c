@@ -4,6 +4,7 @@
 #include "sequence.h"
 #include "cell.h"
 #include "flog.h"
+#include "memory.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -32,6 +33,8 @@ server_init(const char *path, Server *server) {
 
     if (!directory_exists(path))
         ffatal(1, "Directory '%s' doesn't exist", path);
+
+    memory_init_default();
 
     chdir(path);
 
@@ -118,6 +121,8 @@ server_destroy(Server *server) {
     free(g_pages);
 
     flog("Server stopped");
+
+    memory_destroy();
 
     return 0;
 }

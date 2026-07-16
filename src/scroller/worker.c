@@ -1,5 +1,6 @@
 #include "worker.h"
 #include "flog.h"
+#include "memory.h"
 #include "hquery.y.h"
 #include "hquery.l.h"
 #include <sys/socket.h>
@@ -11,6 +12,9 @@ worker_main(Server *server) {
     int ret = 0;
     const int client_fd = server->client_fd;
     FILE *fstream;
+    Context *session_context = linear_context_create(MEMORY_PAGESZ *16);
+    context_add_child(context_get_current(), session_context);
+    context_switch(session_context);
 
     flog("[Child %d] Client connected\n", getpid());
 
@@ -39,8 +43,7 @@ worker_main(Server *server) {
 
         switch(ret) {
             case 0:
-                ferr("Query parsed successfully");
-                //flog_flush();
+                flog("Query parsed successfully");
                 send(client_fd, "Good\n", 5, 0);
                 break;
 
@@ -62,6 +65,7 @@ worker_main(Server *server) {
         yylex_destroy(scanner);
     }
 
+    context_drop(session_context);
 
     /* Drop worker */
     close(client_fd);
