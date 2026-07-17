@@ -10,15 +10,18 @@
 #                                                                             #
 ###############################################################################
 
+BUILD ?= debug
+
 LEX = flex
 LEXFLAGS =
 
+YACC = bison
+GEN_HEADERDIR = build/$(BUILD)/gen/include
+
 CC = gcc
 CFLAGS = -Wall -Wextra -std=gnu11
-INCLUDES = -Ilib/core/src
+INCLUDES = -I$(GEN_HEADERDIR) -Ilib/core/src
 # Do-Lib: Add your lib include directory to the list above
-
-BUILD ?= debug
 
 # Build modes 
 ifeq ($(BUILD), debug)
@@ -54,15 +57,18 @@ CORE_LIB	= build/$(BUILD)/obj/core/libcore.a
 
 UTILS			= scr_init scroller
 UTIL_LEX		= $(foreach util,$(UTILS), $(wildcard src/$(util)/*.l))
-UTIL_LEX_SRCS	= $(patsubst src/%.l, build/$(BUILD)/gen/%.c, $(UTIL_LEX))
-UTIL_LEX_OBJS	= $(patsubst build/$(BUILD)/gen/%.c, build/$(BUILD)/obj/%.o, $(UTIL_LEX_SRCS))
+UTIL_LEX_SRCS	= $(patsubst src/%.l, build/$(BUILD)/gen/%.l.c, $(UTIL_LEX))
+UTIL_LEX_OBJS	= $(patsubst build/$(BUILD)/gen/%.l.c, build/$(BUILD)/obj/%.l.o, $(UTIL_LEX_SRCS))
+UTIL_YACC		= $(foreach util,$(UTILS), $(wildcard src/$(util)/*.y))
+UTIL_YACC_SRCS	= $(patsubst src/%.y, build/$(BUILD)/gen/%.y.c, $(UTIL_YACC))
+UTIL_YACC_OBJS	= $(patsubst build/$(BUILD)/gen/%.y.c, build/$(BUILD)/obj/%.y.o, $(UTIL_YACC_SRCS))
 UTIL_SRCS		= $(foreach util,$(UTILS), $(wildcard src/$(util)/*.c))
 UTIL_OBJS		= $(patsubst src/%.c, build/$(BUILD)/obj/%.o, $(UTIL_SRCS))
 UTIL_BINS		= $(addprefix build/$(BUILD)/bin/, $(UTILS))
 
 # Object files for each utilty
-UTIL_OBJS_scr_init  = $(filter build/$(BUILD)/obj/scr_init/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS))
-UTIL_OBJS_scroller  = $(filter build/$(BUILD)/obj/scroller/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS))
+UTIL_OBJS_scr_init  = $(filter build/$(BUILD)/obj/scr_init/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS) $(UTIL_YACC_OBJS))
+UTIL_OBJS_scroller  = $(filter build/$(BUILD)/obj/scroller/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS) $(UTIL_YACC_OBJS))
 # Do-Util: Add your new utility's object files to the list above
 
 #
@@ -94,17 +100,34 @@ TEST_BINS = $(TEST_BINS_core)
 all: $(UTIL_BINS)
 
 #
-# Lex rules
+# Yacc rules
+#
 
-$(UTIL_LEX_SRCS): build/$(BUILD)/gen/%.c: src/%.l
+$(UTIL_YACC_SRCS): build/$(BUILD)/gen/%.y.c: src/%.y
 	@mkdir -p $(dir $@)
-	$(LEX) $(LEXFLAGS) -o $@ $<
+	@mkdir -p $(GEN_HEADERDIR)
+	$(YACC) $(YACCFLAGS) -H$(GEN_HEADERDIR)/$(basename $(notdir $@)).h -o $@ $<
 
-$(UTIL_LEX_OBJS): build/$(BUILD)/obj/%.o: build/$(BUILD)/gen/%.c
+$(UTIL_YACC_OBJS): build/$(BUILD)/obj/%.y.o: build/$(BUILD)/gen/%.y.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
 
-$(UTIL_LEX_OBJS): $(UTIL_LEX_SRCS)
+$(UTIL_YACC_OBJS): $(UTIL_YACC_SRCS)
+
+#
+# Lex rules
+#
+
+$(UTIL_LEX_SRCS): build/$(BUILD)/gen/%.l.c: src/%.l
+	@mkdir -p $(dir $@)
+	@mkdir -p $(GEN_HEADERDIR)
+	$(LEX) $(LEXFLAGS) --header-file=$(GEN_HEADERDIR)/$(basename $(notdir $@)).h -o $@ $<
+
+$(UTIL_LEX_OBJS): build/$(BUILD)/obj/%.l.o: build/$(BUILD)/gen/%.l.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
+
+$(UTIL_LEX_OBJS): $(UTIL_LEX_SRCS) $(UTIL_YACC_OBJS)
 
 #
 # Lib rules
@@ -149,7 +172,7 @@ build/$(BUILD)/bin/scroller: $(UTIL_OBJS_scroller) $(CORE_LIB)
 # 	@mkdir -p $(dir $@)
 # 	$(CC) $(CFLAGS) $^ -o $@
 
-$(UTIL_OBJS): build/$(BUILD)/obj/%.o: src/%.c
+$(UTIL_OBJS): build/$(BUILD)/obj/%.o: src/%.c $(UTIL_LEX_SRCS) $(UTIL_YACC_SRCS)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -MMD -MP -c $< -o $@
 
@@ -183,6 +206,7 @@ $(TEST_OBJS_core): build/$(BUILD)/obj/test/core/%.o: lib/core/test/%.c
 DEPS = $(CORE_OBJS:.o=.d) \
 	$(UTIL_OBJS:.o=.d) \
 	$(UTIL_LEX_OBJS:.o=.d) \
+	$(UTIL_YACC_OBJS:.o=.d) \
 	$(TEST_OBJS:.o=.d)
 # Do-Lib: Do-Util: Add your lib or util objs to the list above
 -include $(DEPS)

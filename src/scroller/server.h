@@ -4,6 +4,7 @@
 typedef struct Server {
     int server_fd;
     int client_fd;
+    const char *user;
 } Server;
 
 int server_init(const char *path, Server *server);
