@@ -98,7 +98,7 @@ TEST(array)
 
             int *a = array_create(a, 16);
 
-            a = array_put(a, 42);
+            array_put(a, 42);
 
             TEST_CHECK(a != NULL);
             TEST_CHECK(array_size(a) == 1);
@@ -116,7 +116,7 @@ TEST(array)
             int *a = array_create(a, 16);
 
             for (int i = 0; i < 100; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
                 TEST_CHECK(a != NULL);
                 TEST_CHECK(array_size(a) == (size_t)(i + 1));
                 TEST_CHECK(array_back(a) == i);
@@ -144,8 +144,8 @@ TEST(array)
             struct Point p1 = {10, 20};
             struct Point p2 = {30, 40};
 
-            points = array_put(points, p1);
-            points = array_put(points, p2);
+            array_put(points, p1);
+            array_put(points, p2);
 
             TEST_CHECK(array_size(points) == 2);
             TEST_CHECK(points[0].x == 10 && points[0].y == 20);
@@ -162,7 +162,7 @@ TEST(array)
             int *a = array_create(a, 4);
 
             for (int i = 0; i < 100; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
                 TEST_CHECK(a != NULL);
                 TEST_CHECK(array_size(a) == (size_t)(i + 1));
                 TEST_CHECK(array_back(a) == i);
@@ -178,7 +178,7 @@ TEST(array)
             memory_init_default();
 
             int *a = array_create(a, 16);
-            a = array_put(a, 42);
+            array_put(a, 42);
             array_free(a);
 
             /* Using after free should be invalid, but we test that we don't crash */
@@ -195,7 +195,7 @@ TEST(array)
             memory_init_default();
 
             int *a = array_create(a, 16);
-            a = array_put(a, 42);
+            array_put(a, 42);
 
             int val = array_pop(a);
 
@@ -213,7 +213,7 @@ TEST(array)
             int *a = array_create(a, 16);
 
             for (int i = 0; i < 10; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
             }
 
             for (int i = 9; i >= 0; --i) {
@@ -233,7 +233,7 @@ TEST(array)
             memory_init_default();
 
             int *a = array_create(a, 4);
-            a = array_put(a, 100);
+            array_put(a, 100);
 
             int val = array_pop(a);
             TEST_CHECK(val == 100);
@@ -258,8 +258,8 @@ TEST(array)
             struct Point p1 = {10, 20};
             struct Point p2 = {30, 40};
 
-            points = array_put(points, p1);
-            points = array_put(points, p2);
+            array_put(points, p1);
+            array_put(points, p2);
 
             struct Point val = array_pop(points);
             TEST_CHECK(val.x == 30 && val.y == 40);
@@ -285,9 +285,9 @@ TEST(array)
             int *a = array_create(a, 2);
             TEST_CHECK(a != NULL);
 
-            a = array_put(a, 1);
-            a = array_put(a, 2);
-            a = array_put(a, 3);  /* Should double capacity */
+            array_put(a, 1);
+            array_put(a, 2);
+            array_put(a, 3);  /* Should double capacity */
 
             /* Verify all data intact */
             TEST_CHECK(a[0] == 1);
@@ -305,7 +305,7 @@ TEST(array)
             int *a = array_create(a, 8);
 
             for (int i = 0; i < 8; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
             }
 
             TEST_CHECK(array_size(a) == 8);
@@ -332,12 +332,12 @@ TEST(array)
             int *a = array_create(a, 0);
             TEST_CHECK(a != NULL);
 
-            a = array_put(a, 42);
+            array_put(a, 42);
             TEST_CHECK(a != NULL);
             TEST_CHECK(array_size(a) == 1);
             TEST_CHECK(a[0] == 42);
 
-            a = array_put(a, 100);
+            array_put(a, 100);
             TEST_CHECK(a != NULL);
             TEST_CHECK(array_size(a) == 2);
             TEST_CHECK(a[0] == 42);
@@ -356,14 +356,14 @@ TEST(array)
 
             int *a = array_create(a, 4);
 
-            a = array_put(a, 1);
-            a = array_put(a, 2);
+            array_put(a, 1);
+            array_put(a, 2);
             int v = array_pop(a);
             TEST_CHECK(v == 2);
             TEST_CHECK(array_size(a) == 1);
 
-            a = array_put(a, 3);
-            a = array_put(a, 4);
+            array_put(a, 3);
+            array_put(a, 4);
             TEST_CHECK(array_size(a) == 3);
             TEST_CHECK(a[0] == 1);
             TEST_CHECK(a[1] == 3);
@@ -388,7 +388,7 @@ TEST(array)
             const size_t N = 1000;
 
             for (size_t i = 0; i < N; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
             }
 
             TEST_CHECK(array_size(a) == N);
@@ -414,7 +414,7 @@ TEST(array)
             int *a = array_create(a, 4);
 
             for (int i = 0; i < 10; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
             }
 
             /* Pop a few */
@@ -426,7 +426,7 @@ TEST(array)
 
             /* Put more */
             for (int i = 10; i < 20; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
             }
 
             TEST_CHECK(array_size(a) == 15);
@@ -453,14 +453,10 @@ TEST(array)
             int *a = NULL;
 
             /* array_put on NULL should handle gracefully? */
-            /* Depending on implementation, might need to check */
-            a = array_put(a, 42);  /* Should probably crash or return NULL */
+            array_put(a, 42);  /* Should not crash and do nothing */
 
             /* If implementation handles NULL, test it */
-            /* TEST_CHECK(a == NULL); */
-
-            /* For now, we test that it doesn't crash if NULL */
-            /* array_put(a, 42); */  /* Would be UB if array_put doesn't handle NULL */
+            TEST_CHECK(a == NULL);
 
             memory_destroy();
         }
@@ -488,10 +484,10 @@ TEST(array)
 
             TEST_CHECK(array_size(a) == 0);
 
-            a = array_put(a, 10);
+            array_put(a, 10);
             TEST_CHECK(array_size(a) == 1);
 
-            a = array_put(a, 20);
+            array_put(a, 20);
             TEST_CHECK(array_size(a) == 2);
 
             array_pop(a);
@@ -510,7 +506,7 @@ TEST(array)
             int *a = array_create(a, 2);
 
             for (int i = 0; i < 100; ++i) {
-                a = array_put(a, i);
+                array_put(a, i);
                 TEST_CHECK(array_size(a) == 1);
                 TEST_CHECK(a[0] == i);
                 array_pop(a);

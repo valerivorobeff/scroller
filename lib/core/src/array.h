@@ -58,7 +58,6 @@ size_t array_size(void *a);
  * @brief Appends an element to the end of the array
  * @param a Pointer to array (will be updated if reallocation occurs)
  * @param v Value to append
- * @return  Pointer to array (same as a, or new if reallocated)
  * @note If reallocation fails, returns NULL
  */
 #define array_put(a, v) \
@@ -68,7 +67,6 @@ size_t array_size(void *a);
             a = _new; \
             array_back_ref(a) = v; \
         } \
-        a; \
     })
 
 /**
