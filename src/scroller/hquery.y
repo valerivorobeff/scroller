@@ -5,6 +5,7 @@
 %code {
 #include "hquery.y.h"
 #include "hquery.l.h"
+#include "../../../../src/scroller/flog.h"
 
 #include <sys/socket.h>
 
@@ -21,7 +22,7 @@ void yyerror(yyscan_t scanner, Server *server, char const *s);
 %parse-param    {Server *server}
 
 /* @todo: write the functions */
-%initial-action { }
+ //%initial-action { }
  //%destructor { } <>
 
 
@@ -31,40 +32,68 @@ void yyerror(yyscan_t scanner, Server *server, char const *s);
 
 %token <str> USER
 %token <str> STRING
+%token HEADER_END
+%token REQUEST_END
+
+%token INSERT INTO VALUES
 
 %%
 
-header:
-    %empty
+session:
+    request
     |
-    header_exprs '\n' {
+    request session
+    ;
+
+request:
+    header REQUEST_END {
+        const char *response = "Status: Empty\n\n";
+        send(server->client_fd, response, strlen(response), 0);
+        flog("Status Empty");
+        flog_flush();
+    }
+    |
+    header body REQUEST_END {
         const char *response = "Status: Ready\n\n";
         send(server->client_fd, response, strlen(response), 0);
-        YYACCEPT;
+        flog("Status Ready");
+        flog_flush();
     }
+    ;
+
+header:
+    header_exprs HEADER_END
     ;
 
 header_exprs:
     header_expr
     |
-    header_exprs header_expr
+    header_expr header_exprs
     ;
 
 header_expr:
-    USER ':' STRING '\n' {
-
-    }
+    USER ':' STRING '\n'
     ;
 
-%%
+body:
+    cmd ';'
+    |
+    body cmd ';'
+    ;
 
-#include <stdio.h>
+cmd:
+    INSERT INTO {
+        flog("INSERT INTO");
+        flog_flush();
+    }
+
+%%
 
 /* Called by yyparse on error. */
 void
 yyerror(yyscan_t scanner, Server *server, char const *s) {
     (void)scanner;
     (void)server;
-    fprintf(stderr, "%s\n", s);
+    ferr("%s\n", s);
 }
 

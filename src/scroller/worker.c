@@ -39,6 +39,8 @@ worker_main(Server *server) {
 
         ret = yyparse(scanner, server);
 
+        yylex_destroy(scanner);
+
         flog("ret: %i", ret);
 
         switch(ret) {
@@ -60,8 +62,6 @@ worker_main(Server *server) {
                 ferr("Unknown parser error code: %i", ret);
                 send(client_fd, "Status: Unknown error\n\n", 23, 0);
         }
-
-        yylex_destroy(scanner);
     }
 
     context_drop(session_context);

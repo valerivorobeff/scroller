@@ -21,21 +21,42 @@ ALNUM   [0-9a-zA-Z_]
 SPACE   [ \t\r]
 VALUE   ({ALNUM}|{SPACE})+
 
+/* header string */
 %x string
+
+/* query */
+%s q
 
 %%
 
-{SPACE}+        /* eat */
-"user"          return USER;
-":"             BEGIN(string); return ':';
-"$"             return '\n';
-<<EOF>>         return 0;
-\n              /* eat */
-.               /* eat */
-<string>"$"     BEGIN(INITIAL); yylval->str = ""; return '\n';
-<string>{VALUE} BEGIN(INITIAL); yylval->str = trim(sdup(yytext, yyleng), yyleng); return STRING;
-<string>\n      /* eat */
-<string>.       /* eat */
+{SPACE}+                /* eat */
+
+<INITIAL,string>"$$"    BEGIN(q); return HEADER_END;
+
+<INITIAL>{
+    "user"              return USER;
+    ":"                 BEGIN(string); return ':';
+    "$"                 yylval->str = NULL; return '\n';
+}
+
+<string>{
+    "$"                 BEGIN(INITIAL); yylval->str = NULL; return '\n';
+    {VALUE}             yylval->str = trim(sdup(yytext, yyleng), yyleng); return STRING;
+    \n                  /* eat */
+    .                   /* eat */
+}
+
+<q>{
+    "insert"            return INSERT;
+    "into"              return INTO;
+    "values"            return VALUES;
+    ;                   return ';';
+    @                   BEGIN(INITIAL); return REQUEST_END;
+}
+
+<<EOF>>                 return 0;
+\n                      /* eat */
+.                       /* eat */
 
 %%
 
