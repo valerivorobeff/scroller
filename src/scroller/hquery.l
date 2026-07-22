@@ -17,21 +17,24 @@ static char *trim(char *src, size_t len);
 %option nodefault
 %option warn
 
-ALNUM   [0-9a-zA-Z_]
-SPACE   [ \t\r]
-VALUE   ({ALNUM}|{SPACE})+
+NUM             [0-9]
+ALPHA           [a-zA-Z_]
+ALNUM           ({NUM}|{ALPHA})
+SPACE           [ \t\r]
+HEADER_VALUE    ({ALNUM}|{SPACE})+
+STRING          {ALPHA}{ALNUM}*
 
 /* header string */
 %x string
 
 /* query */
-%s q
+%s query
 
 %%
 
 {SPACE}+                /* eat */
 
-<INITIAL,string>"$$"    BEGIN(q); return HEADER_END;
+<INITIAL,string>"$$"    BEGIN(query); return HEADER_END;
 
 <INITIAL>{
     "user"              return USER;
@@ -41,22 +44,25 @@ VALUE   ({ALNUM}|{SPACE})+
 
 <string>{
     "$"                 BEGIN(INITIAL); yylval->str = NULL; return '\n';
-    {VALUE}             yylval->str = trim(sdup(yytext, yyleng), yyleng); return STRING;
+    {HEADER_VALUE}      yylval->str = trim(sdup(yytext, yyleng), yyleng); return STRING;
     \n                  /* eat */
     .                   /* eat */
 }
 
-<q>{
+<query>{
     "insert"            return INSERT;
     "into"              return INTO;
     "values"            return VALUES;
+    "("                 return '(';
+    ")"                 return ')';
+    ","                 return ',';
+    {STRING}            yylval->str = sdup(yytext, yyleng); return STRING;
     ;                   return ';';
     @                   BEGIN(INITIAL); return REQUEST_END;
 }
 
 <<EOF>>                 return 0;
 \n                      /* eat */
-.                       /* eat */
 
 %%
 

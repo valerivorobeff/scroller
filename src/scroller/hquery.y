@@ -1,17 +1,22 @@
 %code requires{
-#include "../../../../src/scroller/server.h"
+typedef struct BcNode BcNode;
+typedef struct Cmd Cmd;
 }
 
 %code {
 #include "hquery.y.h"
 #include "hquery.l.h"
+#include "array.h"
+#include "memory.h"
+#include "../../../../src/scroller/cmd.h"
+#include "../../../../src/scroller/server.h"
 #include "../../../../src/scroller/flog.h"
 
 #include <sys/socket.h>
 
 int yylex(YYSTYPE *lvalp, yyscan_t scanner);
 //, YYLTYPE *llocp);
-void yyerror(yyscan_t scanner, Server *server, char const *s);
+void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
@@ -19,23 +24,27 @@ void yyerror(yyscan_t scanner, Server *server, char const *s);
  //%locations
 %lex-param      {yyscan_t scanner}
 %parse-param    {void *scanner}
-%parse-param    {Server *server}
+%parse-param    {Cmd *cmd}
 
 /* @todo: write the functions */
- //%initial-action { }
+ //%initial-action {}
  //%destructor { } <>
 
 
 %union {
-    const char* str;
+    char* str;
+    char **strs;
+    BcNode *bc;
 }
 
 %token <str> USER
 %token <str> STRING
+%token <strs> STRINGS
 %token HEADER_END
 %token REQUEST_END
 
 %token INSERT INTO VALUES
+%type <char **>strings
 
 %%
 
@@ -48,14 +57,14 @@ session:
 request:
     header REQUEST_END {
         const char *response = "Status: Empty\n\n";
-        send(server->client_fd, response, strlen(response), 0);
+        send(cmd->server->client_fd, response, strlen(response), 0);
         flog("Status Empty");
         flog_flush();
     }
     |
     header body REQUEST_END {
         const char *response = "Status: Ready\n\n";
-        send(server->client_fd, response, strlen(response), 0);
+        send(cmd->server->client_fd, response, strlen(response), 0);
         flog("Status Ready");
         flog_flush();
     }
@@ -82,18 +91,40 @@ body:
     ;
 
 cmd:
-    INSERT INTO {
-        flog("INSERT INTO");
+    INSERT INTO STRING {
+        array_put(cmd->bc, ((BcNode){ .token = INSERT }));
+        array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
+        array_put(cmd->bc, ((BcNode){ .token = STRINGS, .value.strs = NULL }));
+        //cmd->current = &array_back_ref(cmd->bc).value.strs;
+        cmd->current = array_create(cmd->current, 1024);
+        array_back_ref(cmd->bc).value.strs = cmd->current;
+
+    } '(' strings ')' {
+        flog("INSERT INTO %s", $3);
+        for (size_t i = 0, ie = array_size($<strs>6); i != ie; ++i)
+            flog("%lu: %s", i, $<strs>6[i]);
         flog_flush();
     }
+
+strings:
+    STRING {
+          array_put(cmd->current, $1);
+          $<strs>$ = cmd->current;
+    }
+    |
+    STRING ',' strings {
+          array_put(cmd->current, $1);
+          $<strs>$ = $<strs>3;
+    }
+    ;
 
 %%
 
 /* Called by yyparse on error. */
 void
-yyerror(yyscan_t scanner, Server *server, char const *s) {
+yyerror(yyscan_t scanner, Cmd *cmd, char const *s) {
     (void)scanner;
-    (void)server;
+    (void)cmd;
     ferr("%s\n", s);
 }
 

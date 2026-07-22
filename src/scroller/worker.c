@@ -1,6 +1,7 @@
 #include "worker.h"
 #include "flog.h"
 #include "memory.h"
+#include "cmd.h"
 #include "hquery.y.h"
 #include "hquery.l.h"
 #include <sys/socket.h>
@@ -13,6 +14,10 @@ worker_main(Server *server) {
     const int client_fd = server->client_fd;
     FILE *fstream;
     Context *session_context = linear_context_create(MEMORY_PAGESZ *16);
+    Cmd cmd;
+
+    cmd_init(&cmd, server);
+
     context_add_child(context_get_current(), session_context);
     context_switch(session_context);
 
@@ -37,7 +42,7 @@ worker_main(Server *server) {
         yylex_init(&scanner);
         yyset_in(fstream, scanner);
 
-        ret = yyparse(scanner, server);
+        ret = yyparse(scanner, &cmd);
 
         yylex_destroy(scanner);
 
