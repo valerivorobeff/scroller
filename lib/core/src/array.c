@@ -1,4 +1,5 @@
 #include "array.h"
+#include <assert.h>
 
 /**
  * @note If you use memory library (memory.h), initialize it first:
@@ -53,8 +54,10 @@ array_size(void *a) {
 
 void *
 array_raise_fn(void *a) {
-    if (!a)
+    if (!a) {
+        assert(0 && "Array pointer is NULL");
         return NULL;
+    }
 
     Array *header = get_header(a);
 
@@ -76,8 +79,10 @@ void *
 array_reduce_fn(void *a) {
     Array *header;
 
-    if (!a)
+    if (!a) {
+        assert(0 && "Array pointer is NULL");
         return NULL;
+    }
 
     header = get_header(a);
 

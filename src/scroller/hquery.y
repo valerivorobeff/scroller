@@ -94,11 +94,8 @@ cmd:
     INSERT INTO STRING {
         array_put(cmd->bc, ((BcNode){ .token = INSERT }));
         array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
-        array_put(cmd->bc, ((BcNode){ .token = STRINGS, .value.strs = NULL }));
-        //cmd->current = &array_back_ref(cmd->bc).value.strs;
-        cmd->current = array_create(cmd->current, 1024);
-        array_back_ref(cmd->bc).value.strs = cmd->current;
-
+        array_put(cmd->bc, ((BcNode){ .token = STRINGS, .value.strs = array_create(*cmd->current, 1024) }));
+        cmd->current = &array_back_ref(cmd->bc).value.strs;
     } '(' strings ')' {
         flog("INSERT INTO %s", $3);
         for (size_t i = 0, ie = array_size($<strs>6); i != ie; ++i)
@@ -108,12 +105,12 @@ cmd:
 
 strings:
     STRING {
-          array_put(cmd->current, $1);
-          $<strs>$ = cmd->current;
+          array_put(*cmd->current, $1);
+          $<strs>$ = *cmd->current;
     }
     |
     STRING ',' strings {
-          array_put(cmd->current, $1);
+          array_put(*cmd->current, $1);
           $<strs>$ = $<strs>3;
     }
     ;
