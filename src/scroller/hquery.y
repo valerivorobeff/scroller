@@ -44,7 +44,7 @@ void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
 %token REQUEST_END
 
 %token INSERT INTO VALUES
-%type <char **>strings
+%type <strs>strings
 
 %%
 
@@ -77,7 +77,7 @@ header:
 header_exprs:
     header_expr
     |
-    header_expr header_exprs
+    header_exprs header_expr
     ;
 
 header_expr:
@@ -98,7 +98,7 @@ cmd:
         cmd->current = &array_back_ref(cmd->bc).value.strs;
     } '(' strings ')' {
         flog("INSERT INTO %s", $3);
-        for (size_t i = 0, ie = array_size($<strs>6); i != ie; ++i)
+        for (size_t i = 0, ie = array_size($6); i != ie; ++i)
             flog("%lu: %s", i, $<strs>6[i]);
         flog_flush();
     }
@@ -106,12 +106,11 @@ cmd:
 strings:
     STRING {
           array_put(*cmd->current, $1);
-          $<strs>$ = *cmd->current;
+          $$ = *cmd->current;
     }
     |
-    STRING ',' strings {
-          array_put(*cmd->current, $1);
-          $<strs>$ = $<strs>3;
+    strings ',' STRING {
+          array_put(*cmd->current, $3);
     }
     ;
 
