@@ -47,6 +47,12 @@ array_free(void *a) {
         my_free(get_header(a));
 }
 
+void
+array_clear(void *a) {
+    if (a)
+        get_header(a)->size = 0;
+}
+
 size_t
 array_size(void *a) {
     return a ? get_header(a)->size : 0;

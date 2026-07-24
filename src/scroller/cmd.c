@@ -26,8 +26,7 @@ cmd_init(Cmd *cmd, Server *server) {
     cmd->server = server;
 
     prev = context_switch(cmd->bc_cont);    /* switch to bytecode context */
-    cmd->bc = array_create(cmd->bc, BCSZ);  /* Create bytecode */
-    assert(cmd->bc);
+    bc_init(&cmd->bc);                      /* Initialize bytecode */
 
     context_switch(prev);                   /* Switch back */
 
@@ -35,11 +34,13 @@ cmd_init(Cmd *cmd, Server *server) {
 }
 
 void cmd_drop(Cmd *cmd) {
+    /* We don't free cmd->bc here as it will be freed together with its memory context */
     context_drop(cmd->str_cont);
     context_drop(cmd->bc_cont);
 }
 
 void cmd_reset(Cmd *cmd) {
+    /* We don't free cmd->bc here as it will be freed together with its memory context */
     context_reset(cmd->bc_cont);
     context_reset(cmd->str_cont);
 }

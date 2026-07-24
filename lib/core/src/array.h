@@ -22,6 +22,13 @@
 void array_free(void *a);
 
 /**
+ * @brief Clears the array, doesn't change its capacity
+ * @param a Pointer to array to free
+ */
+/** @todo: make unitest for array_clear */
+void array_clear(void *a);
+
+/**
  * @brief Returns the number of elements in the array
  * @param a Pointer to array
  * @return  Number of elements

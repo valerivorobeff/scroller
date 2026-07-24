@@ -97,27 +97,27 @@ body:
 
 cmd:
     INSERT INTO STRING {
-        array_put(cmd->bc, ((BcNode){ .token = INSERT }));
-        array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
-        array_put(cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
+        bc_put(&cmd->bc, ((BcNode){ .token = INSERT }));
+        bc_put(&cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
     } '(' strings ')' {
-        array_put(cmd->bc, ((BcNode){ .token = ARRAY_END }));
+        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_END }));
     } VALUES {
-        array_put(cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
+        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
     } '(' strings ')' {
-        array_put(cmd->bc, ((BcNode){ .token = ARRAY_END }));
+        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_END }));
         flog("INSERT INTO %s", $3);
         flog_flush();
     }
 
 strings:
     STRING {
-        array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $1 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = STRING, .value.str = $1 }));
         flog("%s", $1);
     }
     |
     strings ',' STRING {
-        array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
         flog("%s", $3);
     }
     ;

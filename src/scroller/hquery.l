@@ -9,12 +9,15 @@ static char *trim(char *src, size_t len);
 %option noyywrap
 %option never-interactive
 %option yylineno
+%option case-insensitive
 %option bison-bridge
  //%option bison-locations
 %option reentrant
 %option prefix="yy"
 %option full
 %option nodefault
+%option noinput
+%option nounput
 %option warn
 
 NUM             [0-9]
