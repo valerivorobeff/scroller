@@ -16,10 +16,10 @@ worker_main(Server *server) {
     Context *session_context = linear_context_create(MEMORY_PAGESZ *16);
     Cmd cmd;
 
-    cmd_init(&cmd, server);
-
     context_add_child(context_get_current(), session_context);
     context_switch(session_context);
+
+    cmd_init(&cmd, server);
 
     flog("[Child %d] Client connected\n", getpid());
 
@@ -44,6 +44,7 @@ worker_main(Server *server) {
 
         ret = yyparse(scanner, &cmd);
 
+        cmd_reset(&cmd);
         yylex_destroy(scanner);
 
         flog("ret: %i", ret);

@@ -16,10 +16,12 @@ cmd_init(Cmd *cmd, Server *server) {
                                                                         memory contexts depending on
                                                                         size of bc array */
     assert(cmd->bc_cont);
+    context_add_child(context_get_current(), cmd->bc_cont); /* Child it to session context */
 
                                             /* Create separate context for string values */
     cmd->str_cont = linear_context_create(sizeof(const char *) * BCSZ * 2);
     assert(cmd->str_cont);
+    context_add_child(context_get_current(), cmd->str_cont); /* Child it to session context */
 
     cmd->server = server;
 
@@ -28,7 +30,6 @@ cmd_init(Cmd *cmd, Server *server) {
     assert(cmd->bc);
 
     context_switch(prev);                   /* Switch back */
-    cmd->current = NULL;
 
     return cmd;
 }

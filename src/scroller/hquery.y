@@ -30,21 +30,22 @@ void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
  //%initial-action {}
  //%destructor { } <>
 
-
 %union {
     char* str;
-    char **strs;
-    BcNode *bc;
 }
 
+/* Header tokens */
 %token <str> USER
 %token <str> STRING
 %token <strs> STRINGS
 %token HEADER_END
 %token REQUEST_END
 
+/* Body tokens */
 %token INSERT INTO VALUES
-%type <strs>strings
+
+/* y2 tokens */
+%token ARRAY_BEGIN ARRAY_END
 
 %%
 
@@ -56,6 +57,8 @@ session:
 
 request:
     header REQUEST_END {
+        /* @todo: here we should reset header or request memory context
+            but at the moment we don't have it, we should make it */
         const char *response = "Status: Empty\n\n";
         send(cmd->server->client_fd, response, strlen(response), 0);
         flog("Status Empty");
@@ -63,6 +66,8 @@ request:
     }
     |
     header body REQUEST_END {
+        /* @todo: here we should reset header or request memory context
+            but at the moment we don't have it, we should make it */
         const char *response = "Status: Ready\n\n";
         send(cmd->server->client_fd, response, strlen(response), 0);
         flog("Status Ready");
@@ -85,32 +90,35 @@ header_expr:
     ;
 
 body:
-    cmd ';'
+    cmd ';' { cmd_reset(cmd); }
     |
-    body cmd ';'
+    body cmd ';' { cmd_reset(cmd); }
     ;
 
 cmd:
     INSERT INTO STRING {
         array_put(cmd->bc, ((BcNode){ .token = INSERT }));
         array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
-        array_put(cmd->bc, ((BcNode){ .token = STRINGS, .value.strs = array_create(*cmd->current, 1024) }));
-        cmd->current = &array_back_ref(cmd->bc).value.strs;
+        array_put(cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
     } '(' strings ')' {
+        array_put(cmd->bc, ((BcNode){ .token = ARRAY_END }));
+    } VALUES {
+        array_put(cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
+    } '(' strings ')' {
+        array_put(cmd->bc, ((BcNode){ .token = ARRAY_END }));
         flog("INSERT INTO %s", $3);
-        for (size_t i = 0, ie = array_size($6); i != ie; ++i)
-            flog("%lu: %s", i, $<strs>6[i]);
         flog_flush();
     }
 
 strings:
     STRING {
-          array_put(*cmd->current, $1);
-          $$ = *cmd->current;
+        array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $1 }));
+        flog("%s", $1);
     }
     |
     strings ',' STRING {
-          array_put(*cmd->current, $3);
+        array_put(cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
+        flog("%s", $3);
     }
     ;
 

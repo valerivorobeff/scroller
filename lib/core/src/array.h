@@ -3,6 +3,9 @@
 
 #include <stddef.h>
 
+/** @brief Array default capacity */
+#define ARRAY_DEFAULT_CAPACITY 128
+
 /**
  * @brief Creates a new dynamic array
  * @param a        Pointer to variable that will receive the array
@@ -62,7 +65,10 @@ size_t array_size(void *a);
  */
 #define array_put(a, v) \
     ({ \
-        typeof(a) _new = (typeof(a))array_raise_fn(a); \
+        typeof(a) _new; \
+        if (!a) \
+            a = array_create(a, ARRAY_DEFAULT_CAPACITY); \
+        _new = (typeof(a))array_raise_fn(a); \
         if (_new) { \
             a = _new; \
             array_back_ref(a) = v; \

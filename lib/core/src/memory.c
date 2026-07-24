@@ -10,6 +10,10 @@
 #include <assert.h>
 #include <unistd.h>
 
+#define CONTEXT_STACK_MAX   16
+static Context *context_stack[CONTEXT_STACK_MAX];
+static int context_stack_i = 0;
+
 /** @brief Root context for cleanup */
 static Context *g_root_context = NULL;
 
@@ -49,6 +53,8 @@ static void linear_context_free(Context *context, void *p);
 /** @brief Maximum alignment for allocation */
 #define MAX_ALIGN _Alignof(max_align_t)
 
+void context_push(Context *context);
+void context_pop();
 static inline size_t align_up(size_t sz, int align);
 static inline size_t align_max(size_t sz);
 
@@ -469,6 +475,21 @@ linear_context_free(Context *context, void *p) {
     (void)p;
 
     assert(0 && "linear_context_free not supported");
+}
+
+void
+context_push(Context *context) {
+    assert(context_stack_i != CONTEXT_STACK_MAX);
+
+    context_stack[context_stack_i++] = context_get_current();
+    g_context = context;
+}
+
+void
+context_pop() {
+    assert(context_stack_i != 0);
+
+    g_context = context_stack[context_stack_i--];
 }
 
 /**
