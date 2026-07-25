@@ -679,6 +679,29 @@ TEST(memory)
             memory_destroy();
         }
 
+        TEST_CASE(global_push_pop) {
+            memory_init_default();
+            Context *ctx1 = bump_context_create(MEMORY_PAGESZ);
+            Context *ctx2 = bump_context_create(MEMORY_PAGESZ);
+            TEST_CHECK(ctx1 != NULL);
+            TEST_CHECK(ctx2 != NULL);
+
+            context_switch(ctx1);
+
+            context_push(ctx2);
+
+            int *p = salloc(sizeof(int));
+            TEST_CHECK(p != NULL);
+            *p = 42;
+            TEST_CHECK(*p == 42);
+
+            context_pop();
+
+            context_drop(ctx2);
+            context_drop(ctx1);
+            memory_destroy();
+        }
+
     TEST_SUITE_END()
 
     TEST_SUITE(memory_stress)

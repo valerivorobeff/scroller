@@ -1,6 +1,7 @@
 #include "worker.h"
 #include "flog.h"
 #include "memory.h"
+#include "cmd.h"
 #include "hquery.y.h"
 #include "hquery.l.h"
 #include <sys/socket.h>
@@ -13,8 +14,12 @@ worker_main(Server *server) {
     const int client_fd = server->client_fd;
     FILE *fstream;
     Context *session_context = linear_context_create(MEMORY_PAGESZ *16);
+    Cmd cmd;
+
     context_add_child(context_get_current(), session_context);
     context_switch(session_context);
+
+    cmd_init(&cmd, server);
 
     flog("[Child %d] Client connected\n", getpid());
 
@@ -34,10 +39,13 @@ worker_main(Server *server) {
     for (;;) {
         yyscan_t scanner;
 
-        yylex_init(&scanner);
-        yyset_in(fstream, scanner);
+        y1lex_init(&scanner);
+        y1set_in(fstream, scanner);
 
-        ret = yyparse(scanner, server);
+        ret = y1parse(scanner, &cmd);
+
+        cmd_reset(&cmd);
+        y1lex_destroy(scanner);
 
         flog("ret: %i", ret);
 
@@ -60,8 +68,6 @@ worker_main(Server *server) {
                 ferr("Unknown parser error code: %i", ret);
                 send(client_fd, "Status: Unknown error\n\n", 23, 0);
         }
-
-        yylex_destroy(scanner);
     }
 
     context_drop(session_context);

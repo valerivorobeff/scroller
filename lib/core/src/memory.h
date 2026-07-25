@@ -198,6 +198,20 @@ static inline Context *context_switch(Context *context) {
 }
 
 /**
+ * @brief Push global context into inner stack and makes argument context
+ * global context
+ *
+ * @param context New context to set
+ */
+void context_push(Context *context);
+
+/**
+ * @brief Pop previuosly pushed context and makes it globalt
+ * @return Previous context
+ */
+void context_pop();
+
+/**
  * @brief Allocate from context
  */
 #define context_alloc(context, sz) ((Context *)(context))->vt->alloc(context, sz)

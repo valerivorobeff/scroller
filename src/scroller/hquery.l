@@ -1,3 +1,7 @@
+%top{
+#define YYSTYPE Y1STYPE
+}
+
 %{
 #include "hquery.y.h"
 #include "memory.h"
@@ -9,33 +13,63 @@ static char *trim(char *src, size_t len);
 %option noyywrap
 %option never-interactive
 %option yylineno
+%option case-insensitive
 %option bison-bridge
  //%option bison-locations
 %option reentrant
-%option prefix="yy"
+%option prefix="y1"
 %option full
 %option nodefault
+%option noinput
+%option nounput
 %option warn
 
-ALNUM   [0-9a-zA-Z_]
-SPACE   [ \t\r]
-VALUE   ({ALNUM}|{SPACE})+
+NUM             [0-9]
+ALPHA           [a-zA-Z_]
+ALNUM           ({NUM}|{ALPHA})
+SPACE           [ \t\r]
+HEADER_VALUE    ({ALNUM}|{SPACE})+
+STRING          {ALPHA}{ALNUM}*
 
+/* header string */
 %x string
+
+/* query */
+%s query
 
 %%
 
-{SPACE}+        /* eat */
-"user"          return USER;
-":"             BEGIN(string); return ':';
-"$"             return '\n';
-<<EOF>>         return 0;
-\n              /* eat */
-.               /* eat */
-<string>"$"     BEGIN(INITIAL); yylval->str = ""; return '\n';
-<string>{VALUE} BEGIN(INITIAL); yylval->str = trim(sdup(yytext, yyleng), yyleng); return STRING;
-<string>\n      /* eat */
-<string>.       /* eat */
+{SPACE}+                /* eat */
+
+<INITIAL,string>"$$"    BEGIN(query); return HEADER_END;
+
+<INITIAL>{
+    "user"              return USER;
+    ":"                 BEGIN(string); return ':';
+    "$"                 yylval->str = NULL; return '\n';
+}
+
+<string>{
+    "$"                 BEGIN(INITIAL); yylval->str = NULL; return '\n';
+    {HEADER_VALUE}      yylval->str = trim(sdup(yytext, yyleng), yyleng); return STRING;
+    \n                  /* eat */
+    .                   /* eat */
+}
+
+<query>{
+    "insert"            return INSERT;
+    "into"              return INTO;
+    "values"            return VALUES;
+    "("                 return '(';
+    ")"                 return ')';
+    ","                 return ',';
+    {STRING}            yylval->str = sdup(yytext, yyleng); return STRING;
+    ;                   return ';';
+    @                   BEGIN(INITIAL); return REQUEST_END;
+}
+
+<<EOF>>                 return 0;
+\n                      /* eat */
 
 %%
 
