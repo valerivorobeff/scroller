@@ -31,13 +31,16 @@ void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
     char* str;
 }
 
-/* Header tokens */
-%token <str> USER
+/* Common tokens */
+%token USER
 %token <str> STRING
+
+/* Header tokens */
 %token HEADER_END
 %token REQUEST_END
 
 /* Body tokens */
+%token CREATE
 %token INSERT INTO VALUES
 
 %%
@@ -89,6 +92,13 @@ body:
     ;
 
 cmd:
+    CREATE USER STRING {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_USER }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING }));
+
+    }
+    |
     INSERT INTO STRING {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_INSERT }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
