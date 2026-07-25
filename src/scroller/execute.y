@@ -4,6 +4,7 @@ typedef struct Bc Bc;
 
 %code {
 #include "../../../../src/scroller/bc.h"
+#include "../../../../src/scroller/ddl.h"
 #include "../../../../src/scroller/flog.h"
 void yyerror(Bc *bc, char const *s);
 }
@@ -23,6 +24,7 @@ void yyerror(Bc *bc, char const *s);
     char* str;
 }
 
+%token CREATE USER
 %token INSERT
 %token ARRAY_BEGIN ARRAY_END
 %token <str> STRING
@@ -32,6 +34,10 @@ void yyerror(Bc *bc, char const *s);
 %%
 
 cmd:
+    CREATE USER STRING {
+        create_user($3);
+    }
+    |
     INSERT STRING ARRAY_BEGIN strings ARRAY_END ARRAY_BEGIN strings ARRAY_END
     ;
 

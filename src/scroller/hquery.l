@@ -57,6 +57,8 @@ STRING          {ALPHA}{ALNUM}*
 }
 
 <query>{
+    "create"            return CREATE;
+    "user"              return USER;
     "insert"            return INSERT;
     "into"              return INTO;
     "values"            return VALUES;
