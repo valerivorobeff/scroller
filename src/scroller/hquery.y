@@ -11,16 +11,13 @@ typedef struct Cmd Cmd;
 #include "../../../../src/scroller/cmd.h"
 #include "../../../../src/scroller/server.h"
 #include "../../../../src/scroller/flog.h"
-
 #include <sys/socket.h>
 
-int yylex(YYSTYPE *lvalp, yyscan_t scanner);
-//, YYLTYPE *llocp);
 void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
-%define api.prefix {yy}
+%define api.prefix {y1}
  //%locations
 %lex-param      {yyscan_t scanner}
 %parse-param    {void *scanner}
@@ -37,15 +34,11 @@ void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
 /* Header tokens */
 %token <str> USER
 %token <str> STRING
-%token <strs> STRINGS
 %token HEADER_END
 %token REQUEST_END
 
 /* Body tokens */
 %token INSERT INTO VALUES
-
-/* y2 tokens */
-%token ARRAY_BEGIN ARRAY_END
 
 %%
 
@@ -90,34 +83,35 @@ header_expr:
     ;
 
 body:
-    cmd ';' { cmd_reset(cmd); }
+    cmd ';' { y2parse(&cmd->bc); cmd_reset(cmd); }
     |
-    body cmd ';' { cmd_reset(cmd); }
+    body cmd ';' { y2parse(&cmd->bc); cmd_reset(cmd); }
     ;
 
 cmd:
     INSERT INTO STRING {
-        bc_put(&cmd->bc, ((BcNode){ .token = INSERT }));
-        bc_put(&cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
-        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_INSERT }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
     } '(' strings ')' {
-        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_END }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
     } VALUES {
-        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_BEGIN }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
     } '(' strings ')' {
-        bc_put(&cmd->bc, ((BcNode){ .token = ARRAY_END }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
         flog("INSERT INTO %s", $3);
         flog_flush();
     }
+    ;
 
 strings:
     STRING {
-        bc_put(&cmd->bc, ((BcNode){ .token = STRING, .value.str = $1 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));
         flog("%s", $1);
     }
     |
     strings ',' STRING {
-        bc_put(&cmd->bc, ((BcNode){ .token = STRING, .value.str = $3 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
         flog("%s", $3);
     }
     ;

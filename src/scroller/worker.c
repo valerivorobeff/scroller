@@ -39,13 +39,13 @@ worker_main(Server *server) {
     for (;;) {
         yyscan_t scanner;
 
-        yylex_init(&scanner);
-        yyset_in(fstream, scanner);
+        y1lex_init(&scanner);
+        y1set_in(fstream, scanner);
 
-        ret = yyparse(scanner, &cmd);
+        ret = y1parse(scanner, &cmd);
 
         cmd_reset(&cmd);
-        yylex_destroy(scanner);
+        y1lex_destroy(scanner);
 
         flog("ret: %i", ret);
 

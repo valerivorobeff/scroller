@@ -1,3 +1,7 @@
+%top{
+#define YYSTYPE Y1STYPE
+}
+
 %{
 #include "hquery.y.h"
 #include "memory.h"
@@ -13,7 +17,7 @@ static char *trim(char *src, size_t len);
 %option bison-bridge
  //%option bison-locations
 %option reentrant
-%option prefix="yy"
+%option prefix="y1"
 %option full
 %option nodefault
 %option noinput

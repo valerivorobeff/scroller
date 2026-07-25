@@ -6,7 +6,7 @@ void bc_drop(Bc *bc);
 void bc_clear(Bc *bc);
 void bc_reset(Bc *bc);
 void bc_put(Bc *bc, BcNode node);
-int y2lex(Bc *bc);
+int y2lex(Y2STYPE *yylval, Bc *bc);
 
 Bc *
 bc_init(Bc *bc) {
@@ -39,7 +39,12 @@ bc_put(Bc *bc, BcNode node) {
 }
 
 int
-y2lex(Bc *bc) {
-    return bc->itor == array_size(bc->tokens) ? 0 : bc->tokens[bc->itor++].token;    
+y2lex(Y2STYPE *yylval, Bc *bc) {
+    if (bc->itor == array_size(bc->tokens)) {
+        return 0;
+    } else {
+        *yylval = bc->tokens[bc->itor].value;
+        return bc->tokens[bc->itor++].token;
+    }
 }
 
