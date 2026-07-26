@@ -1,9 +1,26 @@
-#ifndef _TABLE_H_
-#define _TABLE_H_
+/**
+ * @file mesh.h
+ * @brief Grid-based data storage system with fixed-size rows and columnar access
+ *
+ * @note This code uses GNU extensions (void* arithmetic) and requires
+ *  GCC, Clang, or compatible compiler.
+ *
+ * This module provides a flexible grid storage system that supports both
+ * header grids (for column definitions) and data grids (for actual data).
+ * It is designed for efficient row and column operations on fixed-size
+ * memory pages.
+ */
 
-#include "mesh.h"
+#ifndef _MESH_H_
+#define _MESH_H_
 
-typedef Mitor Titor;
+#include "grid.h"
+
+typedef struct Mitor {
+    Grid *header;
+    Grid *data;
+    uint16_t row;
+} Mitor;
 
 /**
  * @brief Initializes a new grid within a memory page.
@@ -17,8 +34,8 @@ typedef Mitor Titor;
  * @note The page must provide at least pagesz bytes of contiguous memory.
  * @note The grid will be placed at the beginning of the page.
  */
-#define table_init(page, pagesz, type, rowsz) \
-    mesh_init(page, pagesz, type, rowsz)
+#define mesh_init(page, pagesz, type, rowsz) \
+    grid_init(page, pagesz, type, rowsz)
 
 /**
  * @brief Allocates a new row in the grid.
@@ -31,7 +48,7 @@ typedef Mitor Titor;
  * @note The returned row's memory is zero-initialized.
  * @see grid_get_row()
  */
-Mitor table_alloc_row(Grid *header, Grid *data);
+Mitor mesh_alloc_row(Grid *header, Grid *data);
 
 /**
  * @brief Adds a new column definition to a header grid.
@@ -46,7 +63,7 @@ Mitor table_alloc_row(Grid *header, Grid *data);
  *       based on previously added columns.
  * @note The header grid must have been initialized with row size sizeof(Column).
  */
-Column *htable_add_column(Grid *grid, const char *name, Type type, size_t size);
+Column *hmesh_add_column(Grid *grid, const char *name, Type type, size_t size);
 
-#endif /* _TABLE_H_ */
+#endif /* _MESH_H_ */
 
