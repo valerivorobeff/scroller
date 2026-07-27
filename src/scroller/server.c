@@ -116,8 +116,6 @@ server_init(const char *path, Server *server) {
         }
     }
 
-    flog("cluster.header.file_id: %lu\n", server->system.cluster.header.parts.file_id);
-    flog("cluster.data.file_id: %lu\n", server->system.cluster.data.parts.file_id);
     assert(server->system.cluster.header.parts.file_id == 2);
     assert(server->system.cluster.data.parts.file_id == 3);
 

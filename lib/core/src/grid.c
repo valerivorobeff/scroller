@@ -85,13 +85,31 @@ grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
 
 Datum
 grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
-    const Row r = grid_get_row(grid, row);
     const Column *hc = hgrid_get_column(hgrid, column);
+    Cell c = grid_get_row(grid, row) + hc->offs;
+    Datum ret;
 
     assert(column < hgrid->occupied);
 
+    ret = (Datum){ .type = hc->type, .size = hc->size };
+
+    switch (hc->type) {
+        case T_UNKNOWN: assert(0 && "datum type T_UNKNOWN not supported"); break;
+        case T_SMALLINT: ret.value.smallint = get_smallint(c); break;
+        case T_INTEGER:  ret.value.integer = get_integer(c); break;
+        case T_BIGINT:   ret.value.bigint = get_bigint(c); break;
+        case T_CHAR:     ret.value.character = c; break;
+        case T_VARCHAR:  ret.value.character = c; break;
+        case T_MAX: assert(0 && "datum type T_MAX not supported"); break;
+    }
+
+    /* @todo: it is not the best idea to assign values to Datum in a switch
+     * Find a better idea
+     * Idea 1. Is it better to add a function pointer assingn_from_pointer() to SType sturct
+     * and make an implementation for it for every type?
+     */
     /* @todo: it makes incorrect size of varchar */
-    return (Datum){ .type = hc->type, .size = hc->size, .value.unknown = r + hc->offs };
+    return ret;
 }
 
 uint16_t
