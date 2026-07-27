@@ -122,7 +122,7 @@ pagecache_flush(PageCache *cache, ssize_t key) {
     assert(e != NULL);
     assert(idx != NULL);
 
-    written_bytes = write(e->fd, g_pages + *idx * PAGESZ, PAGESZ);
+    written_bytes = pwrite(e->fd, g_pages + *idx * PAGESZ, PAGESZ, 0);
 
     return written_bytes != (ssize_t)PAGESZ ? written_bytes : 0;
 }
@@ -137,7 +137,7 @@ pagecache_read(icache *cache, ssize_t key) {
     assert(cur_idx != ILIST2_UNDEF);
     assert(e != NULL);
 
-    read_bytes = read(e->fd, g_pages + cur_idx * PAGESZ, PAGESZ);
+    read_bytes = pread(e->fd, g_pages + cur_idx * PAGESZ, PAGESZ, 0);
     if (read_bytes == -1) {
         /* @todo */
         return PAGECACHE_UNDEF;
@@ -160,7 +160,7 @@ pagecache_write(icache *cache, ssize_t key) {
     assert(e != NULL);
     assert(idx != NULL);
 
-    written_bytes = write(e->fd, g_pages + *idx * PAGESZ, PAGESZ);
+    written_bytes = pwrite(e->fd, g_pages + *idx * PAGESZ, PAGESZ, 0);
     if (written_bytes == -1) {
         /* @todo */
         return PAGECACHE_UNDEF;

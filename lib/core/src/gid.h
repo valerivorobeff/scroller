@@ -29,6 +29,11 @@ typedef union Gid {
     } parts;
 } Gid;
 
+typedef struct GidPair {
+    Gid header;
+    Gid data;
+} GidPair;
+
 typedef struct gid_hex_t {
     char value[GID_FILEIDBITS + 1];
 } gid_hex_t;
