@@ -29,6 +29,8 @@ server_init(const char *path, Server *server) {
     Grid *cluster;
     uint16_t name_idx;
     uint16_t string_idx;
+    uint16_t header_idx;
+    uint16_t data_idx;
 
     flog_init_default();
 
@@ -68,6 +70,8 @@ server_init(const char *path, Server *server) {
         goto err_g_fdcache;
     }
 
+    memset(server, 0, sizeof(Server));
+
     /*
      * Init main cluster header
      */
@@ -76,16 +80,46 @@ server_init(const char *path, Server *server) {
     assert(grid_idx_valid(name_idx));
     string_idx = htable_get_column_idx(hcluster, "string");
     assert(grid_idx_valid(string_idx));
+    header_idx = htable_get_column_idx(hcluster, "header");
+    assert(grid_idx_valid(header_idx));
+    data_idx = htable_get_column_idx(hcluster, "data");
+    assert(grid_idx_valid(data_idx));
 
     /*
      * Init main cluster table
      */
     cluster = pagecache_put_page(g_pagecache, 3);
 
-    for (int i = 0; i; ++i) {
-        Datum name = dgrid_get_datum(hcluster, cluster, i, name_idx);
-        Datum value = dgrid_get_datum(hcluster, cluster, i, string_idx);
+    for (Titor i = titor_init(hcluster, cluster); titor_is_valid(i); titor_next(&i)) {
+        const Datum name = titor_get_datum(i, name_idx);
+        const Datum string = titor_get_datum(i, string_idx);
+        const Datum header = titor_get_datum(i, header_idx);
+        const Datum data = titor_get_datum(i, data_idx);
+
+        if (eq_character(name, make_char("encoding"))) {
+            server->system.encoding = sdup(string.value.character);
+        } else if (eq_character(name, make_char("sequence"))) {
+            server->system.sequence.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            server->system.sequence.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+        } else if (eq_character(name, make_char("cluster"))) {
+            server->system.cluster.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            server->system.cluster.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+        } else if (eq_character(name, make_char("user"))) {
+            server->system.user.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            server->system.user.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+        } else if (eq_character(name, make_char("catalog"))) {
+            server->system.catalog.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            server->system.catalog.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+        } else {
+            /* @todo: there is no way to show Datum as char *, I should make a function for it */
+            ferr("Unknown parameter in cluster table");
+        }
     }
+
+    flog("cluster.header.file_id: %lu\n", server->system.cluster.header.parts.file_id);
+    flog("cluster.data.file_id: %lu\n", server->system.cluster.data.parts.file_id);
+    assert(server->system.cluster.header.parts.file_id == 2);
+    assert(server->system.cluster.data.parts.file_id == 3);
 
     tcp_init(server);
 

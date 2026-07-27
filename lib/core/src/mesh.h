@@ -22,6 +22,12 @@ typedef struct Mitor {
     uint16_t row;
 } Mitor;
 
+#define mitor_init(h, d) (Mitor){ .header = h, .data = d, .row = 0 }
+#define mitor_is_valid(mitor) ((mitor).row < (mitor).data->occupied)
+void mitor_next(Mitor *mitor);
+#define mitor_get_cell(m, c) grid_get_cell(m.header, m.data, m.row, c)
+#define mitor_get_datum(m, c) grid_get_datum(m.header, m.data, m.row, c)
+
 /**
  * @brief Initializes a new grid within a memory page.
  *

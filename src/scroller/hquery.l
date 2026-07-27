@@ -6,7 +6,7 @@
 #include "hquery.y.h"
 #include "memory.h"
 #include <stdio.h>
-static char *sdup(const char *src, size_t len);
+static char *sdupl(const char *src, size_t len);
 static char *trim(char *src, size_t len);
 %}
 
@@ -51,7 +51,7 @@ STRING          {ALPHA}{ALNUM}*
 
 <string>{
     "$"                 BEGIN(INITIAL); yylval->str = NULL; return '\n';
-    {HEADER_VALUE}      yylval->str = trim(sdup(yytext, yyleng), yyleng); return STRING;
+    {HEADER_VALUE}      yylval->str = trim(sdupl(yytext, yyleng), yyleng); return STRING;
     \n                  /* eat */
     .                   /* eat */
 }
@@ -65,7 +65,7 @@ STRING          {ALPHA}{ALNUM}*
     "("                 return '(';
     ")"                 return ')';
     ","                 return ',';
-    {STRING}            yylval->str = sdup(yytext, yyleng); return STRING;
+    {STRING}            yylval->str = sdupl(yytext, yyleng); return STRING;
     ;                   return ';';
     @                   BEGIN(INITIAL); return REQUEST_END;
 }
@@ -76,7 +76,7 @@ STRING          {ALPHA}{ALNUM}*
 %%
 
 char *
-sdup(const char *src, size_t len) {
+sdupl(const char *src, size_t len) {
     char *ret = salloc(len + 1);
     memcpy(ret, src, len);
     ret[len] = '\0';

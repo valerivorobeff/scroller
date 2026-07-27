@@ -91,7 +91,7 @@ init_cluster(const char *path) {
 
         row = table_alloc_row(hcluster, cluster);
         cell = table_get_cell(row, 0);
-        put_char(cell, "Encoding", 32);
+        put_char(cell, "encoding", 32);
 
         cell = table_get_cell(row, 1);
         put_char(cell, "UTF-8", 32);

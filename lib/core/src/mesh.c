@@ -2,6 +2,7 @@
 
 Mitor mesh_alloc_row(Grid *header, Grid *data);
 Column *hmesh_add_column(Grid *grid, const char *name, Type type, size_t size);
+void mitor_next(Mitor *mitor);
 
 Mitor
 mesh_alloc_row(Grid *header, Grid *data) {
@@ -13,5 +14,11 @@ mesh_alloc_row(Grid *header, Grid *data) {
 Column *
 hmesh_add_column(Grid *grid, const char *name, Type type, size_t size) {
     return hgrid_add_column(grid, name, type, size);
+}
+
+void
+mitor_next(Mitor *mitor) {
+    if (mitor_is_valid(*mitor))
+        ++mitor->row;
 }
 

@@ -5,6 +5,12 @@
 
 typedef Mitor Titor;
 
+#define titor_init(h, d) mitor_init(h, d)
+#define titor_is_valid(titor) mitor_is_valid(titor)
+#define titor_next(titor) mitor_next(titor)
+#define titor_get_cell(m, c) mitor_get_cell(m, c)
+#define titor_get_datum(m, c) mitor_get_datum(m, c)
+
 /**
  * @brief Initializes a new grid within a memory page.
  *

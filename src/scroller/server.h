@@ -1,9 +1,18 @@
 #ifndef _SERVER_H_
 #define _SERVER_H_
 
+#include "gid.h"
+
 typedef struct Server {
     int server_fd;
     int client_fd;
+    struct {
+        GidPair sequence;
+        GidPair cluster;
+        GidPair user;
+        GidPair catalog;
+        const char *encoding;
+    } system;
     const char *user;
 } Server;
 

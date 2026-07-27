@@ -22,7 +22,7 @@ typedef void *Cell;
 #define get_integer(c)          *(const int32_t *)(c)
 #define get_bigint(c)           *(const int64_t *)(c)
 
-#define put_char(c, val, size)  strncpy(c, val, size - 1)
+void put_char(char *restrict dst, const char *restrict src, size_t dsize);
 
 #endif /* _CELL_H_ */
 

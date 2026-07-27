@@ -250,5 +250,13 @@ void context_pop();
 /** @brief Free from global context */
 #define sfree(p) context_free(g_context, p)
 
+/**
+ * @brief Copy string to global context
+ * @param src String
+ * @return Copy in global context
+ */
+/** @todo: make unitests for this function */
+char *sdup(const char *src);
+
 #endif /* _MEMORY_H_ */
 

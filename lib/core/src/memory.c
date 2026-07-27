@@ -55,6 +55,7 @@ static void linear_context_free(Context *context, void *p);
 
 void context_push(Context *context);
 void context_pop();
+char *sdup(const char *src);
 static inline size_t align_up(size_t sz, int align);
 static inline size_t align_max(size_t sz);
 
@@ -490,6 +491,16 @@ context_pop() {
     assert(context_stack_i != 0);
 
     g_context = context_stack[context_stack_i--];
+}
+
+char *
+sdup(const char *src) {
+    const size_t len = strlen(src);
+    char *ret = salloc(len + 1);
+    memcpy(ret, src, len);
+    ret[len] = '\0';
+
+    return ret;
 }
 
 /**
