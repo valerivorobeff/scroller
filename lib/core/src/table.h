@@ -48,5 +48,13 @@ Mitor table_alloc_row(Grid *header, Grid *data);
  */
 Column *htable_add_column(Grid *grid, const char *name, Type type, size_t size);
 
+#define htable_get_column_idx(grid, name) hmesh_get_column_idx(grid, name)
+
+#define htable_init(page, pagesz, type) hmesh_init(page, pagesz, type)
+
+#define dtable_init(page, pagesz, type, hgrid) dmesh_init(page, pagesz, type, hgrid)
+
+#define table_get_cell(itor, column) mesh_get_cell(itor, column)
+
 #endif /* _TABLE_H_ */
 

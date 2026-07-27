@@ -3,6 +3,7 @@
 #include "pagecache.h"
 #include "sequence.h"
 #include "cell.h"
+#include "table.h"
 #include "flog.h"
 #include "memory.h"
 #include <stdlib.h>
@@ -27,7 +28,7 @@ server_init(const char *path, Server *server) {
     Grid *hcluster;
     Grid *cluster;
     uint16_t name_idx;
-    uint16_t value_idx;
+    uint16_t string_idx;
 
     flog_init_default();
 
@@ -71,10 +72,10 @@ server_init(const char *path, Server *server) {
      * Init main cluster header
      */
     hcluster = pagecache_put_page(g_pagecache, 2);
-    name_idx = hgrid_get_column_idx(hcluster, "name");
+    name_idx = htable_get_column_idx(hcluster, "name");
     assert(grid_idx_valid(name_idx));
-    value_idx = hgrid_get_column_idx(hcluster, "value");
-    assert(grid_idx_valid(value_idx));
+    string_idx = htable_get_column_idx(hcluster, "string");
+    assert(grid_idx_valid(string_idx));
 
     /*
      * Init main cluster table
@@ -83,7 +84,7 @@ server_init(const char *path, Server *server) {
 
     for (int i = 0; i; ++i) {
         Datum name = dgrid_get_datum(hcluster, cluster, i, name_idx);
-        Datum value = dgrid_get_datum(hcluster, cluster, i, value_idx);
+        Datum value = dgrid_get_datum(hcluster, cluster, i, string_idx);
     }
 
     tcp_init(server);
