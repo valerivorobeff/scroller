@@ -86,17 +86,16 @@ header_expr:
     ;
 
 body:
-    cmd ';' { y2parse(&cmd->bc); cmd_reset(cmd); }
+    cmd ';' { y2parse(cmd->server, &cmd->bc); cmd_reset(cmd); }
     |
-    body cmd ';' { y2parse(&cmd->bc); cmd_reset(cmd); }
+    body cmd ';' { y2parse(cmd->server, &cmd->bc); cmd_reset(cmd); }
     ;
 
 cmd:
     CREATE USER STRING {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_USER }));
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING }));
-
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
     }
     |
     INSERT INTO STRING {

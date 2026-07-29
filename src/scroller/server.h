@@ -3,6 +3,10 @@
 
 #include "gid.h"
 
+typedef struct PageCache PageCache;
+
+extern PageCache *g_pagecache;
+
 typedef struct Server {
     int server_fd;
     int client_fd;

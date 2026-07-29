@@ -37,7 +37,7 @@ typedef Mitor Titor;
  * @note The returned row's memory is zero-initialized.
  * @see grid_get_row()
  */
-Mitor table_alloc_row(Grid *header, Grid *data);
+Titor table_alloc_row(Grid *header, Grid *data);
 
 /**
  * @brief Adds a new column definition to a header grid.
