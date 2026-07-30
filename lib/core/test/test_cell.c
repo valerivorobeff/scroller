@@ -24,10 +24,10 @@ TEST(cell)
 
         TEST_CASE(char) {
             char buf[16];
-            const char *str16 = "0123456789abcde";
+            const char *str16 = "0123456789abcdef";
 
             put_char(buf, str16, sizeof(buf));
-            TEST_CHECK(strcmp(buf, str16) == 0);
+            TEST_CHECK(strncmp(buf, str16, sizeof(buf)) == 0);
         }
 
     TEST_SUITE_END()  /* End of cell test suite */
