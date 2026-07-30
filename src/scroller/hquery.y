@@ -33,6 +33,7 @@ void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
 
 /* Common tokens */
 %token USER
+%token CATALOG
 %token <str> STRING
 
 /* Header tokens */
@@ -95,6 +96,12 @@ cmd:
     CREATE USER STRING {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_USER }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+    }
+    |
+    CREATE CATALOG STRING {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_CATALOG }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
     }
     |

@@ -26,7 +26,7 @@ void yyerror(Server *server, Bc *bc, char const *s);
     char* str;
 }
 
-%token CREATE USER
+%token CREATE USER CATALOG
 %token INSERT
 %token ARRAY_BEGIN ARRAY_END
 %token <str> STRING
@@ -38,6 +38,10 @@ void yyerror(Server *server, Bc *bc, char const *s);
 cmd:
     CREATE USER STRING {
         create_user(server, $3);
+    }
+    |
+    CREATE CATALOG STRING {
+        create_catalog(server, $3);
     }
     |
     INSERT STRING ARRAY_BEGIN strings ARRAY_END ARRAY_BEGIN strings ARRAY_END
