@@ -15,9 +15,11 @@ typedef struct Server {
         GidPair cluster;
         GidPair user;
         GidPair catalog;
+        GidPair schema;
         const char *encoding;
     } system;
     const char *user;
+    const char *catalog;
 } Server;
 
 int server_init(const char *path, Server *server);
