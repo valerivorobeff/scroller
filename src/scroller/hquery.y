@@ -34,6 +34,7 @@ void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
 /* Common tokens */
 %token USER
 %token CATALOG
+%token SCHEMA
 %token <str> STRING
 
 /* Header tokens */
@@ -73,7 +74,10 @@ request:
     ;
 
 header:
-    header_exprs HEADER_END
+    header_exprs HEADER_END {
+        if (cmd->server->user == NULL)
+            ferr("Parameter 'user' not found in request header");
+    }
     ;
 
 header_exprs:
@@ -83,7 +87,9 @@ header_exprs:
     ;
 
 header_expr:
-    USER ':' STRING '\n'
+    USER ':' STRING '\n' { cmd->server->user = sdup($3); }
+    |
+    CATALOG ':' STRING '\n' { cmd->server->catalog = sdup($3); }
     ;
 
 body:
@@ -103,6 +109,16 @@ cmd:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_CATALOG }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+    }
+    |
+    CREATE SCHEMA STRING {
+        if (cmd->server->catalog == NULL)
+            ferr("Parameter 'catalog' not found in request header");
+        else {
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_SCHEMA }));
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+        }
     }
     |
     INSERT INTO STRING {

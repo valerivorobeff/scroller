@@ -45,6 +45,7 @@ STRING          {ALPHA}{ALNUM}*
 
 <INITIAL>{
     "user"              return USER;
+    "catalog"           return CATALOG;
     ":"                 BEGIN(string); return ':';
     "$"                 yylval->str = NULL; return '\n';
 }
@@ -60,6 +61,7 @@ STRING          {ALPHA}{ALNUM}*
     "create"            return CREATE;
     "user"              return USER;
     "catalog"           return CATALOG;
+    "schema"            return SCHEMA;
     "insert"            return INSERT;
     "into"              return INTO;
     "values"            return VALUES;

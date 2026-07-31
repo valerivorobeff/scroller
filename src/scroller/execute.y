@@ -26,7 +26,7 @@ void yyerror(Server *server, Bc *bc, char const *s);
     char* str;
 }
 
-%token CREATE USER CATALOG
+%token CREATE USER CATALOG SCHEMA
 %token INSERT
 %token ARRAY_BEGIN ARRAY_END
 %token <str> STRING
@@ -42,6 +42,10 @@ cmd:
     |
     CREATE CATALOG STRING {
         create_catalog(server, $3);
+    }
+    |
+    CREATE SCHEMA STRING {
+        create_schema(server, $3);
     }
     |
     INSERT STRING ARRAY_BEGIN strings ARRAY_END ARRAY_BEGIN strings ARRAY_END
