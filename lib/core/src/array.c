@@ -54,7 +54,7 @@ array_clear(void *a) {
 }
 
 size_t
-array_size(void *a) {
+array_size(const void *a) {
     return a ? get_header(a)->size : 0;
 }
 

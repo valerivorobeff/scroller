@@ -16,6 +16,7 @@ typedef struct Server {
         GidPair user;
         GidPair catalog;
         GidPair schema;
+        GidPair relation;
         const char *encoding;
     } system;
     const char *user;
