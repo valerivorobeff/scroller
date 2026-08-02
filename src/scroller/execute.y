@@ -4,10 +4,11 @@ typedef struct Server Server;
 }
 
 %code {
+#include "array.h"
 #include "../../../../src/scroller/bc.h"
 #include "../../../../src/scroller/ddl.h"
 #include "../../../../src/scroller/flog.h"
-void yyerror(Server *server, Bc *bc, char const *s);
+void yyerror(Server *server, Bc *bc, void *current, char const *s);
 }
 
 %define api.pure full
@@ -17,6 +18,7 @@ void yyerror(Server *server, Bc *bc, char const *s);
 %lex-param      {Bc *bc}
 %parse-param    {Server *server}
 %parse-param    {Bc *bc}
+%parse-param    {void *current}
 
 /* @todo: write the functions */
  //%initial-action {}
@@ -26,7 +28,7 @@ void yyerror(Server *server, Bc *bc, char const *s);
     char* str;
 }
 
-%token CREATE USER CATALOG SCHEMA
+%token CREATE USER CATALOG SCHEMA TABLE
 %token INSERT
 %token ARRAY_BEGIN ARRAY_END
 %token <str> STRING
@@ -48,8 +50,25 @@ cmd:
         create_schema(server, $3);
     }
     |
+    CREATE TABLE STRING STRING ARRAY_BEGIN decls ARRAY_END {
+        create_table(server, $3, $4, (Decl *)current);
+    }
+    |
     INSERT STRING ARRAY_BEGIN strings ARRAY_END ARRAY_BEGIN strings ARRAY_END
     ;
+
+decls:
+    decl
+    |
+    decls decl
+    ;
+
+decl:
+    STRING STRING {
+        Decl *decl = current;
+        array_put(decl, ((Decl){ .name = $1, .type = $2 }));
+        current = decl;
+    }
 
 strings:
     STRING {
@@ -65,9 +84,10 @@ strings:
 
 /* Called by yyparse on error. */
 void
-yyerror(Server *server, Bc *bc, char const *s) {
+yyerror(Server *server, Bc *bc, void *current, char const *s) {
     (void)server;
     (void)bc;
+    (void)current;
     ferr("y2 parser error: %s\n", s);
 }
 

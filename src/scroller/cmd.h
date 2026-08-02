@@ -11,6 +11,7 @@ typedef struct Cmd {
     Context *str_cont;
     Server *server;
     Bc bc;
+    void *current;
 } Cmd;
 
 Cmd *cmd_init(Cmd *cmd, Server *server);

@@ -28,6 +28,8 @@ cmd_init(Cmd *cmd, Server *server) {
     prev = context_switch(cmd->bc_cont);    /* switch to bytecode context */
     bc_init(&cmd->bc);                      /* Initialize bytecode */
 
+    cmd->current = NULL;
+
     context_switch(prev);                   /* Switch back */
 
     return cmd;
@@ -43,5 +45,6 @@ void cmd_reset(Cmd *cmd) {
     /* We don't free cmd->bc here as it will be freed together with its memory context */
     context_reset(cmd->bc_cont);
     context_reset(cmd->str_cont);
+    cmd->current = NULL;
 }
 

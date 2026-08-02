@@ -33,7 +33,7 @@ void array_clear(void *a);
  * @param a Pointer to array
  * @return  Number of elements
  */
-size_t array_size(void *a);
+size_t array_size(const void *a);
 
 /**
  * @brief Checks if the array is empty

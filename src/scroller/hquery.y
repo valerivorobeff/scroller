@@ -35,6 +35,7 @@ void yyerror(yyscan_t scanner, Cmd *cmd, char const *s);
 %token USER
 %token CATALOG
 %token SCHEMA
+%token TABLE
 %token <str> STRING
 
 /* Header tokens */
@@ -93,9 +94,9 @@ header_expr:
     ;
 
 body:
-    cmd ';' { y2parse(cmd->server, &cmd->bc); cmd_reset(cmd); }
+    cmd ';' { y2parse(cmd->server, &cmd->bc, cmd->current); cmd_reset(cmd); }
     |
-    body cmd ';' { y2parse(cmd->server, &cmd->bc); cmd_reset(cmd); }
+    body cmd ';' { y2parse(cmd->server, &cmd->bc, cmd->current); cmd_reset(cmd); }
     ;
 
 cmd:
@@ -121,6 +122,23 @@ cmd:
         }
     }
     |
+    CREATE TABLE STRING '.' STRING {
+        if (cmd->server->catalog == NULL)
+            ferr("Parameter 'catalog' not found in request header");
+        else {
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_TABLE }));
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $5 }));
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
+        }
+    }'(' decls ')' {
+        if (cmd->server->catalog == NULL)
+            ferr("Parameter 'catalog' not found in request header");
+        else
+            bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
+    }
+    |
     INSERT INTO STRING {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_INSERT }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
@@ -133,6 +151,19 @@ cmd:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
         flog("INSERT INTO %s", $3);
         flog_flush();
+    }
+    ;
+
+decls:
+    decl
+    |
+    decls ',' decl
+    ;
+
+decl:
+    STRING STRING {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $2 }));
     }
     ;
 

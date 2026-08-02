@@ -39,6 +39,7 @@ init_cluster(const char *path) {
         GidPair gp_user;
         GidPair gp_catalog;
         GidPair gp_schema;
+        GidPair gp_relation;
         Page hsequence;
         Page sequence;
         Page hcluster;
@@ -49,6 +50,8 @@ init_cluster(const char *path) {
         Page catalog;
         Page hschema;
         Page schema;
+        Page hrelation;
+        Page relation;
         int64_t currval;
         Titor row;
         Cell cell;
@@ -219,6 +222,42 @@ init_cluster(const char *path) {
 
         /* Add schema table GidPair to cluster table */
         add_gid_pair(hcluster, cluster, "schema", gp_schema);
+
+        /**********************************************************************
+         *
+         * Relation
+         *
+         *********************************************************************/
+
+        /*
+         * Init relation header
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+        gp_relation.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
+
+        hrelation = pagecache_put_page(g_pagecache, currval);
+        hrelation = htable_init(hrelation, PAGESZ, GT_FIXED);
+        htable_add_column(hrelation, "catalog", T_CHAR, 32);
+        htable_add_column(hrelation, "schema", T_CHAR, 32);
+        htable_add_column(hrelation, "relation", T_CHAR, 32);
+        htable_add_column(hrelation, "header_gid", T_BIGINT, sizeof(int64_t));
+        htable_add_column(hrelation, "data_gid", T_BIGINT, sizeof(int64_t));
+
+        pagecache_flush(g_pagecache, currval);
+
+        /*
+         * Init relation table
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+        gp_relation.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
+
+        relation = pagecache_put_page(g_pagecache, currval);
+        relation = dtable_init(relation, PAGESZ, GT_FIXED, hrelation);
+
+        pagecache_flush(g_pagecache, currval);
+
+        /* Add relation table GidPair to cluster table */
+        add_gid_pair(hcluster, cluster, "relation", gp_relation);
 
         /**********************************************************************
          *

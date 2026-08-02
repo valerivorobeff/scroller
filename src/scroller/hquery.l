@@ -62,12 +62,14 @@ STRING          {ALPHA}{ALNUM}*
     "user"              return USER;
     "catalog"           return CATALOG;
     "schema"            return SCHEMA;
+    "table"             return TABLE;
     "insert"            return INSERT;
     "into"              return INTO;
     "values"            return VALUES;
     "("                 return '(';
     ")"                 return ')';
     ","                 return ',';
+    "."                 return '.';
     {STRING}            yylval->str = sdupl(yytext, yyleng); return STRING;
     ;                   return ';';
     @                   BEGIN(INITIAL); return REQUEST_END;

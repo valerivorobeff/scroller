@@ -113,6 +113,9 @@ server_init(const char *path, Server *server) {
         } else if (eq_character(name, make_char("schema"))) {
             server->system.schema.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
             server->system.schema.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+        } else if (eq_character(name, make_char("relation"))) {
+            server->system.relation.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            server->system.relation.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else {
             /* @todo: there is no way to show Datum as char *, I should make a function for it */
             ferr("Unknown parameter in cluster table");
