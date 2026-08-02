@@ -87,6 +87,7 @@ create_table(Server *server, const char *schema, const char *tname, const Decl *
         htable_add_column(table, decl->name, T_CHAR, 32);
     }
 
+    /* Add a new row of the new table into relation table */
     row = table_alloc_row(header, data);
     cell = table_get_cell(row, catalog_idx);
     put_char(cell, server->catalog, 32);
