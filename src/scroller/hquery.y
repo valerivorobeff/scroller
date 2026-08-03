@@ -139,9 +139,10 @@ cmd:
             bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
     }
     |
-    INSERT INTO STRING {
+    INSERT INTO STRING '.' STRING {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_INSERT }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $5 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
     } '(' strings ')' {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
