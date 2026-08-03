@@ -7,6 +7,7 @@ typedef struct Server Server;
 #include "array.h"
 #include "../../../../src/scroller/bc.h"
 #include "../../../../src/scroller/ddl.h"
+#include "../../../../src/scroller/dml.h"
 #include "../../../../src/scroller/flog.h"
 void yyerror(Server *server, Bc *bc, void *current, char const *s);
 }
@@ -26,6 +27,7 @@ void yyerror(Server *server, Bc *bc, void *current, char const *s);
 
 %union {
     char* str;
+    char **strs;
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
@@ -33,7 +35,7 @@ void yyerror(Server *server, Bc *bc, void *current, char const *s);
 %token ARRAY_BEGIN ARRAY_END
 %token <str> STRING
 
-%type <str> strings
+%type <strs> strings
 
 %%
 
@@ -54,7 +56,9 @@ cmd:
         create_table(server, $3, $4, (Decl *)current);
     }
     |
-    INSERT STRING ARRAY_BEGIN strings ARRAY_END ARRAY_BEGIN strings ARRAY_END
+    INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN strings ARRAY_END {
+        insert(server, $2, $3, (const char **)$5, (const char **)$9);
+    }
     ;
 
 decls:
@@ -72,10 +76,18 @@ decl:
 
 strings:
     STRING {
+        char **str = current;
+        array_put(str, $1);
+        current = str;
+        $$ = str;
         flog("y2: %s", $1);
     }
     |
     strings STRING {
+        char **str = current;
+        array_put(str, $2);
+        current = str;
+        $$ = str;
         flog("y2: %s", $2);
     }
     ;

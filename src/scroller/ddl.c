@@ -102,7 +102,7 @@ create_table(Server *server, const char *schema, const char *tname, const Decl *
     put_bigint(cell, currval);
 
     cell = table_get_cell(row, data_gid_idx);
-    put_bigint(cell, 0);
+    put_bigint(cell, GID_UNDEF);
 
     pagecache_flush(g_pagecache, server->system.sequence.data.full);
     pagecache_flush(g_pagecache, server->system.relation.data.full);

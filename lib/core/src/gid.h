@@ -19,7 +19,6 @@
 
 /**
  * @brief Union to store gid.
- *
  */
 typedef union Gid {
     uint64_t full;
@@ -28,6 +27,8 @@ typedef union Gid {
         uint64_t page       : GID_PAGEBITS;
     } parts;
 } Gid;
+
+#define GID_UNDEF   0
 
 typedef struct GidPair {
     Gid header;

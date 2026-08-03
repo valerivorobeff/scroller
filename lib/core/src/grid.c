@@ -138,20 +138,25 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
         strncpy(hc->name, name, NAMESZ - 1);
         hc->type = type;
         hc->size = size; /* hc->size means something for only flexible size types
-                          * for T_CHAR the absolute size in grid
-                          * for T_CARCHAR size in grid comes from SType:size and
-                          *     hc->size means maximum length of varchar
-                          * for other types size in grid comes from SType:size */
+                          * for T_CHAR the absolute size is defined in grid
+                          * for T_CARCHAR size in grid is defined in SType:size and
+                          * hc->size means maximum length of varchar
+                          * for other types size in grid is defined in SType:size too */
 
         /* Calculate byte offset based on the previous column */
         if (grid->occupied > 1) {
             /* Correct size depending on type size meaning */
-            switch (g_types[type].size_meaning) {
-                case SM_TYPESZ: size = g_types[type].size; break;
-                case SM_COLUMNSZ: break;
-            }
+            Column *prev = hc - 1;
 
-            hc->offs = (hc - 1)->offs + size;
+            switch (g_types[prev->type].size_meaning) {
+                case SM_TYPESZ:
+                    hc->offs = prev->offs + g_types[prev->type].size;
+                    break;
+
+                case SM_COLUMNSZ:
+                    hc->offs = prev->offs + prev->size;
+                    break;
+            }
         } else
             hc->offs = 0;
 
