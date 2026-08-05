@@ -2,6 +2,7 @@
 #include "sequence.h"
 #include "cell.h"
 #include "table.h"
+#include "../scroller/server.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -53,6 +54,9 @@ init_cluster(const char *path) {
         Page hrelation;
         Page relation;
         int64_t currval;
+        uint16_t name_idx;
+        uint16_t string_idx;
+
         Titor row;
         Cell cell;
 
@@ -96,6 +100,11 @@ init_cluster(const char *path) {
         htable_add_column(hcluster, "header", T_BIGINT, 32);
         htable_add_column(hcluster, "data", T_BIGINT, 32);
 
+        name_idx = htable_get_column_idx(hcluster, "name");
+        assert(grid_idx_valid(name_idx));
+        string_idx = htable_get_column_idx(hcluster, "string");
+        assert(grid_idx_valid(string_idx));
+
         pagecache_flush(g_pagecache, currval);
 
         /*
@@ -108,11 +117,21 @@ init_cluster(const char *path) {
         cluster = dtable_init(cluster, PAGESZ, GT_FIXED, hcluster);
 
         row = table_alloc_row(hcluster, cluster);
-        cell = table_get_cell(row, 0);
+        cell = table_get_cell(row, name_idx);
         put_char(cell, "encoding", 32);
 
-        cell = table_get_cell(row, 1);
+        cell = table_get_cell(row, string_idx);
         put_char(cell, "UTF-8", 32);
+
+        /* Add pagecache_size cluster table */
+        add_gid_pair(hcluster, cluster, "pagecache_size",
+            (GidPair){ .header.full = DEFAULT_PAGECACHESZ0, .data.full =  DEFAULT_PAGECACHESZ1 }
+        );
+
+        /* Add fdcache_size cluster table */
+        add_gid_pair(hcluster, cluster, "fdcache_size",
+            (GidPair){ .header.full = DEFAULT_FDCACHESZ0, .data.full = DEFAULT_FDCACHESZ1 }
+        );
 
         /* Add main sequence GidPair to cluster table */
         add_gid_pair(hcluster, cluster, "sequence", gp_sequence);
@@ -277,14 +296,24 @@ init_cluster(const char *path) {
 /** Add table GidPair to cluster table */
 void
 add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp) {
+    uint16_t name_idx = htable_get_column_idx(hcluster, "name");
+    uint16_t header_idx = htable_get_column_idx(hcluster, "header");
+    uint16_t data_idx = htable_get_column_idx(hcluster, "data");
+
     Titor row = table_alloc_row(hcluster, cluster);
-    Cell cell = table_get_cell(row, 0);
+    Cell cell;
+
+    assert(grid_idx_valid(name_idx));
+    assert(grid_idx_valid(header_idx));
+    assert(grid_idx_valid(data_idx));
+
+    cell = table_get_cell(row, name_idx);
     put_char(cell, name, 32);
 
-    cell = table_get_cell(row, 2);
+    cell = table_get_cell(row, header_idx);
     put_bigint(cell, gidp.header.full);
 
-    cell = table_get_cell(row, 3);
+    cell = table_get_cell(row, data_idx);
     put_bigint(cell, gidp.data.full);
 }
 

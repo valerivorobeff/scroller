@@ -8,6 +8,7 @@
 #include "memory.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -16,6 +17,8 @@ int server_init(const char *path);
 int server_run();
 int server_drop();
 
+static int caches_create();
+static int caches_free();
 static void sigchld_handler(int sig);
 static bool directory_exists(const char *path);
 size_t get_block_size(const char *fname);
@@ -25,7 +28,6 @@ Server g_server;
 
 int
 server_init(const char *path) {
-    size_t pagecachen;
     Grid *hcluster;
     Grid *cluster;
     uint16_t name_idx;
@@ -44,34 +46,18 @@ server_init(const char *path) {
 
     PAGESZ = get_block_size(path);
 
+    memset(&g_server, 0, sizeof(Server));
+
+    g_server.system.pagecachesz[0] = DEFAULT_PAGECACHESZ0;
+    g_server.system.pagecachesz[1] = DEFAULT_PAGECACHESZ1;
+
+    g_server.system.fdcachesz[0] = DEFAULT_FDCACHESZ0;
+    g_server.system.fdcachesz[1] = DEFAULT_FDCACHESZ1;
+
     flog("block size: %lu\n", PAGESZ);
 
-    g_pages = aligned_alloc(PAGESZ, 16 * PAGESZ);           /* Initialize g_pages */
-    if (g_pages == NULL)
-        ffatal(1, "Cannot allocate memory for pages");
-
-    g_fdcache = fdcache_create(g_fdcache, 4, 4, NULL);      /* Initialize g_fdcache */
-    if (g_fdcache == NULL) {
-        ferr("Cannot create file descriptor cache");
-        goto err_g_pages;
-    }
-
-    pagecachen = pagecache_get_required_memory_size(8, 8);  /* Initialize g_pagecache */
-    pagecachen = (pagecachen % PAGESZ) ?
-        pagecachen / PAGESZ + 1 : pagecachen / PAGESZ;
-    g_pagecache = aligned_alloc(PAGESZ, pagecachen * PAGESZ);
-    if (g_pagecache == NULL) {
-        ferr("Cannot allocate memory for page cache");
-        goto err_g_fdcache;
-    }
-
-    g_pagecache = pagecache_init(g_pagecache, 8, 8, NULL);
-    if (g_pagecache == NULL) {
-        ferr("Cannot initialize page cache");
-        goto err_g_fdcache;
-    }
-
-    memset(&g_server, 0, sizeof(Server));
+    if (caches_create()) /* Create caches with default sizes */
+        return 1;
 
     /*
      * Init main cluster header
@@ -99,6 +85,12 @@ server_init(const char *path) {
 
         if (eq_character(name, make_char("encoding"))) {
             g_server.system.encoding = sdup(string.value.character);
+        } else if (eq_character(name, make_char("pagecache_size"))) {
+            g_server.system.pagecachesz[0] = header.value.bigint;
+            g_server.system.pagecachesz[1] = data.value.bigint;
+        } else if (eq_character(name, make_char("fdcache_size"))) {
+            g_server.system.fdcachesz[0] = header.value.bigint;
+            g_server.system.fdcachesz[1] = data.value.bigint;
         } else if (eq_character(name, make_char("sequence"))) {
             g_server.system.sequence.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
             g_server.system.sequence.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
@@ -126,8 +118,19 @@ server_init(const char *path) {
     assert(g_server.system.cluster.header.parts.file_id == 2);
     assert(g_server.system.cluster.data.parts.file_id == 3);
 
+    if (g_server.system.pagecachesz[0] != DEFAULT_PAGECACHESZ0 ||
+        g_server.system.pagecachesz[1] != DEFAULT_PAGECACHESZ1 ||
+        g_server.system.fdcachesz[0] != DEFAULT_FDCACHESZ0 ||
+        g_server.system.fdcachesz[1] != DEFAULT_FDCACHESZ1) {
+        if (caches_free())
+            ferr("Cannot free caches, continue with memory leak");
+
+        if (caches_create()) /* Now that we have read the cache sizes from the cluster table we can remake them */
+            return 1;
+    }
+
     if (tcp_init())
-        goto err_g_fdcache;
+        goto err;
 
     /* Set up SIGCHLD handler to clear zombies */
     signal(SIGCHLD, sigchld_handler);
@@ -139,11 +142,9 @@ server_init(const char *path) {
     /*
      * Error handlers
      */
-err_g_fdcache:
-    fdcache_free(g_fdcache);
-
-err_g_pages:
-    free(g_pages);
+err:
+    if (caches_free())
+        ferr("Cannot free caches, continue with memory leak");
 
     return 1;
 }
@@ -157,15 +158,94 @@ int
 server_drop() {
     tcp_destroy();
 
-    pagecache_free(g_pagecache);
-    fdcache_free(g_fdcache);
-    free(g_pages);
+    caches_free();
 
     flog("Server stopped");
 
     memory_destroy();
 
     return 0;
+}
+
+int
+caches_create() {
+    /* Create and initialize g_pages */
+    g_pages = mmap(NULL,
+        (g_server.system.pagecachesz[0] + g_server.system.pagecachesz[1]) * PAGESZ,
+        PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+
+    /* @todo: handle errno */
+    if (g_pages == MAP_FAILED)
+        ffatal(1, "Cannot allocate memory for pages");
+
+    /* Create and initialize g_pagecache */
+    g_pagecache = mmap(NULL,
+        pagecache_get_required_memory_size(
+            g_server.system.pagecachesz[0], g_server.system.pagecachesz[1]),
+        PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+
+    /* @todo: handle errno */
+    if (g_pagecache == MAP_FAILED) {
+        ferr("Cannot allocate memory for page cache");
+        goto err_g_fdcache;
+    }
+
+    g_pagecache = pagecache_init(g_pagecache, 8, 8, NULL);
+    if (g_pagecache == NULL) {
+        ferr("Cannot initialize page cache");
+        goto err_g_fdcache;
+    }
+
+    /* Create and initialize g_fdcache */
+    g_fdcache = mmap(NULL,
+        fdcache_get_required_memory_size(
+            g_server.system.fdcachesz[0], g_server.system.fdcachesz[1]),
+        PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    /* @todo: handle errno */
+    if (g_fdcache == MAP_FAILED) {
+        ferr("Cannot allocate memory for file descriptor cache");
+        goto err_g_pages;
+    }
+
+    g_fdcache = fdcache_init(g_fdcache,
+        g_server.system.fdcachesz[0], g_server.system.fdcachesz[1], NULL);
+    if (g_fdcache == NULL) {
+        ferr("Cannot create file descriptor cache");
+        goto err_g_pages;
+    }
+
+    return 0;
+
+    /*
+     * Error handlers
+     */
+err_g_fdcache:
+    munmap(g_fdcache,
+        fdcache_get_required_memory_size(
+            g_server.system.fdcachesz[0], g_server.system.fdcachesz[1]));
+
+err_g_pages:
+    free(g_pages);
+
+    return 1;
+}
+
+int
+caches_free() {
+    int ret = 0;
+
+    ret |= munmap(g_fdcache,
+        fdcache_get_required_memory_size(
+            g_server.system.fdcachesz[0], g_server.system.fdcachesz[1]));
+
+    ret |= munmap(g_pagecache,
+        pagecache_get_required_memory_size(
+            g_server.system.pagecachesz[0], g_server.system.pagecachesz[1]));
+
+    ret |= munmap(g_pages,
+        (g_server.system.pagecachesz[0] + g_server.system.pagecachesz[1]) * PAGESZ);
+
+    return ret;
 }
 
 /* SIGCHLD Handler to clean zombies */
