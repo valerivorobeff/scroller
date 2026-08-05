@@ -6,12 +6,12 @@
 #include "hquery.l.h"
 #include <sys/socket.h>
 
-int worker_main(Server *server);
+int worker_main(Session *session);
 
 int
-worker_main(Server *server) {
+worker_main(Session *session) {
     int ret = 0;
-    const int client_fd = server->client_fd;
+    const int client_fd = session->client_fd;
     FILE *fstream;
     Context *session_context = linear_context_create(MEMORY_PAGESZ *16);
     Cmd cmd;
@@ -19,7 +19,7 @@ worker_main(Server *server) {
     context_add_child(context_get_current(), session_context);
     context_switch(session_context);
 
-    cmd_init(&cmd, server);
+    cmd_init(&cmd);
 
     flog("[Child %d] Client connected\n", getpid());
 
@@ -42,7 +42,7 @@ worker_main(Server *server) {
         y1lex_init(&scanner);
         y1set_in(fstream, scanner);
 
-        ret = y1parse(scanner, &cmd);
+        ret = y1parse(scanner, session, &cmd);
 
         cmd_reset(&cmd);
         y1lex_destroy(scanner);

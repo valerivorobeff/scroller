@@ -9,7 +9,6 @@ extern PageCache *g_pagecache;
 
 typedef struct Server {
     int server_fd;
-    int client_fd;
     struct {
         GidPair sequence;
         GidPair cluster;
@@ -19,13 +18,13 @@ typedef struct Server {
         GidPair relation;
         const char *encoding;
     } system;
-    const char *user;
-    const char *catalog;
 } Server;
 
-int server_init(const char *path, Server *server);
-int server_run(Server *server);
-int server_destroy(Server *server);
+extern Server g_server;
+
+int server_init(const char *path);
+int server_run();
+int server_drop();
 
 #endif /* _SERVER_H_ */
 

@@ -12,18 +12,19 @@
 #include <sys/wait.h>
 #include <assert.h>
 
-int server_init(const char *path, Server *server);
-int server_run(Server *server);
-int server_destroy(Server *server);
+int server_init(const char *path);
+int server_run();
+int server_drop();
 
 static void sigchld_handler(int sig);
 static bool directory_exists(const char *path);
 size_t get_block_size(const char *fname);
 
 PageCache *g_pagecache = NULL;
+Server g_server;
 
 int
-server_init(const char *path, Server *server) {
+server_init(const char *path) {
     size_t pagecachen;
     Grid *hcluster;
     Grid *cluster;
@@ -70,7 +71,7 @@ server_init(const char *path, Server *server) {
         goto err_g_fdcache;
     }
 
-    memset(server, 0, sizeof(Server));
+    memset(&g_server, 0, sizeof(Server));
 
     /*
      * Init main cluster header
@@ -97,35 +98,36 @@ server_init(const char *path, Server *server) {
         const Datum data = titor_get_datum(i, data_idx);
 
         if (eq_character(name, make_char("encoding"))) {
-            server->system.encoding = sdup(string.value.character);
+            g_server.system.encoding = sdup(string.value.character);
         } else if (eq_character(name, make_char("sequence"))) {
-            server->system.sequence.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
-            server->system.sequence.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+            g_server.system.sequence.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            g_server.system.sequence.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else if (eq_character(name, make_char("cluster"))) {
-            server->system.cluster.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
-            server->system.cluster.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+            g_server.system.cluster.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            g_server.system.cluster.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else if (eq_character(name, make_char("user"))) {
-            server->system.user.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
-            server->system.user.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+            g_server.system.user.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            g_server.system.user.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else if (eq_character(name, make_char("catalog"))) {
-            server->system.catalog.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
-            server->system.catalog.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+            g_server.system.catalog.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            g_server.system.catalog.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else if (eq_character(name, make_char("schema"))) {
-            server->system.schema.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
-            server->system.schema.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+            g_server.system.schema.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            g_server.system.schema.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else if (eq_character(name, make_char("relation"))) {
-            server->system.relation.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
-            server->system.relation.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+            g_server.system.relation.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
+            g_server.system.relation.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else {
             /* @todo: there is no way to show Datum as char *, I should make a function for it */
             ferr("Unknown parameter in cluster table");
         }
     }
 
-    assert(server->system.cluster.header.parts.file_id == 2);
-    assert(server->system.cluster.data.parts.file_id == 3);
+    assert(g_server.system.cluster.header.parts.file_id == 2);
+    assert(g_server.system.cluster.data.parts.file_id == 3);
 
-    tcp_init(server);
+    if (tcp_init())
+        goto err_g_fdcache;
 
     /* Set up SIGCHLD handler to clear zombies */
     signal(SIGCHLD, sigchld_handler);
@@ -147,13 +149,13 @@ err_g_pages:
 }
 
 int
-server_run(Server *server) {
-   return tcp_run(server);
+server_run() {
+   return tcp_run();
 }
 
 int
-server_destroy(Server *server) {
-    tcp_destroy(server);
+server_drop() {
+    tcp_destroy();
 
     pagecache_free(g_pagecache);
     fdcache_free(g_fdcache);
@@ -189,6 +191,6 @@ get_block_size(const char *fname) {
     if (stat(fname ? fname : __FILE__, &st) == 0)
         return st.st_blksize;
     else
-        return 1024;
+        return 1024; /* @todo: Hardcode id not good */
 }
 

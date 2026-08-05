@@ -3,9 +3,9 @@
 
 #include "server.h"
 
-int tcp_init(Server *server);
-int tcp_run(Server *server);
-int tcp_destroy(Server *server);
+int tcp_init();
+int tcp_run();
+int tcp_destroy();
 
 #endif /* _TCP_H_ */
 
