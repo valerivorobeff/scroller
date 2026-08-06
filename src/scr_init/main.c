@@ -97,8 +97,8 @@ init_cluster(const char *path) {
         hcluster = htable_init(hcluster, PAGESZ, GT_FIXED);
         htable_add_column(hcluster, "name", T_CHAR, 32);
         htable_add_column(hcluster, "string", T_CHAR, 32);
-        htable_add_column(hcluster, "header", T_BIGINT, 32);
-        htable_add_column(hcluster, "data", T_BIGINT, 32);
+        htable_add_column(hcluster, "header", T_BIGINT, 0);
+        htable_add_column(hcluster, "data", T_BIGINT, 0);
 
         name_idx = htable_get_column_idx(hcluster, "name");
         assert(grid_idx_valid(name_idx));
@@ -259,8 +259,8 @@ init_cluster(const char *path) {
         htable_add_column(hrelation, "catalog", T_CHAR, 32);
         htable_add_column(hrelation, "schema", T_CHAR, 32);
         htable_add_column(hrelation, "relation", T_CHAR, 32);
-        htable_add_column(hrelation, "header_gid", T_BIGINT, sizeof(int64_t));
-        htable_add_column(hrelation, "data_gid", T_BIGINT, sizeof(int64_t));
+        htable_add_column(hrelation, "header_gid", T_BIGINT, 0);
+        htable_add_column(hrelation, "data_gid", T_BIGINT, 0);
 
         pagecache_flush(g_pagecache, currval);
 

@@ -111,7 +111,7 @@ server_init(const char *path) {
             g_server.system.relation.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else {
             /* @todo: there is no way to show Datum as char *, I should make a function for it */
-            ferr("Unknown parameter in cluster table");
+            ferr("Unknown parameter '%s' in cluster table", datum_sdup(name));
         }
     }
 

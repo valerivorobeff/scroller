@@ -82,6 +82,14 @@ extern const STypeGroup g_type_groups[TG_MAX];
 extern const SType g_types[T_MAX];
 
 /**
+ * @brief Shows Datum as a null-terminated string
+ * @note: allocates memory for string in current memory context
+ * @param src Source datum to print
+ * @return Null-terminated string representing the datum
+ */
+const char *datum_sdup(Datum src);
+
+/**
  * @brief Convert smallint to bigint
  * @param src Source datum (must be T_SMALLINT)
  * @return Converted T_BIGINT datum

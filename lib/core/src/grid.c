@@ -137,16 +137,17 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
          * strings, is it suitable? */
         strncpy(hc->name, name, NAMESZ - 1);
         hc->type = type;
-        hc->size = size; /* hc->size means something for only flexible size types
-                          * for T_CHAR the absolute size is defined in grid
-                          * for T_CARCHAR size in grid is defined in SType:size and
-                          * hc->size means maximum length of varchar
-                          * for other types size in grid is defined in SType:size too */
+        hc->size = size; /* hc->size means different for different size types
+                          * e.g. for T_VARCHAR hc->size means maximum length of varchar
+                          * and size in grid is defined in SType:size
+                          * for T_CHAR the absolute size in grid is defined in hc->size
+                          * for other types hc->size is ignored and must be 0
+                          * and the absolute size in grid is defined in SType:size */
 
         /* Calculate byte offset based on the previous column */
-        if (grid->occupied > 1) {
+        if (column_idx) {
             /* Correct size depending on type size meaning */
-            Column *prev = hc - 1;
+            Column *prev = grid_get_row(grid, column_idx - 1);
 
             switch (g_types[prev->type].size_meaning) {
                 case SM_TYPESZ:
@@ -169,7 +170,18 @@ size_t
 hgrid_get_row_size(Grid *grid) {
     if (grid->occupied) {
         const Column *hc = grid_get_row(grid, grid->occupied - 1);
-        return hc->offs + hc->size;
+
+        switch (g_types[hc->type].size_meaning) {
+            case SM_TYPESZ:
+                return hc->offs + g_types[hc->type].size;
+
+            case SM_COLUMNSZ:
+                return  hc->offs + hc->size;
+
+            default:
+                assert(0 && "Unknown size_meaning");
+                return 0;
+        }
     } else
        return 0;
 }
