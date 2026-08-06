@@ -75,8 +75,11 @@ tcp_run(void) {
         /* Accept */
         session.client_fd = accept(g_server.server_fd, (struct sockaddr*)&client_addr, &client_len);
         if (session.client_fd < 0) {
-            if (errno == EINTR)
+            if (errno == EINTR) {
+                usleep(1000);
                 continue; /* Interrupted with a signal */
+            }
+
             ferr("Error in accept");
             result = 1;
 
@@ -93,6 +96,7 @@ tcp_run(void) {
         if (pid < 0) {
             ferr("Error in fork");
             close(session.client_fd);
+            usleep(1000);
             continue;
         }
 
@@ -106,7 +110,7 @@ tcp_run(void) {
             /* Main process */
             close(session.client_fd);   /* Close client socket */
             session.client_fd = -1;     /* Undefine client_fd */
-            printf("[Parent] Forked child PID: %d\n", pid);
+            flog("[Parent] Forked child PID: %d\n", pid);
             /* Back to accept() */
         }
     }
