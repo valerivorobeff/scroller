@@ -4,6 +4,7 @@
  */
 
 #include "type.h"
+#include "memory.h"
 #include <string.h>
 #include <assert.h>
 
@@ -31,6 +32,52 @@ const SType g_types[T_MAX] = {
     { T_CHAR, TG_CHARACTER, SM_COLUMNSZ, 0, char2varchar },
     { T_VARCHAR, TG_CHARACTER, SM_TYPESZ, sizeof(int16_t), NULL },
 };
+
+/**
+ * @brief Shows Datum as a null-terminated string
+ * @note: allocates memory for string in current memory context
+ * @param src Source datum to print
+ * @return Null-terminated string representing the datum
+ */
+/* @todo: show all the types */
+const char *datum_sdup(Datum src) {
+    switch (src.type) {
+        case T_UNKNOWN:     return sdup("<Unknown type>");
+        case T_SMALLINT:
+        case T_INTEGER:
+        case T_BIGINT:  {
+                            char *ret;
+                            int64_t v;
+                            int cnt = 1;
+
+                            src = to_base_type(src);
+                            v = src.value.bigint;
+                            while (v /= 10)
+                                ++cnt;
+
+                            ret = salloc(cnt + 1);
+                            v = src.value.bigint;
+                            ret[cnt] = '\0';
+                            while (cnt--) {
+                                ret[cnt] = '0' + v % 10;
+                                v /= 10;
+                            }
+
+                            return ret;
+                        }
+        case T_CHAR:    {
+                            char *ret;
+                            src = to_base_type(src);
+                            ret = salloc(src.size + 1);
+                            memcpy(ret, src.value.character, src.size);
+                            ret[src.size] = '\0';
+                            return ret;
+                        }
+        case T_VARCHAR:     return sdup("<varchar typr not implemented>");
+        case T_MAX:         return sdup("<Out of range type>");
+        default:            return sdup("<Not implemented type>");
+    }
+}
 
 /**
  * @brief Convert smallint to bigint

@@ -1,12 +1,11 @@
 #include "cmd.h"
 #include "memory.h"
-#include "array.h"
 #include <assert.h>
 
 #define BCSZ 1024
 
 Cmd *
-cmd_init(Cmd *cmd, Server *server) {
+cmd_init(Cmd *cmd) {
     Context *prev;
 
     assert(cmd);
@@ -22,8 +21,6 @@ cmd_init(Cmd *cmd, Server *server) {
     cmd->str_cont = linear_context_create(sizeof(const char *) * BCSZ * 2);
     assert(cmd->str_cont);
     context_add_child(context_get_current(), cmd->str_cont); /* Child it to session context */
-
-    cmd->server = server;
 
     prev = context_switch(cmd->bc_cont);    /* switch to bytecode context */
     bc_init(&cmd->bc);                      /* Initialize bytecode */

@@ -1,6 +1,6 @@
 %code requires{
 typedef struct Bc Bc;
-typedef struct Server Server;
+typedef struct Session Session;
 }
 
 %code {
@@ -9,7 +9,7 @@ typedef struct Server Server;
 #include "../../../../src/scroller/ddl.h"
 #include "../../../../src/scroller/dml.h"
 #include "../../../../src/scroller/flog.h"
-void yyerror(Server *server, Bc *bc, void *current, char const *s);
+void yyerror(Session *session, Bc *bc, void *current, char const *s);
 }
 
 %define api.pure full
@@ -17,7 +17,7 @@ void yyerror(Server *server, Bc *bc, void *current, char const *s);
 %define api.token.prefix {BC_}
  //%locations
 %lex-param      {Bc *bc}
-%parse-param    {Server *server}
+%parse-param    {Session *session}
 %parse-param    {Bc *bc}
 %parse-param    {void *current}
 
@@ -41,23 +41,23 @@ void yyerror(Server *server, Bc *bc, void *current, char const *s);
 
 cmd:
     CREATE USER STRING {
-        create_user(server, $3);
+        create_user($3);
     }
     |
     CREATE CATALOG STRING {
-        create_catalog(server, $3);
+        create_catalog($3);
     }
     |
     CREATE SCHEMA STRING {
-        create_schema(server, $3);
+        create_schema(session, $3);
     }
     |
     CREATE TABLE STRING STRING ARRAY_BEGIN decls ARRAY_END {
-        create_table(server, $3, $4, (Decl *)current);
+        create_table(session, $3, $4, (Decl *)current);
     }
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN strings ARRAY_END {
-        insert(server, $2, $3, (const char **)$5, (const char **)$9);
+        insert(session, $2, $3, (const char **)$5, (const char **)$9);
     }
     ;
 
@@ -96,8 +96,8 @@ strings:
 
 /* Called by yyparse on error. */
 void
-yyerror(Server *server, Bc *bc, void *current, char const *s) {
-    (void)server;
+yyerror(Session *session, Bc *bc, void *current, char const *s) {
+    (void)session;
     (void)bc;
     (void)current;
     ferr("y2 parser error: %s\n", s);
