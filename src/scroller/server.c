@@ -1,3 +1,8 @@
+/**
+ * @file server.c
+ * @brief scroller server file
+ */
+
 #include "server.h"
 #include "tcp.h"
 #include "pagecache.h"
@@ -48,6 +53,7 @@ server_init(const char *path) {
 
     memset(&g_server, 0, sizeof(Server));
 
+    /* Load default cache sizes */
     g_server.system.pagecachesz[0] = DEFAULT_PAGECACHESZ0;
     g_server.system.pagecachesz[1] = DEFAULT_PAGECACHESZ1;
 
@@ -118,6 +124,7 @@ server_init(const char *path) {
     assert(g_server.system.cluster.header.parts.file_id == 2);
     assert(g_server.system.cluster.data.parts.file_id == 3);
 
+    /* Remake caches if only their sizes differ from default */
     if (g_server.system.pagecachesz[0] != DEFAULT_PAGECACHESZ0 ||
         g_server.system.pagecachesz[1] != DEFAULT_PAGECACHESZ1 ||
         g_server.system.fdcachesz[0] != DEFAULT_FDCACHESZ0 ||
@@ -129,6 +136,7 @@ server_init(const char *path) {
             return 1;
     }
 
+    /* Initialize tcp */
     if (tcp_init())
         goto err;
 
@@ -271,6 +279,6 @@ get_block_size(const char *fname) {
     if (stat(fname ? fname : __FILE__, &st) == 0)
         return st.st_blksize;
     else
-        return 1024; /* @todo: Hardcode id not good */
+        return 1024; /* @todo: Hardcode is not good */
 }
 
