@@ -54,6 +54,11 @@ server_init(const char *path) {
 
     memset(&g_server, 0, sizeof(Server));
 
+    /* Load default values */
+    g_server.backlog = DEFAULT_BACKLOG;
+    g_server.port = DEFAULT_PORT;
+
+    g_server.system.pagecachesz[1] = DEFAULT_PAGECACHESZ1;
     /* Load cluster gids */
     g_server.system.cluster.header = (Gid){ .parts = { .file_id = CLUSTER_HEADER_GID, .page = 0 }};
     g_server.system.cluster.data = (Gid){ .parts = { .file_id = CLUSTER_DATA_GID, .page = 0 }};
@@ -104,6 +109,17 @@ server_init(const char *path) {
         /* @todo maybe make a struct array instead of big if else block */
         if (eq_character(name, make_char("encoding"))) {
             g_server.system.encoding = datum_sdup(string);
+        } else if (eq_character(name, make_char("backlog"))) {
+            g_server.backlog = data.value.bigint;
+        } else if (eq_character(name, make_char("port"))) {
+            if (data.value.bigint < 0) {
+                ferr("'port' value in cluster table cannot be negative and set to default (%i)", DEFAULT_PORT);
+            } else if(data.value.bigint > UINT16_MAX) {
+                ferr("'port' value in cluster table exceeds maximum port index (%i) and set to default (%i)"
+                    , UINT16_MAX, DEFAULT_PORT);
+            } else {
+                g_server.port = data.value.bigint;
+            }
         } else if (eq_character(name, make_char("pagecache_size"))) {
             g_server.system.pagecachesz[0] = header.value.bigint;
             g_server.system.pagecachesz[1] = data.value.bigint;
@@ -181,7 +197,7 @@ server_run(void) {
 
 int
 server_drop(void) {
-    tcp_destroy();
+    tcp_drop();
 
     caches_free();
 

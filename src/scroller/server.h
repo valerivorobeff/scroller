@@ -8,12 +8,16 @@
 
 #include "gid.h"
 #include <stddef.h>
+#include <arpa/inet.h>
 
 /* @todo: Move it to common information for scroller and scr_init */
 #define SEQUENCE_HEADER_GID     0
 #define SEQUENCE_DATA_GID       1
 #define CLUSTER_HEADER_GID      2
 #define CLUSTER_DATA_GID        3
+
+#define DEFAULT_BACKLOG         10
+#define DEFAULT_PORT            8081
 
 #define DEFAULT_PAGECACHESZ0    8
 #define DEFAULT_PAGECACHESZ1    8
@@ -33,6 +37,8 @@ extern PageCache *g_pagecache;
  */
 typedef struct Server {
     int server_fd;              /**< Server socket descriptor */
+    int backlog;                /**< Server backlog */
+    in_port_t port;             /**< Server port */
     struct {
         GidPair sequence;       /**< Main seuence GidPair */
         GidPair cluster;        /**< Cluster table GidPair */

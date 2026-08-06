@@ -128,6 +128,16 @@ init_cluster(const char *path) {
         cell = table_get_cell(row, string_idx);
         put_char(cell, "UTF-8", 32);
 
+        /* Add server backlog */
+        add_gid_pair(hcluster, cluster, "backlog",
+            (GidPair){ .header.full = 0, .data.full = DEFAULT_BACKLOG }
+        );
+
+        /* Add server backlog */
+        add_gid_pair(hcluster, cluster, "port",
+            (GidPair){ .header.full = 0, .data.full = DEFAULT_PORT }
+        );
+
         /* Add pagecache_size cluster table */
         add_gid_pair(hcluster, cluster, "pagecache_size",
             (GidPair){ .header.full = DEFAULT_PAGECACHESZ0, .data.full =  DEFAULT_PAGECACHESZ1 }
