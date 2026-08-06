@@ -10,7 +10,9 @@
 #include <errno.h>
 #include <assert.h>
 
-void add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp);
+static void add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp);
+static int64_t calculate_sequence_start(void);
+ssize_t get_block_size(const char *fname);
 
 PageCache *g_pagecache = NULL;
 
@@ -32,15 +34,20 @@ init_cluster(const char *path) {
         }
     } else {
         GidPair gp_sequence = {
-            .header = { .parts = { .file_id = 0, .page = 0 }},
-            .data = { .parts = { .file_id = 1, .page = 0 }}
+            .header = { .full = SEQUENCE_HEADER_GID },
+            .data = { .full = SEQUENCE_DATA_GID }
         };
 
-        GidPair gp_cluster;
+        GidPair gp_cluster = {
+            .header = { .full = CLUSTER_HEADER_GID },
+            .data = { .full = CLUSTER_DATA_GID }
+        };
+
         GidPair gp_user;
         GidPair gp_catalog;
         GidPair gp_schema;
         GidPair gp_relation;
+        int64_t sequence_start = calculate_sequence_start();
         Page hsequence;
         Page sequence;
         Page hcluster;
@@ -72,14 +79,18 @@ init_cluster(const char *path) {
          * Init sequence header
          */
         hsequence = pagecache_put_page(g_pagecache, gp_sequence.header.full);
-        hsequence_init(hsequence);
+        if (hsequence_init(hsequence)) {
+            printf("Error initializing main sequence header");
+            return 1;
+        }
+
         pagecache_flush(g_pagecache, gp_sequence.header.full);
 
         /*
          * Init main sequence
          */
         sequence = pagecache_put_page(g_pagecache, gp_sequence.data.full);
-        sequence_init(hsequence, sequence, 0, INT64_MAX, gp_sequence.data.full + 1, 1, 0);
+        sequence_init(hsequence, sequence, 0, INT64_MAX, sequence_start, 1, 0);
 
         /**********************************************************************
          *
@@ -90,10 +101,7 @@ init_cluster(const char *path) {
         /*
          * Init main cluster header
          */
-        sequence_nextval(hsequence, sequence, &currval);
-        gp_cluster.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
-
-        hcluster = pagecache_put_page(g_pagecache, currval);
+        hcluster = pagecache_put_page(g_pagecache, gp_cluster.header.full);
         hcluster = htable_init(hcluster, PAGESZ, GT_FIXED);
         htable_add_column(hcluster, "name", T_CHAR, 32);
         htable_add_column(hcluster, "string", T_CHAR, 32);
@@ -105,15 +113,12 @@ init_cluster(const char *path) {
         string_idx = htable_get_column_idx(hcluster, "string");
         assert(grid_idx_valid(string_idx));
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_cluster.header.full);
 
         /*
          * Init main cluster table
          */
-        sequence_nextval(hsequence, sequence, &currval);
-        gp_cluster.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
-
-        cluster = pagecache_put_page(g_pagecache, currval);
+        cluster = pagecache_put_page(g_pagecache, gp_cluster.data.full);
         cluster = dtable_init(cluster, PAGESZ, GT_FIXED, hcluster);
 
         row = table_alloc_row(hcluster, cluster);
@@ -315,6 +320,14 @@ add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp) {
 
     cell = table_get_cell(row, data_idx);
     put_bigint(cell, gidp.data.full);
+}
+
+int64_t
+calculate_sequence_start(void) {
+    const int64_t smax = SEQUENCE_HEADER_GID > SEQUENCE_DATA_GID ? SEQUENCE_HEADER_GID : SEQUENCE_DATA_GID;
+    const int64_t cmax = CLUSTER_HEADER_GID > CLUSTER_DATA_GID ? CLUSTER_HEADER_GID : CLUSTER_DATA_GID;
+
+    return smax > cmax ? smax + 1 : cmax + 1;
 }
 
 ssize_t

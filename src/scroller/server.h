@@ -10,6 +10,11 @@
 #include <stddef.h>
 
 /* @todo: Move it to common information for scroller and scr_init */
+#define SEQUENCE_HEADER_GID     0
+#define SEQUENCE_DATA_GID       1
+#define CLUSTER_HEADER_GID      2
+#define CLUSTER_DATA_GID        3
+
 #define DEFAULT_PAGECACHESZ0    8
 #define DEFAULT_PAGECACHESZ1    8
 
@@ -58,13 +63,13 @@ int server_init(const char *path);
  * @brief Runs server
  * @return 0 - if succeed, error code otherwise
  */
-int server_run();
+int server_run(void);
 
 /**
  * @brief Drops server
  * @return 0 - if succeed, error code otherwise
  */
-int server_drop();
+int server_drop(void);
 
 #endif /* _SERVER_H_ */
 
