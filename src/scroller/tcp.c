@@ -1,3 +1,8 @@
+/**
+ * @file tcp.c
+ * @brief scroller server file
+ */
+
 #include "tcp.h"
 #include "worker.h"
 #include "flog.h"
@@ -5,14 +10,13 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-int tcp_init();
-int tcp_run();
-int tcp_destroy();
+int tcp_init(void);
+int tcp_run(void);
+int tcp_drop(void);
 
 int
-tcp_init() {
+tcp_init(void) {
     const int opt = 1;
-    const int backlog = 10;
     struct sockaddr_in server_addr;
 
     /* Initialize socket */
@@ -31,7 +35,7 @@ tcp_init() {
     /* Set up server address */
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(8081);
+    server_addr.sin_port = htons(g_server.port);
 
     /* Bind socket */
     if (bind(g_server.server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
@@ -40,7 +44,7 @@ tcp_init() {
     }
 
     /* Listen */
-    if (listen(g_server.server_fd, backlog) < 0) {
+    if (listen(g_server.server_fd, g_server.backlog) < 0) {
         ferr("Error in listen");
         goto err_socket;
     }
@@ -58,7 +62,7 @@ err_socket:
 }
 
 int
-tcp_run() {
+tcp_run(void) {
     int result = 0;
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -68,10 +72,14 @@ tcp_run() {
     for (;;) {
         char client_ip[INET_ADDRSTRLEN];
 
+        /* Accept */
         session.client_fd = accept(g_server.server_fd, (struct sockaddr*)&client_addr, &client_len);
         if (session.client_fd < 0) {
-            if (errno == EINTR)
+            if (errno == EINTR) {
+                usleep(1000);
                 continue; /* Interrupted with a signal */
+            }
+
             ferr("Error in accept");
             result = 1;
 
@@ -88,6 +96,7 @@ tcp_run() {
         if (pid < 0) {
             ferr("Error in fork");
             close(session.client_fd);
+            usleep(1000);
             continue;
         }
 
@@ -101,7 +110,7 @@ tcp_run() {
             /* Main process */
             close(session.client_fd);   /* Close client socket */
             session.client_fd = -1;     /* Undefine client_fd */
-            printf("[Parent] Forked child PID: %d\n", pid);
+            flog("[Parent] Forked child PID: %d\n", pid);
             /* Back to accept() */
         }
     }
@@ -110,7 +119,7 @@ tcp_run() {
 }
 
 int
-tcp_destroy() {
+tcp_drop(void) {
     if (g_server.server_fd >= 0) {
         /* tcp_drop is called in only main process */
         return close(g_server.server_fd);
