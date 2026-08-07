@@ -235,7 +235,7 @@ bump_context_add_child(Context *context, Context *child) {
 void *
 bump_context_alloc(Context *context, size_t sz) {
     BumpContext *bcontext = (BumpContext *)context;
-    size_t sizesz = align_max(sizeof(size_t));
+    const size_t sizesz = align_max(sizeof(size_t));
     size_t totalsz;
 
     if (sz == 0)
@@ -246,7 +246,7 @@ bump_context_alloc(Context *context, size_t sz) {
 #endif
 
     sz = align_max(sz);
-    totalsz = sz + sizesz;
+    totalsz = sz + sizesz; /* Data size + size size */
 
     assert(sz <= SIZE_MAX - sizesz);
 
@@ -254,9 +254,9 @@ bump_context_alloc(Context *context, size_t sz) {
         return NULL;
     else {
         void *ret = (char *)context + bcontext->current;
-        *(size_t *)ret = sz;
-        bcontext->current += totalsz;
-        return (char *)ret + sizesz;
+        *(size_t *)ret = sz;            /* Write down the block size before data */
+        bcontext->current += totalsz;   /* Increment current by total size */
+        return (char *)ret + sizesz;    /* Return pointer to data */
     }
 }
 
@@ -269,34 +269,41 @@ bump_context_alloc(Context *context, size_t sz) {
  */
 void *
 bump_context_realloc(Context *context, void *p, size_t sz) {
-    size_t sizesz = align_max(sizeof(size_t));
+    if (p == NULL)
+        return bump_context_alloc(context, sz);
 
     if (sz == 0) {
         bump_context_free(context, p);
         return NULL;
     }
 
-    if (p == NULL)
-        return bump_context_alloc(context, sz);
+    const size_t sizesz = align_max(sizeof(size_t));
+    BumpContext *bcontext = (BumpContext *)context;
+    const size_t psz = *(size_t *)((char *)p - sizesz); /* Previous size */
+    assert(psz > 0 && psz <= bcontext->size);
 
 #ifndef NDEBUG
     if ((char *)p < (char *)context || 
-        (char *)p >= (char *)context + ((BumpContext *)context)->current) {
+        (char *)p >= (char *)context + bcontext->current) {
         assert(0 && "Invalid pointer in free");
     }
-    assert(((BumpContext *)context)->magic == magic);
+    assert(bcontext->magic == magic);
 #endif
-
-    const size_t psz = *(size_t *)((char *)p - sizesz);
-    assert(psz > 0 && psz <= ((BumpContext *)context)->size);
 
     sz = align_max(sz);
     assert(sz <= SIZE_MAX - sizesz);
 
     if (sz > psz) {
-        void *np = bump_context_alloc(context, sz);
-        if (np)
+        void *np;
+        const size_t p_offs = (char *)p - (char *)context;
+        /* If p is the tail, rewind bcontext->current to it */
+        if (p_offs == bcontext->current - sizesz)
+            bcontext->current = p_offs - sizesz;
+
+        np = bump_context_alloc(context, sz);
+        if (np && np != p)
             memcpy(np, p, psz);
+
         return np;
     } else
         return p;
@@ -312,7 +319,12 @@ bump_context_free(Context *context, void *p) {
     if (p == NULL)
         return;
 
+    const size_t sizesz = align_max(sizeof(size_t));
     BumpContext *bcontext = (BumpContext *)context;
+    const size_t p_offs = (char *)p - (char *)context;
+    const size_t sz = *(size_t *)((char *)p - sizesz); /* Size */
+    assert(sz > 0 && sz <= bcontext->size);
+
 
 #ifndef NDEBUG
     if ((char *)p < (char *)context || 
@@ -322,12 +334,9 @@ bump_context_free(Context *context, void *p) {
     assert(bcontext->magic == magic);
 #endif
 
-    const size_t sz = *(size_t *)((char *)p - align_max(sizeof(size_t)));
-    assert(sz > 0 && sz <= bcontext->size);
-
     /* free if only p is the tail */
-    if ((char *)p - (char *)context + sz >= bcontext->current)
-        bcontext->current = (char *)p - (char *)context;
+    if (p_offs == bcontext->current - sizesz)
+        bcontext->current = p_offs - sizesz;
 }
 
 /**

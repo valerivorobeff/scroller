@@ -227,6 +227,38 @@ TEST(memory)
             memory_destroy();
         }
 
+        TEST_CASE(realloc_next) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *np = context_realloc(ctx, p, sizeof(int) * 33);
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(np != NULL);
+
+            TEST_CHECK(p == np);
+
+            context_drop(ctx);
+        }
+
+        TEST_CASE(realloc_ahead) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *p2 = context_alloc(ctx, sizeof(int) * 64);
+            int *np = context_realloc(ctx, p, sizeof(int) * 33);
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(p2 != NULL);
+            TEST_CHECK(np != NULL);
+
+            TEST_CHECK(p < np);
+
+            context_drop(ctx);
+        }
+
     TEST_SUITE_END()
 
     TEST_SUITE(bump_free)
@@ -291,6 +323,42 @@ TEST(memory)
 
             context_drop(ctx);
             memory_destroy();
+        }
+
+        TEST_CASE(free_last) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            BumpContext *bctx = (BumpContext *)ctx;
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *np = context_alloc(ctx, sizeof(int) * 33);
+            size_t current = bctx->current;
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(np != NULL);
+
+            context_free(ctx, np);
+
+            TEST_CHECK(current == bctx->current);
+
+            context_drop(ctx);
+        }
+
+        TEST_CASE(free_ahead) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *p2 = context_alloc(ctx, sizeof(int) * 64);
+            int *np = context_realloc(ctx, p, sizeof(int) * 33);
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(p2 != NULL);
+            TEST_CHECK(np != NULL);
+
+            TEST_CHECK(p < np);
+
+            context_drop(ctx);
         }
 
     TEST_SUITE_END()
