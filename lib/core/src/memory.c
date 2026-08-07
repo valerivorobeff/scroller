@@ -297,7 +297,7 @@ bump_context_realloc(Context *context, void *p, size_t sz) {
         void *np;
         const size_t p_offs = (char *)p - (char *)context;
         /* If p is the tail, rewind bcontext->current to it */
-        if (p_offs == bcontext->current - sizesz)
+        if (p_offs + psz == bcontext->current)
             bcontext->current = p_offs - sizesz;
 
         np = bump_context_alloc(context, sz);
@@ -335,7 +335,7 @@ bump_context_free(Context *context, void *p) {
 #endif
 
     /* free if only p is the tail */
-    if (p_offs == bcontext->current - sizesz)
+    if (p_offs + sz == bcontext->current)
         bcontext->current = p_offs - sizesz;
 }
 
