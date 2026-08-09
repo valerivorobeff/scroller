@@ -227,6 +227,38 @@ TEST(memory)
             memory_destroy();
         }
 
+        TEST_CASE(realloc_next) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *np = context_realloc(ctx, p, sizeof(int) * 33);
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(np != NULL);
+
+            TEST_CHECK(p == np);
+
+            context_drop(ctx);
+        }
+
+        TEST_CASE(realloc_ahead) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *p2 = context_alloc(ctx, sizeof(int) * 64);
+            int *np = context_realloc(ctx, p, sizeof(int) * 33);
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(p2 != NULL);
+            TEST_CHECK(np != NULL);
+
+            TEST_CHECK(p < np);
+
+            context_drop(ctx);
+        }
+
     TEST_SUITE_END()
 
     TEST_SUITE(bump_free)
@@ -291,6 +323,69 @@ TEST(memory)
 
             context_drop(ctx);
             memory_destroy();
+        }
+
+        TEST_CASE(free_last) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            BumpContext *bctx = (BumpContext *)ctx;
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *np = context_alloc(ctx, sizeof(int) * 33);
+            int *np2;
+            size_t current = bctx->current;
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(np != NULL);
+
+            context_free(ctx, np);
+
+            TEST_CHECK(current > bctx->current);
+
+            np2 = context_alloc(ctx, sizeof(int) * 12);
+            TEST_CHECK(np == np2);
+
+            context_drop(ctx);
+        }
+
+        TEST_CASE(free_cascade) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            BumpContext *bctx = (BumpContext *)ctx;
+            TEST_CHECK(ctx != NULL);
+            const int sz = 8;
+            int *p[sz];
+            size_t current[sz];
+            int szs[] = { 5, 14, 1, 8, 3, 19, 64, 7 };
+
+            for (int i = 0; i != sz; ++i) {
+                p[i] = context_alloc(ctx, sizeof(int) * szs[i]);
+                current[i] = bctx->current;
+            }
+
+            for (int i = sz - 1; i >= 0; --i) {
+                TEST_CHECK(current[i] == bctx->current);
+                context_free(ctx, p[i]);
+            }
+
+            context_drop(ctx);
+        }
+
+        TEST_CASE(free_ahead) {
+            memory_init_default();
+            Context *ctx = bump_context_create(MEMORY_PAGESZ);
+            TEST_CHECK(ctx != NULL);
+
+            int *p = context_alloc(ctx, sizeof(int));
+            int *p2 = context_alloc(ctx, sizeof(int) * 64);
+            int *np = context_realloc(ctx, p, sizeof(int) * 33);
+            TEST_CHECK(p != NULL);
+            TEST_CHECK(p2 != NULL);
+            TEST_CHECK(np != NULL);
+
+            TEST_CHECK(p < np);
+
+            context_drop(ctx);
         }
 
     TEST_SUITE_END()

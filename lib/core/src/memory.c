@@ -105,6 +105,15 @@ get_memory_page_size(void) {
  * BumpContext
  */
 
+/**
+ * @brief Header of every allocated memory block,
+ * it goes before the data
+ */
+typedef struct BumpContextHeader {
+    BumpContext *context;
+    size_t size;
+} BumpContextHeader;
+
 /** @brief Virtual table for bump context */
 static const ContextVt bump_context_vt = {
     bump_context_alloc,
@@ -235,7 +244,6 @@ bump_context_add_child(Context *context, Context *child) {
 void *
 bump_context_alloc(Context *context, size_t sz) {
     BumpContext *bcontext = (BumpContext *)context;
-    size_t sizesz = align_max(sizeof(size_t));
     size_t totalsz;
 
     if (sz == 0)
@@ -246,17 +254,17 @@ bump_context_alloc(Context *context, size_t sz) {
 #endif
 
     sz = align_max(sz);
-    totalsz = sz + sizesz;
+    totalsz = sz + sizeof(BumpContextHeader);           /* Data size + header size */
 
-    assert(sz <= SIZE_MAX - sizesz);
+    assert(sz <= SIZE_MAX - sizeof(BumpContextHeader));
 
     if (bcontext->size - bcontext->current < totalsz)
         return NULL;
     else {
         void *ret = (char *)context + bcontext->current;
-        *(size_t *)ret = sz;
-        bcontext->current += totalsz;
-        return (char *)ret + sizesz;
+        *(BumpContextHeader *)ret = (BumpContextHeader){ (BumpContext *)context, sz };
+        bcontext->current += totalsz;                   /* Increment current by total size */
+        return (char *)ret + sizeof(BumpContextHeader); /* Return pointer to data */
     }
 }
 
@@ -266,37 +274,45 @@ bump_context_alloc(Context *context, size_t sz) {
  * @param p Previously allocated pointer
  * @param sz New size in bytes
  * @return Reallocated memory, or NULL on failure
+ *
+ * @note param context is used if only p is NULL, otherwise context is taken from p header
+ *       and param context ps ignored
  */
 void *
 bump_context_realloc(Context *context, void *p, size_t sz) {
-    size_t sizesz = align_max(sizeof(size_t));
-
-    if (sz == 0) {
-        bump_context_free(context, p);
-        return NULL;
-    }
-
     if (p == NULL)
         return bump_context_alloc(context, sz);
 
+    BumpContextHeader *header = (BumpContextHeader *)p - 1; /* Previous header */
+    assert(header->size > 0 && header->size + sizeof(BumpContextHeader) <= header->context->size);
+
+    if (sz == 0) {
+        bump_context_free((Context *)header->context, p);
+        return NULL;
+    }
+
 #ifndef NDEBUG
-    if ((char *)p < (char *)context || 
-        (char *)p >= (char *)context + ((BumpContext *)context)->current) {
+    if ((char *)p < (char *)header->context ||
+        (char *)p >= (char *)header->context + header->context->current) {
         assert(0 && "Invalid pointer in free");
     }
-    assert(((BumpContext *)context)->magic == magic);
+    assert(header->context->magic == magic);
 #endif
 
-    const size_t psz = *(size_t *)((char *)p - sizesz);
-    assert(psz > 0 && psz <= ((BumpContext *)context)->size);
-
     sz = align_max(sz);
-    assert(sz <= SIZE_MAX - sizesz);
+    assert(sz <= SIZE_MAX - sizeof(BumpContextHeader));
 
-    if (sz > psz) {
-        void *np = bump_context_alloc(context, sz);
-        if (np)
-            memcpy(np, p, psz);
+    if (sz > header->size) {
+        void *np;
+        const size_t p_offs = (char *)p - (char *)header->context;
+        /* If p is the tail, rewind bcontext->current to it */
+        if (p_offs + header->size == header->context->current)
+            header->context->current = p_offs - sizeof(BumpContextHeader);
+
+        np = bump_context_alloc((Context *)header->context, sz);
+        if (np && np != p)
+            memcpy(np, p, header->size);
+
         return np;
     } else
         return p;
@@ -306,28 +322,31 @@ bump_context_realloc(Context *context, void *p, size_t sz) {
  * @brief Free from bump context (only if pointer is tail)
  * @param context Context to free from
  * @param p Pointer to free
+ *
+ * @note param context is ignored, context is taken from p header
  */
 void
 bump_context_free(Context *context, void *p) {
+    (void)context;
+
     if (p == NULL)
         return;
 
-    BumpContext *bcontext = (BumpContext *)context;
+    BumpContextHeader *header = (BumpContextHeader *)p - 1; /* Previous header */
+    assert(header->size > 0 && header->size + sizeof(BumpContextHeader) <= header->context->size);
+    const size_t p_offs = (char *)p - (char *)header->context;
 
 #ifndef NDEBUG
-    if ((char *)p < (char *)context || 
-        (char *)p >= (char *)context + bcontext->current) {
+    if ((char *)p < (char *)header->context ||
+        (char *)p >= (char *)header->context + header->context->current) {
         assert(0 && "Invalid pointer in free");
     }
-    assert(bcontext->magic == magic);
+    assert(header->context->magic == magic);
 #endif
 
-    const size_t sz = *(size_t *)((char *)p - align_max(sizeof(size_t)));
-    assert(sz > 0 && sz <= bcontext->size);
-
     /* free if only p is the tail */
-    if ((char *)p - (char *)context + sz >= bcontext->current)
-        bcontext->current = (char *)p - (char *)context;
+    if (p_offs + header->size == header->context->current)
+        header->context->current = p_offs - sizeof(BumpContextHeader);
 }
 
 /**
