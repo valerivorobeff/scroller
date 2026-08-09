@@ -35,9 +35,13 @@ session_run(Session *session) {
     const int client_fd = session->client_fd;
     FILE *fstream;
     Context *session_context = linear_context_create(MEMORY_PAGESZ *16);
+    Context *flex_context = bump_context_create(MEMORY_PAGESZ *16);
+
     yyscan_t scanner;
     Query query;
     Cmd cmd;
+
+    context_add_child(session_context, flex_context);
 
     context_add_child(context_get_current(), session_context);
     context_push(session_context);
@@ -60,7 +64,7 @@ session_run(Session *session) {
 
     setbuf(fstream, NULL);
 
-    if (y1lex_init(&scanner))
+    if (y1lex_init_extra(flex_context, &scanner))
         ffatal(1, "Cannot initialize scanner");
 
     y1set_in(fstream, scanner);

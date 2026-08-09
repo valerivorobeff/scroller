@@ -16,12 +16,12 @@ typedef struct Cmd Cmd;
 #include "../../../../src/scroller/flog.h"
 #include <sys/socket.h>
 
-void yyerror(yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
+void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
 %define api.prefix {y1}
- //%locations
+%locations
 %lex-param      {yyscan_t scanner}
 %parse-param    {void *scanner}
 %parse-param    {Session *session}
@@ -189,7 +189,8 @@ strings:
 
 /* Called by yyparse on error. */
 void
-yyerror(yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s) {
+yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s) {
+    (void)location;
     (void)scanner;
     (void)session;
     (void)query;

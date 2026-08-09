@@ -1,5 +1,7 @@
 %top{
 #define YYSTYPE Y1STYPE
+#define YYLTYPE Y1LTYPE
+typedef struct Context Context;
 }
 
 %{
@@ -15,9 +17,13 @@ static char *trim(char *src, size_t len);
 %option yylineno
 %option case-insensitive
 %option bison-bridge
- //%option bison-locations
+%option bison-locations
 %option reentrant
 %option prefix="y1"
+%option extra-type="Context *"
+%option noyyalloc
+%option noyyrealloc
+%option noyyfree
 %option full
 %option nodefault
 %option noinput
@@ -106,5 +112,20 @@ trim(char *src, size_t len) {
     *(c + 1) = '\0';
 
     return src;
+}
+
+inline void *
+y1alloc(size_t sz, yyscan_t scanner) {
+    return context_alloc(yyget_extra(scanner), sz);
+}
+
+inline void *
+y1realloc(void *p, size_t sz, yyscan_t scanner) {
+    return context_realloc(yyget_extra(scanner), p, sz);
+}
+
+inline void
+y1free(void *p, yyscan_t scanner) {
+    return context_free(yyget_extra(scanner), p);
 }
 
