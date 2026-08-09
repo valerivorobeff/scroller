@@ -1,6 +1,6 @@
 #include "ddl.h"
 #include "server.h"
-#include "worker.h"
+#include "session.h"
 #include "table.h"
 #include "pagecache.h"
 #include "sequence.h"

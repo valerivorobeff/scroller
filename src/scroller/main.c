@@ -16,7 +16,10 @@ main(const int argc, const char *argv[]) {
         return result;
 
     result = server_run();
-    result &= server_drop();
+    if (result)
+        return result;
+
+    result = server_drop();
 
     return result;
 }

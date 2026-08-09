@@ -1,7 +1,7 @@
 #include "dml.h"
 #include "table.h"
 #include "server.h"
-#include "worker.h"
+#include "session.h"
 #include "pagecache.h"
 #include "sequence.h"
 #include "array.h"

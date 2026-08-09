@@ -59,7 +59,7 @@ extern Server g_server;
 
 /**
  * @brief Initializes server
- * @note it user g_server struct to store server information
+ * @note it uses g_server struct to store server information
  * @param path Path to cluster data
  * @return 0 - if succeed, error code otherwise
  */

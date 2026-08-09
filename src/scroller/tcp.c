@@ -1,10 +1,10 @@
 /**
  * @file tcp.c
- * @brief scroller server file
+ * @brief tcp functions
  */
 
 #include "tcp.h"
-#include "worker.h"
+#include "session.h"
 #include "flog.h"
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -72,6 +72,12 @@ tcp_run(void) {
     for (;;) {
         char client_ip[INET_ADDRSTRLEN];
 
+        if (session_init(&session) == NULL) {
+            ferr("Error in init_session");
+            usleep(1000);
+            continue;
+        }
+
         /* Accept */
         session.client_fd = accept(g_server.server_fd, (struct sockaddr*)&client_addr, &client_len);
         if (session.client_fd < 0) {
@@ -104,8 +110,9 @@ tcp_run(void) {
             /* Worker process */
             close(g_server.server_fd);  /* Close a copy of server process */
             g_server.server_fd = -1;    /* Undefine server_fd */
-            result = worker_main(&session);
-            break;                      /* Return to main function */
+            result = session_run(&session);
+            session_drop(&session);
+            break;                      /* Return to server_run function */
         } else {
             /* Main process */
             close(session.client_fd);   /* Close client socket */
@@ -121,7 +128,6 @@ tcp_run(void) {
 int
 tcp_drop(void) {
     if (g_server.server_fd >= 0) {
-        /* tcp_drop is called in only main process */
         return close(g_server.server_fd);
     }
 

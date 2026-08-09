@@ -1,6 +1,7 @@
 %code requires{
 typedef struct BcNode BcNode;
 typedef struct Session Session;
+typedef struct Query Query;
 typedef struct Cmd Cmd;
 }
 
@@ -9,12 +10,13 @@ typedef struct Cmd Cmd;
 #include "hquery.l.h"
 #include "array.h"
 #include "memory.h"
-#include "../../../../src/scroller/worker.h"
+#include "../../../../src/scroller/session.h"
+#include "../../../../src/scroller/query.h"
 #include "../../../../src/scroller/cmd.h"
 #include "../../../../src/scroller/flog.h"
 #include <sys/socket.h>
 
-void yyerror(yyscan_t scanner, Session *session, Cmd *cmd, char const *s);
+void yyerror(yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
@@ -23,6 +25,7 @@ void yyerror(yyscan_t scanner, Session *session, Cmd *cmd, char const *s);
 %lex-param      {yyscan_t scanner}
 %parse-param    {void *scanner}
 %parse-param    {Session *session}
+%parse-param    {Query *query}
 %parse-param    {Cmd *cmd}
 
 /* @todo: write the functions */
@@ -51,14 +54,14 @@ void yyerror(yyscan_t scanner, Session *session, Cmd *cmd, char const *s);
 %%
 
 session:
-    request
+   query
     |
-    request session
+    query session
     ;
 
-request:
+query:
     header REQUEST_END {
-        /* @todo: here we should reset header or request memory context
+        /* @todo: here we should reset header or query memory context
             but at the moment we don't have it, we should make it */
         const char *response = "Status: Empty\n\n";
         send(session->client_fd, response, strlen(response), 0);
@@ -67,7 +70,7 @@ request:
     }
     |
     header body REQUEST_END {
-        /* @todo: here we should reset header or request memory context
+        /* @todo: here we should reset header or query memory context
             but at the moment we don't have it, we should make it */
         const char *response = "Status: Ready\n\n";
         send(session->client_fd, response, strlen(response), 0);
@@ -79,7 +82,7 @@ request:
 header:
     header_exprs HEADER_END {
         if (session->user == NULL)
-            ferr("Parameter 'user' not found in request header");
+            ferr("Parameter 'user' not found in query header");
     }
     ;
 
@@ -116,7 +119,7 @@ cmd:
     |
     CREATE SCHEMA STRING {
         if (session->catalog == NULL)
-            ferr("Parameter 'catalog' not found in request header");
+            ferr("Parameter 'catalog' not found in query header");
         else {
             bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
             bc_put(&cmd->bc, ((BcNode){ .token = BC_SCHEMA }));
@@ -126,7 +129,7 @@ cmd:
     |
     CREATE TABLE STRING '.' STRING {
         if (session->catalog == NULL)
-            ferr("Parameter 'catalog' not found in request header");
+            ferr("Parameter 'catalog' not found in query header");
         else {
             bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
             bc_put(&cmd->bc, ((BcNode){ .token = BC_TABLE }));
@@ -136,7 +139,7 @@ cmd:
         }
     }'(' decls ')' {
         if (session->catalog == NULL)
-            ferr("Parameter 'catalog' not found in request header");
+            ferr("Parameter 'catalog' not found in query header");
         else
             bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
     }
@@ -186,9 +189,10 @@ strings:
 
 /* Called by yyparse on error. */
 void
-yyerror(yyscan_t scanner, Session *session, Cmd *cmd, char const *s) {
+yyerror(yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s) {
     (void)scanner;
     (void)session;
+    (void)query;
     (void)cmd;
     ferr("%s\n", s);
 }

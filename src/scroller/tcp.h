@@ -1,6 +1,6 @@
 /**
  * @file tcp.h
- * @brief scroller server file
+ * @brief tcp functions
  */
 
 #ifndef _TCP_H_
