@@ -1,5 +1,7 @@
 %top{
 #define YYSTYPE Y1STYPE
+#define YYLTYPE Y1LTYPE
+typedef struct Context Context;
 }
 
 %{
@@ -8,6 +10,7 @@
 #include <stdio.h>
 static char *sdupl(const char *src, size_t len);
 static char *trim(char *src, size_t len);
+static char *str_unescape(const char *s, size_t len, char q);
 %}
 
 %option noyywrap
@@ -15,9 +18,13 @@ static char *trim(char *src, size_t len);
 %option yylineno
 %option case-insensitive
 %option bison-bridge
- //%option bison-locations
+%option bison-locations
 %option reentrant
 %option prefix="y1"
+%option extra-type="Context *"
+%option noyyalloc
+%option noyyrealloc
+%option noyyfree
 %option full
 %option nodefault
 %option noinput
@@ -30,6 +37,8 @@ ALNUM           ({NUM}|{ALPHA})
 SPACE           [ \t\r]
 HEADER_VALUE    ({ALNUM}|{SPACE})+
 STRING          {ALPHA}{ALNUM}*
+DQUOTED         \"(\\.|[^\"])*\"
+QUOTED          \'(\\.|[^\'])*\'
 
 /* header string */
 %x string
@@ -70,7 +79,9 @@ STRING          {ALPHA}{ALNUM}*
     ")"                 return ')';
     ","                 return ',';
     "."                 return '.';
-    {STRING}            yylval->str = sdupl(yytext, yyleng); return STRING;
+    {STRING}            yylval->str = sdupl(yytext, yyleng); return ID;
+    {DQUOTED}           yylval->str = str_unescape(yytext, yyleng, '"'); return ID;
+    {QUOTED}            yylval->str = str_unescape(yytext, yyleng, '\''); return STRING;
     ;                   return ';';
     @                   BEGIN(INITIAL); return REQUEST_END;
 }
@@ -106,5 +117,46 @@ trim(char *src, size_t len) {
     *(c + 1) = '\0';
 
     return src;
+}
+
+char *
+str_unescape(const char *s, size_t len, char q) {
+    char *ret = salloc(len + 1);
+    char *d = ret;
+
+    for (++s; *s && *s != q; ++d, ++s) {
+        if (*s == '\\') {
+            ++s;
+            if (*s == q)
+                *d = q;
+            else {
+                switch (*s) {
+                    case '\n': *d = '\n'; break;
+                    case '\t': *d = '\t'; break;
+                    case '\\': *d = '\\'; break;
+                }
+            }
+        } else
+            *d = *s;
+    }
+
+    *d = '\0';
+
+    return ret;
+}
+
+inline void *
+y1alloc(size_t sz, yyscan_t scanner) {
+    return context_alloc(yyget_extra(scanner), sz);
+}
+
+inline void *
+y1realloc(void *p, size_t sz, yyscan_t scanner) {
+    return context_realloc(yyget_extra(scanner), p, sz);
+}
+
+inline void
+y1free(void *p, yyscan_t scanner) {
+    return context_free(yyget_extra(scanner), p);
 }
 
