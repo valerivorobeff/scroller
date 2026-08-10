@@ -41,6 +41,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %token CATALOG
 %token SCHEMA
 %token TABLE
+%token <str> ID
 %token <str> STRING
 
 /* Header tokens */
@@ -105,19 +106,19 @@ body:
     ;
 
 cmd:
-    CREATE USER STRING {
+    CREATE USER ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_USER }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
     }
     |
-    CREATE CATALOG STRING {
+    CREATE CATALOG ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_CREATE }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_CATALOG }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
     }
     |
-    CREATE SCHEMA STRING {
+    CREATE SCHEMA ID {
         if (session->catalog == NULL)
             ferr("Parameter 'catalog' not found in query header");
         else {
@@ -127,7 +128,7 @@ cmd:
         }
     }
     |
-    CREATE TABLE STRING '.' STRING {
+    CREATE TABLE ID '.' ID {
         if (session->catalog == NULL)
             ferr("Parameter 'catalog' not found in query header");
         else {
@@ -144,12 +145,12 @@ cmd:
             bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
     }
     |
-    INSERT INTO STRING '.' STRING {
+    INSERT INTO ID '.' ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_INSERT }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $5 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
-    } '(' strings ')' {
+    } '(' ids ')' {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
     } VALUES {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
@@ -167,12 +168,23 @@ decls:
     ;
 
 decl:
-    STRING STRING {
+    ID ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $2 }));
     }
     ;
 
+ids:
+    ID {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));
+        flog("%s", $1);
+    }
+    |
+    ids ',' ID {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+        flog("%s", $3);
+    }
+    ;
 strings:
     STRING {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));

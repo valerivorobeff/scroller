@@ -10,6 +10,7 @@ typedef struct Context Context;
 #include <stdio.h>
 static char *sdupl(const char *src, size_t len);
 static char *trim(char *src, size_t len);
+static char *str_unescape(const char *s, size_t len, char q);
 %}
 
 %option noyywrap
@@ -36,6 +37,8 @@ ALNUM           ({NUM}|{ALPHA})
 SPACE           [ \t\r]
 HEADER_VALUE    ({ALNUM}|{SPACE})+
 STRING          {ALPHA}{ALNUM}*
+DQUOTED         \"(\\.|[^\"])*\"
+QUOTED          \'(\\.|[^\'])*\'
 
 /* header string */
 %x string
@@ -76,7 +79,9 @@ STRING          {ALPHA}{ALNUM}*
     ")"                 return ')';
     ","                 return ',';
     "."                 return '.';
-    {STRING}            yylval->str = sdupl(yytext, yyleng); return STRING;
+    {STRING}            yylval->str = sdupl(yytext, yyleng); return ID;
+    {DQUOTED}           yylval->str = str_unescape(yytext, yyleng, '"'); return ID;
+    {QUOTED}            yylval->str = str_unescape(yytext, yyleng, '\''); return STRING;
     ;                   return ';';
     @                   BEGIN(INITIAL); return REQUEST_END;
 }
@@ -112,6 +117,32 @@ trim(char *src, size_t len) {
     *(c + 1) = '\0';
 
     return src;
+}
+
+char *
+str_unescape(const char *s, size_t len, char q) {
+    char *ret = salloc(len + 1);
+    char *d = ret;
+
+    for (++s; *s && *s != q; ++d, ++s) {
+        if (*s == '\\') {
+            ++s;
+            if (*s == q)
+                *d = q;
+            else {
+                switch (*s) {
+                    case '\n': *d = '\n'; break;
+                    case '\t': *d = '\t'; break;
+                    case '\\': *d = '\\'; break;
+                }
+            }
+        } else
+            *d = *s;
+    }
+
+    *d = '\0';
+
+    return ret;
 }
 
 inline void *
