@@ -10,6 +10,7 @@ typedef Mitor Titor;
 #define titor_next(titor) mitor_next(titor)
 #define titor_get_cell(m, c) mitor_get_cell(m, c)
 #define titor_get_datum(m, c) mitor_get_datum(m, c)
+#define titor_put_datum(m, c, datum) mitor_put_datum(m, c, datum)
 
 /**
  * @brief Initializes a new grid within a memory page.

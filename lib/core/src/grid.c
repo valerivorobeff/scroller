@@ -24,6 +24,7 @@
 #include "grid.h"
 #include <assert.h>
 #include <string.h>
+#include <sys/param.h>
 
 /**
  * Global variable PAGESZ with default value 4096
@@ -40,6 +41,7 @@ Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
 Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 Datum grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
+int grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum datum);
 uint16_t grid_alloc_row(Grid *grid);
 
 Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
@@ -110,6 +112,42 @@ grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
      */
     /* @todo: it makes incorrect size of varchar */
     return ret;
+}
+
+int
+grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum datum) {
+    const Column *hc = hgrid_get_column(hgrid, column);
+    Cell c = grid_get_row(grid, row) + hc->offs;
+
+    assert(column < hgrid->occupied);
+    assert(datum.type != T_UNKNOWN);
+    assert(datum.type != T_MAX);
+
+    /* @todo it is better to allow to put datum with the same type group but not only
+     * the same type
+     */
+    if (datum.type == g_types[hc->type].type) {
+        switch (hc->type) {
+            case T_UNKNOWN: assert(0 && "datum type T_UNKNOWN not supported"); break;
+            case T_SMALLINT: put_smallint(c, datum.value.smallint); break;
+            case T_INTEGER:  put_integer(c, datum.value.integer); break;
+            case T_BIGINT:   put_bigint(c, datum.value.bigint); break;
+            case T_CHAR:     put_char(c, datum.value.character, MIN(hc->size, datum.size)); break;
+            case T_VARCHAR:  /* @todo make */ break;
+            case T_MAX: assert(0 && "datum type T_MAX not supported"); break;
+        }
+    } else {
+        assert(0 && "datum type mismatch");
+        return 1;
+    }
+
+    /* @todo: it is not the best idea to assign values to Datum in a switch
+     * Find a better idea
+     * Idea 1. Is it better to add a function pointer assingn_from_pointer() to SType sturct
+     * and make an implementation for it for every type?
+     */
+    /* @todo: it makes incorrect size of varchar */
+    return 0;
 }
 
 uint16_t
