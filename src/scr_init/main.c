@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <assert.h>
 
-static void add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp);
+static int add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp);
 static int64_t calculate_sequence_start(void);
 ssize_t get_block_size(const char *fname);
 
@@ -65,7 +65,6 @@ init_cluster(const char *path) {
         uint16_t string_idx;
 
         Titor row;
-        Cell cell;
 
         chdir(path);
 
@@ -122,11 +121,9 @@ init_cluster(const char *path) {
         cluster = dtable_init(cluster, PAGESZ, GT_FIXED, hcluster);
 
         row = table_alloc_row(hcluster, cluster);
-        cell = table_get_cell(row, name_idx);
-        put_char(cell, "encoding", 32);
 
-        cell = table_get_cell(row, string_idx);
-        put_char(cell, "UTF-8", 32);
+        result |= titor_put_datum(row, name_idx, make_char("encoding"));
+        result |= titor_put_datum(row, string_idx, make_char("UTF-8"));
 
         /* Add server backlog */
         add_gid_pair(hcluster, cluster, "backlog",
@@ -172,6 +169,9 @@ init_cluster(const char *path) {
         huser = htable_init(huser, PAGESZ, GT_FIXED);
         htable_add_column(huser, "name", T_CHAR, 32);
 
+        name_idx = htable_get_column_idx(huser, "name");
+        assert(grid_idx_valid(name_idx));
+
         pagecache_flush(g_pagecache, currval);
 
         /*
@@ -184,8 +184,7 @@ init_cluster(const char *path) {
         user = dtable_init(user, PAGESZ, GT_FIXED, huser);
 
         row = table_alloc_row(huser, user);
-        cell = table_get_cell(row, 0);
-        put_char(cell, "scroller", 32);
+        result |= titor_put_datum(row, name_idx, make_char("scroller"));
 
         pagecache_flush(g_pagecache, currval);
 
@@ -302,34 +301,34 @@ init_cluster(const char *path) {
         pagecache_flush(g_pagecache, gp_cluster.data.full); /* Flush cluster table */
         pagecache_flush(g_pagecache, gp_sequence.data.full); /* Flush main sequence */
 
-        printf("Cluster created\n");
+        if (result)
+            printf("Error creating cluster\n");
+        else
+            printf("Cluster created\n");
     }
 
     return result;
 }
 
 /** Add table GidPair to cluster table */
-void
+int
 add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp) {
+    int ret;
     uint16_t name_idx = htable_get_column_idx(hcluster, "name");
     uint16_t header_idx = htable_get_column_idx(hcluster, "header");
     uint16_t data_idx = htable_get_column_idx(hcluster, "data");
 
     Titor row = table_alloc_row(hcluster, cluster);
-    Cell cell;
 
     assert(grid_idx_valid(name_idx));
     assert(grid_idx_valid(header_idx));
     assert(grid_idx_valid(data_idx));
 
-    cell = table_get_cell(row, name_idx);
-    put_char(cell, name, 32);
+    ret = titor_put_datum(row, name_idx, make_char((char *)name));
+    ret |= titor_put_datum(row, header_idx, make_bigint(gidp.header.full));
+    ret |= titor_put_datum(row, data_idx, make_bigint(gidp.data.full));
 
-    cell = table_get_cell(row, header_idx);
-    put_bigint(cell, gidp.header.full);
-
-    cell = table_get_cell(row, data_idx);
-    put_bigint(cell, gidp.data.full);
+    return ret;
 }
 
 int64_t

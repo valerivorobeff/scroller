@@ -27,6 +27,7 @@ typedef struct Mitor {
 void mitor_next(Mitor *mitor);
 #define mitor_get_cell(m, c) grid_get_cell(m.header, m.data, m.row, c)
 #define mitor_get_datum(m, c) grid_get_datum(m.header, m.data, m.row, c)
+#define mitor_put_datum(m, c, datum) grid_put_datum(m.header, m.data, m.row, c, datum)
 
 /**
  * @brief Initializes a new grid within a memory page.
