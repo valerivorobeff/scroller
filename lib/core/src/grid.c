@@ -24,7 +24,6 @@
 #include "grid.h"
 #include <assert.h>
 #include <string.h>
-#include <sys/param.h>
 
 /**
  * Global variable PAGESZ with default value 4096
@@ -132,7 +131,7 @@ grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum dat
             case T_SMALLINT: put_smallint(c, datum.value.smallint); break;
             case T_INTEGER:  put_integer(c, datum.value.integer); break;
             case T_BIGINT:   put_bigint(c, datum.value.bigint); break;
-            case T_CHAR:     put_char(c, datum.value.character, MIN(hc->size, datum.size)); break;
+            case T_CHAR:     put_char(c, datum.value.character, hc->size); break;
             case T_VARCHAR:  /* @todo make */ break;
             case T_MAX: assert(0 && "datum type T_MAX not supported"); break;
         }

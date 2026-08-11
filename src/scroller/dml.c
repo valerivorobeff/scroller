@@ -12,6 +12,7 @@ static GidPair find_relation(Session *session, const char *schema, const char *r
 
 int
 insert(Session *session, const char *schema, const char *table, const char **names, const char **values) {
+    int ret = 0;
     GidPair gp_relation = find_relation(session, schema, table);
     Grid *header;
     Grid *data;
@@ -55,13 +56,13 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     row = table_alloc_row(header, data);
 
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
-        Cell cell = table_get_cell(row, indices[i]);
-        put_char(cell, values[i], 32);
+        ret |= titor_put_datum(row, indices[i], make_char((char *)values[i]));
     }
 
-    pagecache_flush(g_pagecache, gp_relation.data.full);
+    if (ret == 0)
+        pagecache_flush(g_pagecache, gp_relation.data.full);
 
-    return 0;
+    return ret;
 }
 
 GidPair

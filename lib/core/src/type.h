@@ -160,15 +160,15 @@ ssize_t cmp_character(Datum d1, Datum d2);
 #define ge_character(d1, d2) (cmp_character(d1, d2) >= 0)
 
 /** @brief Create T_SMALLINT datum */
-#define make_smallint(v) (Datum){ T_SMALLINT, g_types[T_SMALLINT].size, .value.smallint = (v) }
+#define make_smallint(v) ((Datum){ T_SMALLINT, g_types[T_SMALLINT].size, .value.smallint = (v) })
 /** @brief Create T_INTEGER datum */
-#define make_integer(v) (Datum){ T_INTEGER, g_types[T_INTEGER].size, .value.integer = (v) }
+#define make_integer(v) ((Datum){ T_INTEGER, g_types[T_INTEGER].size, .value.integer = (v) })
 /** @brief Create T_BIGINT datum */
-#define make_bigint(v) (Datum){ T_BIGINT, g_types[T_BIGINT].size, .value.bigint = (v) }
+#define make_bigint(v) ((Datum){ T_BIGINT, g_types[T_BIGINT].size, .value.bigint = (v) })
 /** @brief Create T_CHAR datum (string length is set) */
-#define make_char(v) (Datum){ T_CHAR, (v) ? strlen(v) : 0, .value.character = (v) }
+#define make_char(v) ((Datum){ T_CHAR, (v) ? strlen(v) : 0, .value.character = (v) })
 /** @brief Create T_VARCHAR datum (string length is set) */
-#define make_varchar(v) (Datum){ T_VARCHAR, (v) ? strlen(v) : 0, .value.character = (v) }
+#define make_varchar(v) ((Datum){ T_VARCHAR, (v) ? strlen(v) : 0, .value.character = (v) })
 
 #endif /* _TYPE_H_ */
 
