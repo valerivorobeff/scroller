@@ -22,6 +22,7 @@
  */
 
 #include "grid.h"
+#include "align.h"
 #include <assert.h>
 #include <string.h>
 
@@ -44,7 +45,6 @@ int grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum
 uint16_t grid_alloc_row(Grid *grid);
 
 Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
-size_t hgrid_get_row_size(Grid *grid);
 uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
 
 
@@ -168,6 +168,8 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
     hc = grid_get_row(grid, column_idx);
 
     if (hc) {
+        size_t cursz;
+
         /* @todo: now the maximum copied bytes are NAMESZ - 1
          * which means that the latest byte should always be 0
          * and we can only work with 15 byte (NAMESZ - 1) length
@@ -185,42 +187,37 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
         if (column_idx) {
             /* Correct size depending on type size meaning */
             Column *prev = grid_get_row(grid, column_idx - 1);
+            size_t prevsz;
 
             switch (g_types[prev->type].size_meaning) {
                 case SM_TYPESZ:
-                    hc->offs = prev->offs + g_types[prev->type].size;
+                    prevsz = g_types[prev->type].size;
                     break;
 
                 case SM_COLUMNSZ:
-                    hc->offs = prev->offs + prev->size;
+                    prevsz = prev->size;
                     break;
             }
+
+            hc->offs = align_up(prev->offs + prevsz, prevsz);
         } else
             hc->offs = 0;
+
+        switch (g_types[type].size_meaning) {
+            case SM_TYPESZ:
+                cursz = g_types[type].size;
+                break;
+
+            case SM_COLUMNSZ:
+                cursz = size;
+                break;
+        }
+
+        grid->datasz = hc->offs + align_up(cursz, cursz);
 
         return hc;
     } else
         return NULL;
-}
-
-size_t
-hgrid_get_row_size(Grid *grid) {
-    if (grid->occupied) {
-        const Column *hc = grid_get_row(grid, grid->occupied - 1);
-
-        switch (g_types[hc->type].size_meaning) {
-            case SM_TYPESZ:
-                return hc->offs + g_types[hc->type].size;
-
-            case SM_COLUMNSZ:
-                return  hc->offs + hc->size;
-
-            default:
-                assert(0 && "Unknown size_meaning");
-                return 0;
-        }
-    } else
-       return 0;
 }
 
 uint16_t

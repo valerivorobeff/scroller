@@ -69,7 +69,7 @@ typedef struct Grid {
     uint16_t    rowsz;       /** Size of each individual row in bytes */
     uint16_t    rown;        /** Maximum number of rows that can be stored */
     uint16_t    occupied;    /** Number of currently occupied rows */
-    char        reserved[2]; /** Reserved for future use, must be zero */
+    uint16_t    datasz;      /** For hgrid shows data row size, for dgrid is not used and must be zero */
     char        datum[];     /** Flexible array member containing row data */
 } Grid;
 
@@ -195,17 +195,12 @@ uint16_t grid_alloc_row(Grid *grid);
 Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
 
 /**
- * @brief Calculates the total row size needed for a data grid.
- *
- * Sums up the sizes of all columns defined in the header grid.
+ * @brief Returns the total row size needed for a data grid.
  *
  * @param grid      Pointer to the header grid containing column definitions
  * @return          Total row size in bytes required to store all columns
- *
- * @note This value should be used as the rowsz parameter when initializing
- *       a data grid with dgrid_init().
  */
-size_t hgrid_get_row_size(Grid *grid);
+#define hgrid_get_row_size(grid) (((Grid *)grid)->datasz)
 
 /**
  * @brief Returns column index by its name.
