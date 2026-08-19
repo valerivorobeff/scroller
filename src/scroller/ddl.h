@@ -1,11 +1,14 @@
 #ifndef _DDL_H_
 #define _DDL_H_
 
+#include <stddef.h>
+
 typedef struct Session Session;
 
 typedef struct Decl {
     const char *name;
-    const char *type;
+    size_t size;
+    int type;
 } Decl;
 
 int create_user(const char *user);

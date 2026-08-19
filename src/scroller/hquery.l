@@ -75,6 +75,14 @@ QUOTED          \'(\\.|[^\'])*\'
     "insert"            return INSERT;
     "into"              return INTO;
     "values"            return VALUES;
+    "smallint"          return SMALLINT;
+    "integer"           return INTEGER;
+    "int"               return INTEGER;
+    "bigint"            return BIGINT;
+    "character"         return CHARACTER;
+    "char"              return CHAR;
+    "varchar"           return VARCHAR;
+    "varying"           return VARYING;
     "("                 return '(';
     ")"                 return ')';
     ","                 return ',';

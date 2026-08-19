@@ -1,8 +1,8 @@
 %code requires{
-typedef struct BcNode BcNode;
 typedef struct Session Session;
 typedef struct Query Query;
 typedef struct Cmd Cmd;
+#include "../../../../src/scroller/bc.h"
 }
 
 %code {
@@ -10,6 +10,7 @@ typedef struct Cmd Cmd;
 #include "hquery.l.h"
 #include "array.h"
 #include "memory.h"
+#include "type.h"
 #include "../../../../src/scroller/session.h"
 #include "../../../../src/scroller/query.h"
 #include "../../../../src/scroller/cmd.h"
@@ -34,6 +35,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 
 %union {
     char* str;
+    BcNode node;
 }
 
 /* Common tokens */
@@ -51,6 +53,9 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 /* Body tokens */
 %token CREATE
 %token INSERT INTO VALUES
+%token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
+
+%type <node> type
 
 %%
 
@@ -168,10 +173,37 @@ decls:
     ;
 
 decl:
-    ID ID {
+    ID type {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $2 }));
     }
+    ;
+
+type:
+    SMALLINT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_SIZE_T, .value.size = 0 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_TYPE, .value.type = T_SMALLINT }));
+    }
+    |
+    INTEGER {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_SIZE_T, .value.size = 0 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_TYPE, .value.type = T_INTEGER }));
+    }
+    |
+    BIGINT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_SIZE_T, .value.size = 0 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_TYPE, .value.type = T_BIGINT }));
+    }
+    |
+    character '(' ')' {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_SIZE_T, .value.size = 33 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_TYPE, .value.type = T_CHAR }));
+    }
+    ;
+
+character:
+    CHARACTER
+    |
+    CHAR
     ;
 
 ids:
