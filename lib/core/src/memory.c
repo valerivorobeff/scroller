@@ -4,6 +4,7 @@
  */
 
 #include "memory.h"
+#include "align.h"
 #include <sys/mman.h>
 #include <string.h>
 #include <stdint.h>
@@ -50,14 +51,9 @@ static void *linear_context_alloc(Context *context, size_t sz);
 static void *linear_context_realloc(Context *context, void *p, size_t sz);
 static void linear_context_free(Context *context, void *p);
 
-/** @brief Maximum alignment for allocation */
-#define MAX_ALIGN _Alignof(max_align_t)
-
 void context_push(Context *context);
 void context_pop();
 char *sdup(const char *src);
-static inline size_t align_up(size_t sz, int align);
-static inline size_t align_max(size_t sz);
 
 /*
  * Memory init
@@ -522,24 +518,5 @@ sdup(const char *src) {
     ret[len] = '\0';
 
     return ret;
-}
-
-/**
- * @brief Align size up to specified alignment
- * @param sz Size to align
- * @param align Alignment (must be power of two)
- * @return Aligned size
- */
-static inline size_t align_up(size_t sz, int align) {
-    return (sz + align - 1) & ~(align - 1);
-}
-
-/**
- * @brief Align size to maximum alignment
- * @param sz Size to align
- * @return Aligned size
- */
-static inline size_t align_max(size_t sz) {
-    return align_up(sz, MAX_ALIGN);
 }
 
