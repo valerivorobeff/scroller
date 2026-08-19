@@ -22,7 +22,6 @@
  */
 
 #include "grid.h"
-#include "align.h"
 #include <assert.h>
 #include <string.h>
 
@@ -183,26 +182,6 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
                           * for other types hc->size is ignored and must be 0
                           * and the absolute size in grid is defined in SType:size */
 
-        /* Calculate byte offset based on the previous column */
-        if (column_idx) {
-            /* Correct size depending on type size meaning */
-            Column *prev = grid_get_row(grid, column_idx - 1);
-            size_t prevsz;
-
-            switch (g_types[prev->type].size_meaning) {
-                case SM_TYPESZ:
-                    prevsz = g_types[prev->type].size;
-                    break;
-
-                case SM_COLUMNSZ:
-                    prevsz = prev->size;
-                    break;
-            }
-
-            hc->offs = align_up(prev->offs + prevsz, prevsz);
-        } else
-            hc->offs = 0;
-
         switch (g_types[type].size_meaning) {
             case SM_TYPESZ:
                 cursz = g_types[type].size;
@@ -213,7 +192,9 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
                 break;
         }
 
-        grid->datasz = hc->offs + align_up(cursz, cursz);
+        hc->offs = align_up(grid->datasz, cursz);
+
+        grid->datasz = hc->offs + cursz;
 
         return hc;
     } else

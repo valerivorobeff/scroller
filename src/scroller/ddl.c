@@ -91,7 +91,7 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     /* Add columns */
     for (int i = 0, ie = array_size(decls); i != ie; ++i) {
         const Decl *decl = &decls[i];
-        htable_add_column(table, decl->name, T_CHAR, 32);
+        htable_add_column(table, decl->name, decl->type, decl->size);
     }
 
     /* Add a new row of the new table into relation table */

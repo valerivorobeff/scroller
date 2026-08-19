@@ -24,6 +24,7 @@
 
 #include "cell.h"
 #include "type.h"
+#include "align.h"
 #include <stddef.h>
 
 /**
@@ -200,7 +201,7 @@ Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
  * @param grid      Pointer to the header grid containing column definitions
  * @return          Total row size in bytes required to store all columns
  */
-#define hgrid_get_row_size(grid) (((Grid *)grid)->datasz)
+#define hgrid_get_row_size(grid) align_up((((Grid *)grid)->datasz), sizeof(int))
 
 /**
  * @brief Returns column index by its name.

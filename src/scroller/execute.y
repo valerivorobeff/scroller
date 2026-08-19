@@ -1,6 +1,7 @@
 %code requires{
 typedef struct Bc Bc;
 typedef struct Session Session;
+#include <stddef.h>
 }
 
 %code {
@@ -28,12 +29,16 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
 %union {
     char* str;
     char **strs;
+    int type;
+    size_t size;
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
 %token INSERT
 %token ARRAY_BEGIN ARRAY_END
 %token <str> STRING
+%token <type> TYPE
+%token <size> SIZE_T
 
 %type <strs> strings
 
@@ -68,11 +73,12 @@ decls:
     ;
 
 decl:
-    STRING STRING {
+    SIZE_T TYPE STRING {
         Decl *decl = current;
-        array_put(decl, ((Decl){ .name = $1, .type = $2 }));
+        array_put(decl, ((Decl){ .name = $3, .size = $1, .type = $2 }));
         current = decl;
     }
+    ;
 
 strings:
     STRING {
