@@ -3,6 +3,7 @@ typedef struct Session Session;
 typedef struct Query Query;
 typedef struct Cmd Cmd;
 #include "../../../../src/scroller/bc.h"
+#include <stdint.h>
 }
 
 %code {
@@ -35,6 +36,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 
 %union {
     char* str;
+    int64_t integer;
     BcNode node;
 }
 
@@ -54,6 +56,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %token CREATE
 %token INSERT INTO VALUES
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
+%token <integer>VINTEGER
 
 %type <node> type
 
@@ -194,8 +197,8 @@ type:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_TYPE, .value.type = T_BIGINT }));
     }
     |
-    character '(' ')' {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_SIZE_T, .value.size = 33 }));
+    character '(' VINTEGER ')' {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_SIZE_T, .value.size = $3 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_TYPE, .value.type = T_CHAR }));
     }
     ;

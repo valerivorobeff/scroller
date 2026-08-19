@@ -36,6 +36,7 @@ ALPHA           [a-zA-Z_]
 ALNUM           ({NUM}|{ALPHA})
 SPACE           [ \t\r]
 HEADER_VALUE    ({ALNUM}|{SPACE})+
+INTEGER         -?(0|[1-9]{NUM}*)
 STRING          {ALPHA}{ALNUM}*
 DQUOTED         \"(\\.|[^\"])*\"
 QUOTED          \'(\\.|[^\'])*\'
@@ -87,6 +88,7 @@ QUOTED          \'(\\.|[^\'])*\'
     ")"                 return ')';
     ","                 return ',';
     "."                 return '.';
+    {INTEGER}           yylval->integer = atol(yytext); return VINTEGER;
     {STRING}            yylval->str = sdupl(yytext, yyleng); return ID;
     {DQUOTED}           yylval->str = str_unescape(yytext, yyleng, '"'); return ID;
     {QUOTED}            yylval->str = str_unescape(yytext, yyleng, '\''); return STRING;
