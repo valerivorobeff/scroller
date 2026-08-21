@@ -1,7 +1,9 @@
 %code requires{
 typedef struct Bc Bc;
 typedef struct Session Session;
+#include "type.h"
 #include <stddef.h>
+#include <stdint.h>
 }
 
 %code {
@@ -31,16 +33,20 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
     char **strs;
     int type;
     size_t size;
+    int64_t integer;
+    Datum *datum;
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
 %token INSERT
 %token ARRAY_BEGIN ARRAY_END
+%token <integer> INTEGER
 %token <str> STRING
 %token <type> TYPE
 %token <size> SIZE_T
 
 %type <strs> strings
+%type <datum> value values
 
 %%
 
@@ -51,7 +57,7 @@ cmd:
     |
     CREATE CATALOG STRING {
         create_catalog($3);
-    }
+        }
     |
     CREATE SCHEMA STRING {
         create_schema(session, $3);
@@ -61,8 +67,8 @@ cmd:
         create_table(session, $3, $4, (Decl *)current);
     }
     |
-    INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN strings ARRAY_END {
-        insert(session, $2, $3, (const char **)$5, (const char **)$9);
+    INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN values ARRAY_END {
+        insert(session, $2, $3, (const char **)$5, $9);
     }
     ;
 
@@ -95,6 +101,28 @@ strings:
         current = str;
         $$ = str;
         flog("y2: %s", $2);
+    }
+    ;
+
+values:
+    value
+    |
+    values value
+    ;
+
+value:
+    INTEGER {
+        Datum *d = current;
+        array_put(d, make_integer($1));
+        current = d;
+        $$ = d;
+    }
+    |
+    STRING {
+        Datum *d = current;
+        array_put(d, make_char($1));
+        current = d;
+        $$ = d;
     }
     ;
 
