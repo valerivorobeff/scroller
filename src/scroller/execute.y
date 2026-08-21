@@ -113,7 +113,7 @@ values:
 value:
     INTEGER {
         Datum *d = current;
-        array_put(d, make_integer($1));
+        array_put(d, make_bigint($1));
         current = d;
         $$ = d;
     }

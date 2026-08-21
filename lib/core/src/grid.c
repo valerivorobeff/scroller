@@ -121,9 +121,7 @@ grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum dat
     assert(datum.type != T_UNKNOWN);
     assert(datum.type != T_MAX);
 
-    /* @todo it is better to allow to put datum with the same type group but not only
-     * the same type
-     */
+    /* Check datum type equality */
     if (datum.type == g_types[hc->type].type) {
         switch (hc->type) {
             case T_UNKNOWN: assert(0 && "datum type T_UNKNOWN not supported"); break;
@@ -133,6 +131,29 @@ grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum dat
             case T_CHAR:     put_char(c, datum.value.character, hc->size); break;
             case T_VARCHAR:  /* @todo make */ break;
             case T_MAX: assert(0 && "datum type T_MAX not supported"); break;
+        }
+    /* Check detum type group equality */
+    } else if (g_types[datum.type].group == g_types[hc->type].group) {
+        switch (g_types[hc->type].group) {
+            case TG_UNKNOWN: assert(0 && "datum type group T_UNKNOWN not supported"); break;
+            case TG_INTEGER:
+                switch (hc->type) {
+                    case T_SMALLINT: put_smallint(c, datum.value.bigint); break;
+                    case T_INTEGER:  put_integer(c, datum.value.bigint); break;
+                    case T_BIGINT:   put_bigint(c, datum.value.bigint); break;
+                    default: assert(0 && "type doesn't belong to TG_INTEGER type group"); break;
+                }
+                break;
+
+            case TG_CHARACTER:
+                switch (hc->type) {
+                    case T_CHAR:     put_char(c, datum.value.character, hc->size); break;
+                    case T_VARCHAR:  /* @todo make */ break;
+                    default: assert(0 && "type doesn't belong to TG_CHARACTER type group"); break;
+                }
+                break;
+
+            case TG_MAX: assert(0 && "datum type group T_MAX not supported"); break;
         }
     } else {
         assert(0 && "datum type mismatch");
