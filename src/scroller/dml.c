@@ -2,6 +2,7 @@
 #include "table.h"
 #include "server.h"
 #include "session.h"
+#include "type.h"
 #include "pagecache.h"
 #include "sequence.h"
 #include "array.h"
@@ -11,7 +12,7 @@
 static GidPair find_relation(Session *session, const char *schema, const char *relation);
 
 int
-insert(Session *session, const char *schema, const char *table, const char **names, const char **values) {
+insert(Session *session, const char *schema, const char *table, const char **names, const Datum *values) {
     int ret = 0;
     GidPair gp_relation = find_relation(session, schema, table);
     Grid *header;
@@ -56,7 +57,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     row = table_alloc_row(header, data);
 
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
-        ret |= titor_put_datum(row, indices[i], make_char((char *)values[i]));
+        ret |= titor_put_datum(row, indices[i], values[i]);
     }
 
     if (ret == 0)

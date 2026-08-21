@@ -88,7 +88,10 @@ QUOTED          \'(\\.|[^\'])*\'
     ")"                 return ')';
     ","                 return ',';
     "."                 return '.';
-    {INTEGER}           yylval->integer = atol(yytext); return VINTEGER;
+    {INTEGER}           yylval->integer = atoll(yytext); return VINTEGER;
+                        /* @todo atoll conterts to long long, but we need conversion to int64_t,
+                        we should use or develop a special function that contecrt to int64_t
+                        becuase sizeof(long long) can sometimes be not equal to sizeof(int64_t) */
     {STRING}            yylval->str = sdupl(yytext, yyleng); return ID;
     {DQUOTED}           yylval->str = str_unescape(yytext, yyleng, '"'); return ID;
     {QUOTED}            yylval->str = str_unescape(yytext, yyleng, '\''); return STRING;

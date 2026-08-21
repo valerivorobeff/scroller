@@ -37,7 +37,6 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %union {
     char* str;
     int64_t integer;
-    BcNode node;
 }
 
 /* Common tokens */
@@ -57,8 +56,6 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %token INSERT INTO VALUES
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 %token <integer>VINTEGER
-
-%type <node> type
 
 %%
 
@@ -162,7 +159,7 @@ cmd:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
     } VALUES {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
-    } '(' strings ')' {
+    } '(' values ')' {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
         flog("INSERT INTO %s", $3);
         flog_flush();
@@ -220,15 +217,22 @@ ids:
         flog("%s", $3);
     }
     ;
-strings:
+
+values:
+    value
+    |
+    values ',' value
+    ;
+
+value:
+    VINTEGER {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $1 }));
+        flog("%l", $1);
+    }
+    |
     STRING {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));
         flog("%s", $1);
-    }
-    |
-    strings ',' STRING {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
-        flog("%s", $3);
     }
     ;
 
