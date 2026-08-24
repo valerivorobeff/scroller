@@ -42,17 +42,12 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 /* Common tokens */
 %token USER
 %token CATALOG
-%token SCHEMA
-%token TABLE
-%token <str> ID
 %token <str> STRING
 
-/* Header tokens */
-%token HEADER_END
-%token REQUEST_END
-
 /* Body tokens */
+%token <str> ID
 %token CREATE
+%token SCHEMA TABLE
 %token INSERT INTO VALUES
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 %token <integer>VINTEGER
@@ -66,7 +61,7 @@ session:
     ;
 
 query:
-    header REQUEST_END {
+    header '\n' {
         /* @todo: here we should reset header or query memory context
             but at the moment we don't have it, we should make it */
         const char *response = "Status: Empty\n\n";
@@ -75,7 +70,7 @@ query:
         flog_flush();
     }
     |
-    header body REQUEST_END {
+    header body '\n' {
         /* @todo: here we should reset header or query memory context
             but at the moment we don't have it, we should make it */
         const char *response = "Status: Ready\n\n";
@@ -86,7 +81,7 @@ query:
     ;
 
 header:
-    header_exprs HEADER_END {
+    header_exprs '\n' {
         if (session->user == NULL)
             ferr("Parameter 'user' not found in query header");
     }

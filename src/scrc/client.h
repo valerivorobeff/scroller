@@ -37,7 +37,7 @@ typedef struct Client {
  * @param catalog Catalog name
  * @return 0 on success, -1 on error
  */
-int client_create(Client *client, const char *host, int port, 
+int client_create(Client *client, const char *host, int port,
                 const char *user, const char *catalog);
 
 /**

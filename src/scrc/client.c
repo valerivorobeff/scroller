@@ -19,7 +19,7 @@ static char *trim(char *str);
  * @brief Initialize client
  */
 int
-client_create(Client *client, const char *host, int port, 
+client_create(Client *client, const char *host, int port,
                 const char *user, const char *catalog) {
     if (!client || !host || !user) {
         fprintf(stderr, "Error: Invalid parameters\n");
@@ -27,7 +27,7 @@ client_create(Client *client, const char *host, int port,
     }
 
     memset(client, 0, sizeof(Client));
-    
+
     client->host = strdup(host);
     if (!client->host) {
         fprintf(stderr, "Error: Memory allocation failed\n");
@@ -139,7 +139,7 @@ client_send_query(Client *client, const char *query) {
     }
 
     /* Build query with request end marker */
-    len = snprintf(buffer, sizeof(buffer), "%s\n@\n", query);
+    len = snprintf(buffer, sizeof(buffer), "%s\n$$\n", query);
 
     if (send_all(client->sockfd, buffer, len) < 0) {
         fprintf(stderr, "Error: Failed to send query\n");
@@ -247,7 +247,7 @@ client_run_script(Client *client) {
 
     while (fgets(input, sizeof(input), stdin)) {
         line_num++;
-        
+
         /* Remove trailing newline */
         size_t len = strlen(input);
         if (len > 0 && input[len - 1] == '\n') {

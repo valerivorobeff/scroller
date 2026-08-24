@@ -51,7 +51,7 @@ QUOTED          \'(\\.|[^\'])*\'
 
 {SPACE}+                /* eat */
 
-<INITIAL,string>"$$"    BEGIN(query); return HEADER_END;
+<INITIAL,string>"$$\n"  BEGIN(query); return '\n';
 
 <INITIAL>{
     "user"              return USER;
@@ -95,7 +95,7 @@ QUOTED          \'(\\.|[^\'])*\'
     {DQUOTED}           yylval->str = str_unescape(yytext, yyleng, '"'); return ID;
     {QUOTED}            yylval->str = str_unescape(yytext, yyleng, '\''); return STRING;
     ;                   return ';';
-    @                   BEGIN(INITIAL); return REQUEST_END;
+    "$$"                BEGIN(INITIAL); return '\n';
 }
 
 <<EOF>>                 return 0;
