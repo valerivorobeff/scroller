@@ -55,7 +55,8 @@ CORE_LIB	= build/$(BUILD)/obj/core/libcore.a
 # Utils
 #
 
-UTILS			= scr_init scroller
+UTILS			= scr_init scroller scrc
+# Do-Util: Add your new utility's name to the list above
 UTIL_LEX		= $(foreach util,$(UTILS), $(wildcard src/$(util)/*.l))
 UTIL_LEX_SRCS	= $(patsubst src/%.l, build/$(BUILD)/gen/%.l.c, $(UTIL_LEX))
 UTIL_LEX_OBJS	= $(patsubst build/$(BUILD)/gen/%.l.c, build/$(BUILD)/obj/%.l.o, $(UTIL_LEX_SRCS))
@@ -67,8 +68,9 @@ UTIL_OBJS		= $(patsubst src/%.c, build/$(BUILD)/obj/%.o, $(UTIL_SRCS))
 UTIL_BINS		= $(addprefix build/$(BUILD)/bin/, $(UTILS))
 
 # Object files for each utilty
-UTIL_OBJS_scr_init  = $(filter build/$(BUILD)/obj/scr_init/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS) $(UTIL_YACC_OBJS))
+UTIL_OBJS_scr_init  = $(filter build/$(BUILD)/obj/scr_init/%, $(UTIL_OBJS))
 UTIL_OBJS_scroller  = $(filter build/$(BUILD)/obj/scroller/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS) $(UTIL_YACC_OBJS))
+UTIL_OBJS_scrc		 = $(filter build/$(BUILD)/obj/scrc/%, $(UTIL_OBJS))
 # Do-Util: Add your new utility's object files to the list above
 
 #
@@ -163,6 +165,11 @@ build/$(BUILD)/bin/scr_init: $(UTIL_OBJS_scr_init) $(CORE_LIB)
 
 # scroller linkage
 build/$(BUILD)/bin/scroller: $(UTIL_OBJS_scroller) $(CORE_LIB)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $^ -o $@
+
+# scroller linkage
+build/$(BUILD)/bin/scrc: $(UTIL_OBJS_scrc) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 

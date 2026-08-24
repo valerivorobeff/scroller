@@ -57,13 +57,12 @@ QUOTED          \'(\\.|[^\'])*\'
     "user"              return USER;
     "catalog"           return CATALOG;
     ":"                 BEGIN(string); return ':';
-    "$"                 yylval->str = NULL; return '\n';
+    \n                  yylval->str = NULL; return '\n';
 }
 
 <string>{
-    "$"                 BEGIN(INITIAL); yylval->str = NULL; return '\n';
+    \n                  BEGIN(INITIAL); yylval->str = NULL; return '\n';
     {HEADER_VALUE}      yylval->str = trim(sdupl(yytext, yyleng), yyleng); return STRING;
-    \n                  /* eat */
     .                   /* eat */
 }
 
