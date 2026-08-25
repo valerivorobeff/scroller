@@ -55,29 +55,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %%
 
 session:
-   query
-    |
-    query session
-    ;
-
-query:
-    header '\n' {
-        /* @todo: here we should reset header or query memory context
-            but at the moment we don't have it, we should make it */
-        const char *response = "Status: Empty\n\n";
-        send(session->client_fd, response, strlen(response), 0);
-        flog("Status Empty");
-        flog_flush();
-    }
-    |
-    header body '\n' {
-        /* @todo: here we should reset header or query memory context
-            but at the moment we don't have it, we should make it */
-        const char *response = "Status: Ready\n\n";
-        send(session->client_fd, response, strlen(response), 0);
-        flog("Status Ready");
-        flog_flush();
-    }
+    header queries
     ;
 
 header:
@@ -97,6 +75,32 @@ header_expr:
     USER ':' STRING '\n' { session->user = sdup($3); }
     |
     CATALOG ':' STRING '\n' { session->catalog = sdup($3); }
+    ;
+
+queries:
+   query
+    |
+    queries query
+    ;
+
+query:
+    '\n' {
+        /* @todo: here we should reset header or query memory context
+            but at the moment we don't have it, we should make it */
+        const char *response = "Status: Empty\n\n";
+        send(session->client_fd, response, strlen(response), 0);
+        flog("Status Empty");
+        flog_flush();
+    }
+    |
+    body '\n' {
+        /* @todo: here we should reset header or query memory context
+            but at the moment we don't have it, we should make it */
+        const char *response = "Status: Ready\n\n";
+        send(session->client_fd, response, strlen(response), 0);
+        flog("Status Ready");
+        flog_flush();
+    }
     ;
 
 body:

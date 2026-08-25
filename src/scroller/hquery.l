@@ -95,7 +95,7 @@ QUOTED          \'(\\.|[^\'])*\'
     {DQUOTED}           yylval->str = str_unescape(yytext, yyleng, '"'); return ID;
     {QUOTED}            yylval->str = str_unescape(yytext, yyleng, '\''); return STRING;
     ;                   return ';';
-    "$$"                BEGIN(INITIAL); return '\n';
+    "$$"                return '\n';
 }
 
 <<EOF>>                 return 0;

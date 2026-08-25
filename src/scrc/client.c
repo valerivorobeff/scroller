@@ -139,7 +139,7 @@ client_send_query(Client *client, const char *query) {
     }
 
     /* Build query with request end marker */
-    len = snprintf(buffer, sizeof(buffer), "%s\n$$\n", query);
+    len = snprintf(buffer, sizeof(buffer), "%s$$\n", query);
 
     if (send_all(client->sockfd, buffer, len) < 0) {
         fprintf(stderr, "Error: Failed to send query\n");
@@ -165,7 +165,6 @@ client_run_interactive(Client *client) {
     char input[BUFFER_SIZE];
     char response[BUFFER_SIZE];
     int ret;
-    size_t len;
 
     printf("Scroller client (type 'exit' or 'quit' to quit)\n");
 
@@ -186,13 +185,6 @@ client_run_interactive(Client *client) {
                 break;
             }
             break;
-        }
-
-        /* Remove trailing newline */
-        len = strlen(input);
-        if (len > 0 && input[len - 1] == '\n') {
-            input[len - 1] = '\0';
-            len--;
         }
 
         /* Trim whitespace */
