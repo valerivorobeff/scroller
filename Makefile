@@ -30,6 +30,8 @@ else
     CFLAGS += -O2 -DNDEBUG
 endif
 
+BIN_DIR = build/$(BUILD)/bin
+
 #####################
 #                   #
 #       Vars        #
@@ -65,7 +67,7 @@ UTIL_YACC_SRCS	= $(patsubst src/%.y, build/$(BUILD)/gen/%.y.c, $(UTIL_YACC))
 UTIL_YACC_OBJS	= $(patsubst build/$(BUILD)/gen/%.y.c, build/$(BUILD)/obj/%.y.o, $(UTIL_YACC_SRCS))
 UTIL_SRCS		= $(foreach util,$(UTILS), $(wildcard src/$(util)/*.c))
 UTIL_OBJS		= $(patsubst src/%.c, build/$(BUILD)/obj/%.o, $(UTIL_SRCS))
-UTIL_BINS		= $(addprefix build/$(BUILD)/bin/, $(UTILS))
+UTIL_BINS		= $(addprefix $(BIN_DIR)/, $(UTILS))
 
 # Object files for each utilty
 UTIL_OBJS_scr_init  = $(filter build/$(BUILD)/obj/scr_init/%, $(UTIL_OBJS))
@@ -159,17 +161,17 @@ $(CORE_OBJS): build/$(BUILD)/obj/core/%.o: lib/core/src/%.c
 #
 
 # scr_init linkage
-build/$(BUILD)/bin/scr_init: $(UTIL_OBJS_scr_init) $(CORE_LIB)
+$(BIN_DIR)/scr_init: $(UTIL_OBJS_scr_init) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
 # scroller linkage
-build/$(BUILD)/bin/scroller: $(UTIL_OBJS_scroller) $(CORE_LIB)
+$(BIN_DIR)/scroller: $(UTIL_OBJS_scroller) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
 # scroller linkage
-build/$(BUILD)/bin/scrc: $(UTIL_OBJS_scrc) $(CORE_LIB)
+$(BIN_DIR)/scrc: $(UTIL_OBJS_scrc) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
@@ -228,5 +230,9 @@ test: all $(TEST_BINS)
 	done; \
 	echo "✅ All tests passed!"
 
-.PHONY: all clean test
+integration-test: $(BIN_DIR)/scr_init $(BIN_DIR)/scroller $(BIN_DIR)/scrc
+	@echo "Running integration tests..."
+	./test/integration_test.sh
+
+.PHONY: all clean test integration-test
 
