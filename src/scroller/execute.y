@@ -38,7 +38,7 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
-%token INSERT
+%token INSERT SELECT
 %token ARRAY_BEGIN ARRAY_END
 %token <integer> INTEGER
 %token <str> STRING
@@ -69,6 +69,9 @@ cmd:
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN values ARRAY_END {
         insert(session, $2, $3, (const char **)$5, $9);
+    }
+    | SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
+        dml_select(session, $5, $6, (const char **)$3);
     }
     ;
 

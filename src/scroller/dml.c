@@ -68,6 +68,47 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     return ret;
 }
 
+int
+dml_select(Session *session, const char *schema, const char *table, const char **names) {
+    int ret = 0;
+    GidPair gp_relation = find_relation(session, schema, table, false);
+    Grid *header;
+    Grid *data;
+    uint16_t *indices = NULL;
+
+    /* Exit if table header not found */
+    if (gp_relation.header.full == GID_UNDEF) {
+        ferr("Unknown table '%s'", table);
+        return 1;
+    }
+
+    /* Check if table is empty */
+    if (gp_relation.data.full == GID_UNDEF)
+        return 0;
+
+    header = pagecache_put_page(g_pagecache, gp_relation.header.full);
+
+    for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
+        uint16_t column_idx = htable_get_column_idx(header, names[i]);
+
+        if (column_idx == GRID_INVALID_IDX) {
+            ferr("Unknown column '%s'", names[i]);
+            return 1;
+        }
+
+        array_put(indices, column_idx);
+    }
+
+    /* Load table data */
+    data = pagecache_put_page(g_pagecache, gp_relation.data.full);
+
+    for (Titor i = titor_init(header, data); titor_is_valid(i); titor_next(&i)) {
+
+    }
+
+    return ret;
+}
+
 GidPair
 find_relation(Session *session, const char *schema, const char *relation, bool create_if_data_undef) {
     Grid *hrelation = pagecache_put_page(g_pagecache, g_server.system.relation.header.full);
