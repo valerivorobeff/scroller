@@ -17,7 +17,7 @@
  * @param relation relation name
  * @param create_if_data_undef if true creates data grid for relation if it is set to GID_UNDEF
  *        in system relation table (typical for new tables without data)
- * @return GidPair of relation, if relation not found returns gid with header.full = GID_UNDEF and data.full = GID_UNDEF
+ * @return GidPair of relation, if relation not found returns grid with header.full = GID_UNDEF and data.full = GID_UNDEF
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool create_if_data_undef);
 
@@ -69,8 +69,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 }
 
 int
-dml_select(Session *session, const char *schema, const char *table, const char **names) {
-    int ret = 0;
+dml_select(Session *session, const char *schema, const char *table, const char **names, Titor *out) {
     GidPair gp_relation = find_relation(session, schema, table, false);
     Grid *header;
     Grid *data;
@@ -81,10 +80,6 @@ dml_select(Session *session, const char *schema, const char *table, const char *
         ferr("Unknown table '%s'", table);
         return 1;
     }
-
-    /* Check if table is empty */
-    if (gp_relation.data.full == GID_UNDEF)
-        return 0;
 
     header = pagecache_put_page(g_pagecache, gp_relation.header.full);
 
@@ -99,14 +94,18 @@ dml_select(Session *session, const char *schema, const char *table, const char *
         array_put(indices, column_idx);
     }
 
+    /* Check if table is empty */
+    if (gp_relation.data.full == GID_UNDEF) {
+        *out = titor_init(header, NULL);
+        return 0;
+    }
+
     /* Load table data */
     data = pagecache_put_page(g_pagecache, gp_relation.data.full);
 
-    for (Titor i = titor_init(header, data); titor_is_valid(i); titor_next(&i)) {
+    *out = titor_init(header, data);
 
-    }
-
-    return ret;
+    return 0;
 }
 
 GidPair

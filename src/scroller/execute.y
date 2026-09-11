@@ -71,7 +71,15 @@ cmd:
         insert(session, $2, $3, (const char **)$5, $9);
     }
     | SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
-        dml_select(session, $5, $6, (const char **)$3);
+        Titor row;
+        int res = dml_select(session, $5, $6, (const char **)$3, &row);
+        if (res == 0) {
+            for (; titor_is_valid(row); titor_next(&row)) {
+
+            }
+        } else {
+            /* @todo: handle error */
+        }
     }
     ;
 
