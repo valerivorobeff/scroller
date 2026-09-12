@@ -70,7 +70,8 @@ typedef struct Grid {
     uint16_t    rowsz;       /** Size of each individual row in bytes */
     uint16_t    rown;        /** Maximum number of rows that can be stored */
     uint16_t    occupied;    /** Number of currently occupied rows */
-    uint16_t    datasz;      /** For hgrid shows data row size, for dgrid is not used and must be zero */
+    uint16_t    datasz;      /** For hgrid shows data row size without alignment,
+                                     for dgrid is not used and must be zero */
     char        datum[];     /** Flexible array member containing row data */
 } Grid;
 
@@ -196,7 +197,7 @@ uint16_t grid_alloc_row(Grid *grid);
 Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
 
 /**
- * @brief Returns the total row size needed for a data grid.
+ * @brief Returns the total row size needed for a data grid with alignment.
  *
  * @param grid      Pointer to the header grid containing column definitions
  * @return          Total row size in bytes required to store all columns

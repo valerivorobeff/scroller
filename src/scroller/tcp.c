@@ -8,6 +8,7 @@
 #include "flog.h"
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <errno.h>
 
 int tcp_init(void);
@@ -64,6 +65,7 @@ err_socket:
 int
 tcp_run(void) {
     int result = 0;
+    const int opt = 1;
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
     pid_t pid;
@@ -87,6 +89,14 @@ tcp_run(void) {
             }
 
             ferr("Error in accept");
+            result = 1;
+
+            break;
+        }
+
+        /* No delay socket option */
+        if (setsockopt(session.client_fd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt)) < 0) {
+            ferr("Error in setsockopt");
             result = 1;
 
             break;

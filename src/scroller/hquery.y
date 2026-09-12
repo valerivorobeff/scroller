@@ -49,6 +49,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %token CREATE
 %token SCHEMA TABLE
 %token INSERT INTO VALUES
+%token SELECT FROM
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 %token <integer>VINTEGER
 
@@ -162,6 +163,16 @@ cmd:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
         flog("INSERT INTO %s", $3);
         flog_flush();
+    }
+    |
+    SELECT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_SELECT }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
+    } ids {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
+    } FROM ID '.' ID {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $6 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $8 }));
     }
     ;
 

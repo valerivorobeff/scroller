@@ -11,6 +11,7 @@ typedef struct Session Session;
 #include "../../../../src/scroller/bc.h"
 #include "../../../../src/scroller/ddl.h"
 #include "../../../../src/scroller/dml.h"
+#include "../../../../src/scroller/session.h"
 #include "../../../../src/scroller/flog.h"
 void yyerror(Session *session, Bc *bc, void *current, char const *s);
 }
@@ -38,7 +39,7 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
-%token INSERT
+%token INSERT SELECT
 %token ARRAY_BEGIN ARRAY_END
 %token <integer> INTEGER
 %token <str> STRING
@@ -69,6 +70,55 @@ cmd:
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN values ARRAY_END {
         insert(session, $2, $3, (const char **)$5, $9);
+    }
+    | SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
+        Titor row;
+        int res = dml_select(session, $5, $6, (const char **)$3, &row);
+        if (res == 0) {
+            int cmd = 1;
+            size_t sz;
+
+            /* Response header */
+            session_send_header_str(session, "Status", "Ok");
+            session_finish_header(session);
+
+            session_send(session, &cmd, sizeof(cmd)); /* Table header start */
+
+            cmd = 2;
+
+            for (size_t i = 0; ; ++i) {
+                Column *c = htable_get_column(row.header, i);
+                if (c == NULL)
+                    break;
+
+                session_send(session, &cmd, sizeof(cmd)); /* Column start */
+                sz = sizeof(Column);
+                session_send(session, &sz, sizeof(sz)); /* Column size */
+                session_send(session, c, sizeof(Column));
+            }
+
+            cmd = 3;
+            session_send(session, &cmd, sizeof(cmd)); /* Table header finish */
+
+            cmd = 4;
+            session_send(session, &cmd, sizeof(cmd)); /* Table data start */
+
+            sz = titor_get_row_size(row);
+            session_send(session, &sz, sizeof(sz)); /* Row size */
+
+            cmd = 2;
+
+            for (; titor_is_valid(row); titor_next(&row)) {
+                session_send(session, &cmd, sizeof(cmd)); /* Row start */
+                session_send(session, titor_get_row(row), sz);
+            }
+
+            cmd = 3;
+            session_send(session, &cmd, sizeof(cmd)); /* Table data finish */
+            session_flush(session);
+        } else {
+            /* @todo: handle error */
+        }
     }
     ;
 

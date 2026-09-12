@@ -15,11 +15,20 @@
 Session *session_init(Session *session);
 int session_run(Session *session);
 int session_drop(Session *session);
+int session_send(Session *session, const void *buf, size_t len);
+int session_send_header_str(Session *session, const char *name, const char *value);
+int session_send_header_int(Session *session, const char *name, long long int value);
+int session_finish_header(Session *session);
+int session_flush(Session *session);
+static int send_block(int fd, const void *buf, size_t len);
+
 
 Session *
 session_init(Session *session) {
-    memset(session, 0, sizeof(Session));
     session->client_fd = -1;
+    session->user = NULL;
+    session->catalog = NULL;
+    session->send_buf_idx = 0;
 
     return session;
 }
@@ -102,5 +111,123 @@ session_run(Session *session) {
     context_drop(session_context);
 
     return ret;
+}
+
+int
+session_send(Session *session, const void *buf, size_t len) {
+    if (session->send_buf_idx + len >= SENDBUFSZ) {
+        /* data length is more than left buffer size */
+        const size_t head = SENDBUFSZ - session->send_buf_idx;
+        const size_t remaining = len - head;
+        const size_t full_blocks = remaining / SENDBUFSZ;
+        const size_t tail = remaining % SENDBUFSZ;
+
+        /* Buffer has some data already, append the new data to SENDBUFSZ and send */
+        if (session->send_buf_idx > 0) {
+            memcpy(session->send_buf + session->send_buf_idx, buf, head);
+            if (send_block(session->client_fd, session->send_buf, SENDBUFSZ) != 0) {
+                ferr("send() error: %s", strerror(errno));
+                return 1;
+            }
+
+            buf += head;
+        }
+
+        /* Send other data blocks directly without copying */
+        if (full_blocks) {
+            const size_t block_bytes = full_blocks * SENDBUFSZ;
+            if (send_block(session->client_fd, buf, block_bytes) != 0) {
+                ferr("send() error: %s", strerror(errno));
+                return 1;
+            }
+
+            buf += block_bytes;
+        }
+
+        /* Copy the tail into buffer */
+        memcpy(session->send_buf, buf, tail);
+        session->send_buf_idx = tail;
+    } else {
+        /* All the data are less than buffer size, just copy them there */
+        memcpy(session->send_buf + session->send_buf_idx, buf, len);
+        session->send_buf_idx += len;
+    }
+
+    return 0;
+}
+
+int
+session_send_header_str(Session *session, const char *name, const char *value) {
+    int ret;
+    ret = session_send(session, name, strlen(name));
+    if (ret != 0)
+        return ret;
+
+    ret = session_send(session, ": ", 2);
+    if (ret != 0)
+        return ret;
+
+    ret = session_send(session, value, strlen(value));
+    if (ret != 0)
+        return ret;
+
+    return session_send(session, "\n", 1);
+}
+
+int
+session_send_header_int(Session *session, const char *name, long long int value) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%lli", value);
+
+    return session_send_header_str(session, name, buf);
+}
+
+int
+session_finish_header(Session *session) {
+    return session_send(session, "$$\n", 3);
+}
+
+int
+session_flush(Session *session) {
+    if (session->send_buf_idx) {
+        if (send_block(session->client_fd, session->send_buf, session->send_buf_idx) != 0) {
+            ferr("flush error: %s", strerror(errno));
+            return 1;
+        }
+
+        session->send_buf_idx = 0;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Send all data (handles partial sends)
+ * @param fd Socket descriptor
+ * @param buf Data to send
+ * @param len Data length
+ * @return 0 on success, 1 on error
+ */
+static int
+send_block(int fd, const void *buf, size_t len) {
+    size_t total = 0;
+
+    while (total < len) {
+        ssize_t n = send(fd, buf + total, len - total, MSG_NOSIGNAL);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return 1;
+        }
+        if (n == 0) {
+            /* Connection is closed */
+            errno = EPIPE;
+            return 1;
+        }
+        total += n;
+    }
+
+    return 0;
 }
 

@@ -75,6 +75,8 @@ QUOTED          \'(\\.|[^\'])*\'
     "insert"            return INSERT;
     "into"              return INTO;
     "values"            return VALUES;
+    "select"            return SELECT;
+    "from"              return FROM;
     "smallint"          return SMALLINT;
     "integer"           return INTEGER;
     "int"               return INTEGER;

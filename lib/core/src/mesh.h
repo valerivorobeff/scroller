@@ -23,8 +23,10 @@ typedef struct Mitor {
 } Mitor;
 
 #define mitor_init(h, d) (Mitor){ .header = h, .data = d, .row = 0 }
-#define mitor_is_valid(mitor) ((mitor).row < (mitor).data->occupied)
+#define mitor_is_valid(mitor) ((mitor).data && (mitor).row < (mitor).data->occupied)
 void mitor_next(Mitor *mitor);
+#define mitor_get_row(m) grid_get_row(m.data, m.row)
+#define mitor_get_row_size(m) hgrid_get_row_size(m.header)
 #define mitor_get_cell(m, c) grid_get_cell(m.header, m.data, m.row, c)
 #define mitor_get_datum(m, c) grid_get_datum(m.header, m.data, m.row, c)
 #define mitor_put_datum(m, c, datum) grid_put_datum(m.header, m.data, m.row, c, datum)
@@ -71,6 +73,15 @@ Mitor mesh_alloc_row(Grid *header, Grid *data);
  * @note The header grid must have been initialized with row size sizeof(Column).
  */
 Column *hmesh_add_column(Grid *grid, const char *name, Type type, size_t size);
+
+/**
+ * @brief Retrieves a column definition from a header mesh.
+ *
+ * @param grid      Pointer to the header grid
+ * @param n         Column index (0-based)
+ * @return          Pointer to the Column structure at the specified index
+ */
+#define hmesh_get_column(grid, n) hgrid_get_column(grid, n)
 
 #define hmesh_get_column_idx(grid, name) hgrid_get_column_idx(grid, name)
 
