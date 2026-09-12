@@ -78,6 +78,10 @@ cmd:
             int cmd = 1;
             size_t sz;
 
+            /* Response header */
+            session_send_header_str(session, "Status", "Ok");
+            session_finish_header(session);
+
             session_send(session, &cmd, sizeof(cmd)); /* Table header start */
 
             cmd = 2;
