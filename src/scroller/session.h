@@ -53,6 +53,36 @@ int session_drop(Session *session);
 int session_send(Session *session, const char *buf, size_t len);
 
 /**
+ * @brief Sends header to client with value of type const char *
+ * @param session session struct
+ * @param name
+ * @param value
+ * @return 0 - if succeed, error code otherwise
+ */
+int session_send_header_str(Session *session, const char *name, const char *value);
+
+/**
+ * @brief Alias macro session_send_header_str
+ */
+#define session_send_header(s, n, v) session_send_header_str(s, n, v)
+
+/**
+ * @brief Sends header to client with value of type long long int
+ * @param session session struct
+ * @param name
+ * @param value
+ * @return 0 - if succeed, error code otherwise
+ */
+int session_send_header_int(Session *session, const char *name, long long int value);
+
+/**
+ * @brief Sends finish header mark to client
+ * @param session session struct
+ * @return 0 - if succeed, error code otherwise
+ */
+int session_finish_header(Session *session);
+
+/**
  * @brief Flushes buffer to client
  * @param session session struct
  * @return 0 - if succeed, error code otherwise

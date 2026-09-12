@@ -21,6 +21,8 @@
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool create_if_data_undef);
 
+static int dml_send_header(Session *session);
+
 int
 insert(Session *session, const char *schema, const char *table, const char **names, const Datum *values) {
     int ret = 0;
@@ -103,6 +105,11 @@ dml_select(Session *session, const char *schema, const char *table, const char *
     /* Load table data */
     data = pagecache_put_page(g_pagecache, gp_relation.data.full);
 
+    if (dml_send_header(session) != 0) {
+        ferr("Error sending response header");
+        return 1;
+    }
+
     *out = titor_init(header, data);
 
     return 0;
@@ -160,5 +167,16 @@ find_relation(Session *session, const char *schema, const char *relation, bool c
         .header.full = GID_UNDEF,
         .data.full = GID_UNDEF
     };
+}
+
+static int
+dml_send_header(Session *session) {
+    int ret;
+
+    ret = session_send_header_str(session, "Status", "Ok");
+    if (ret !=  0)
+        return ret;
+
+    return session_finish_header(session);
 }
 

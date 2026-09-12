@@ -16,6 +16,9 @@ Session *session_init(Session *session);
 int session_run(Session *session);
 int session_drop(Session *session);
 int session_send(Session *session, const char *buf, size_t len);
+int session_send_header_str(Session *session, const char *name, const char *value);
+int session_send_header_int(Session *session, const char *name, long long int value);
+int session_finish_header(Session *session);
 int session_flush(Session *session);
 static int send_block(int fd, const char *buf, size_t len);
 
@@ -154,6 +157,37 @@ session_send(Session *session, const char *buf, size_t len) {
 }
 
 int
+session_send_header_str(Session *session, const char *name, const char *value) {
+    int ret;
+    ret = session_send(session, name, strlen(name));
+    if (ret != 0)
+        return ret;
+
+    ret = session_send(session, ": ", 2);
+    if (ret != 0)
+        return ret;
+
+    ret = session_send(session, value, strlen(value));
+    if (ret != 0)
+        return ret;
+
+    return session_send(session, "\n", 1);
+}
+
+int
+session_send_header_int(Session *session, const char *name, long long int value) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%lli", value);
+
+    return session_send_header_str(session, name, buf);
+}
+
+int
+session_finish_header(Session *session) {
+    return session_send(session, "$$\n", 3);
+}
+
+int
 session_flush(Session *session) {
     if (session->send_buf_idx) {
         if (send_block(session->client_fd, session->send_buf, session->send_buf_idx) != 0) {
@@ -172,7 +206,7 @@ session_flush(Session *session) {
  * @param fd Socket descriptor
  * @param buf Data to send
  * @param len Data length
- * @return 0 on success, -1 on error
+ * @return 0 on success, 1 on error
  */
 static int
 send_block(int fd, const char *buf, size_t len) {
