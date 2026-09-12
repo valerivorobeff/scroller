@@ -15,12 +15,12 @@
 Session *session_init(Session *session);
 int session_run(Session *session);
 int session_drop(Session *session);
-int session_send(Session *session, const char *buf, size_t len);
+int session_send(Session *session, const void *buf, size_t len);
 int session_send_header_str(Session *session, const char *name, const char *value);
 int session_send_header_int(Session *session, const char *name, long long int value);
 int session_finish_header(Session *session);
 int session_flush(Session *session);
-static int send_block(int fd, const char *buf, size_t len);
+static int send_block(int fd, const void *buf, size_t len);
 
 
 Session *
@@ -114,7 +114,7 @@ session_run(Session *session) {
 }
 
 int
-session_send(Session *session, const char *buf, size_t len) {
+session_send(Session *session, const void *buf, size_t len) {
     if (session->send_buf_idx + len >= SENDBUFSZ) {
         /* data length is more than left buffer size */
         const size_t head = SENDBUFSZ - session->send_buf_idx;
@@ -209,7 +209,7 @@ session_flush(Session *session) {
  * @return 0 on success, 1 on error
  */
 static int
-send_block(int fd, const char *buf, size_t len) {
+send_block(int fd, const void *buf, size_t len) {
     size_t total = 0;
 
     while (total < len) {

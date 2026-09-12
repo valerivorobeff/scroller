@@ -50,7 +50,7 @@ int session_drop(Session *session);
  * @param len buffer length
  * @return 0 - if succeed, error code otherwise
  */
-int session_send(Session *session, const char *buf, size_t len);
+int session_send(Session *session, const void *buf, size_t len);
 
 /**
  * @brief Sends header to client with value of type const char *
