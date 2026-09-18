@@ -32,24 +32,18 @@ static ScrcStatus recv_header(ScrcConnection *conn);
 static ScrcStatus recv_header_line(ScrcConnection *conn, HeaderLine *hl);
 static ScrcStatus recv_row(ScrcConnection *conn, ScrcRow *row);
 static ScrcStatus recv_cmd(ScrcConnection *conn, ScrcCmd *cmd);
-static ScrcStatus recv_block(ScrcConnection *conn, size_t size);
+static ScrcStatus recv_block(ScrcConnection *conn, size_t size, char **p);
 static ScrcStatus recv_refill(ScrcConnection *conn);
 
 ScrcConnection *
 scrc_connect(const char *host, int port, const char *user,
         const char *catalog) {
+    struct sockaddr_in server_addr;
+    struct hostent *host_info;
+
     ScrcConnection *conn = malloc(sizeof(ScrcConnection));
     if (conn == NULL)
         return NULL;
-
-    return scrc_reconnect(conn, host, port, user, catalog);
-}
-
-ScrcConnection *
-scrc_reconnect(ScrcConnection *conn, const char *host, int port,
-        const char *user, const char *catalog) {
-    struct sockaddr_in server_addr;
-    struct hostent *host_info;
 
     memset(conn, 0, sizeof(ScrcConnection));
 
@@ -129,11 +123,11 @@ scrc_reconnect(ScrcConnection *conn, const char *host, int port,
     /* Handshake */
     conn->status = send_header(conn);
     if (conn->status != SCRC_OK)
-        return conn;
+        goto sock;
 
     conn->status = recv_header(conn);
-    if (conn->status == SCRC_OK)
-        conn->status = SCRC_CONNECTED;
+    if (conn->status != SCRC_OK)
+        goto sock;
 
     return conn;
 
@@ -144,8 +138,11 @@ catalog: if (conn->catalog)
              free(conn->catalog);
 user: free(conn->user);
 host: free(conn->host);
-err:  memset(conn, 0, sizeof(ScrcConnection));
+err:
+      ScrcStatus tmp = conn->status;
+      memset(conn, 0, sizeof(ScrcConnection));
       conn->sockfd = -1;
+      conn->status = tmp;
 
     return conn;
 }
@@ -153,10 +150,14 @@ err:  memset(conn, 0, sizeof(ScrcConnection));
 void
 scrc_close(ScrcConnection *conn) {
     if (conn) {
+        if (conn->sockfd >= 0)
+            close(conn->sockfd);
         free(conn->host);
         free(conn->user);
         if (conn->catalog)
             free(conn->catalog);
+        if (conn->columns)
+            free(conn->columns);
         free(conn->rbuf);
         free(conn);
     }
@@ -166,19 +167,29 @@ ScrcStatus
 scrc_query(ScrcConnection *conn, const char *query) {
     static const size_t column_blocksz = 16;
     ScrcCmd cmd;
-    ScrcRow row;
-    ScrcStatus ret = send_query(conn, query);
+    ScrcStatus ret;
+
+    if (conn->status != SCRC_OK)
+        return conn->status;
+
+    if (query == NULL)
+        return SCRC_INCORRECT_PARAM;
+
+    /* Reset columns, we don't free memory but just reuse it */
+    conn->columnsz = 0;
+
+    ret = send_query(conn, query);
 
     if (ret != SCRC_OK)
-        return ret;
+        return conn->status = ret;
 
     ret = recv_header(conn);
     if (ret != SCRC_OK)
-        return ret;
+        return conn->status = ret;
 
     ret = recv_cmd(conn, &cmd);
     if (ret != SCRC_OK)
-        return ret;
+        return conn->status = ret;
 
     /* Tab header */
     switch (cmd) {
@@ -191,6 +202,7 @@ scrc_query(ScrcConnection *conn, const char *query) {
 
     /* Tab columns */
     for (;;) {
+        ScrcRow row;
         ret = recv_row(conn, &row);
         if (ret == SCRC_END) {
             conn->status = SCRC_OK;
@@ -198,21 +210,24 @@ scrc_query(ScrcConnection *conn, const char *query) {
         }
 
         if (ret != SCRC_OK)
-            return ret;
+            return conn->status = ret;
 
-        if (conn->columnsz % column_blocksz == 0) {
-            conn->columns = realloc(conn->columns, conn->columncap += column_blocksz);
-            if (conn->columns == NULL)
+        if (conn->columnsz >= conn->columncap) {
+            const size_t new_cap = conn->columncap + column_blocksz;
+            Column *new_cols = realloc(conn->columns, new_cap * sizeof(Column));
+            if (new_cols == NULL)
                 return conn->status = SCRC_BAD_ALLOC;
+            conn->columns = new_cols;
+            conn->columncap = new_cap;
         }
 
-        memcpy(conn->columns + conn->columnsz++, conn->rbuf, sizeof(Column));
+        memcpy(conn->columns + conn->columnsz++, row, sizeof(Column));
     }
 
     /* Tab data command */
     ret = recv_cmd(conn, &cmd);
     if (ret != SCRC_OK)
-        return ret;
+        return conn->status = ret;
 
     switch (cmd) {
         case SCRC_CMD_TABDATA: break;
@@ -222,12 +237,17 @@ scrc_query(ScrcConnection *conn, const char *query) {
         default: return conn->status = SCRC_UNKNOWN_COMMAND;
     }
 
-    return SCRC_OK;
+    return conn->status = SCRC_OK;
 }
 
 ScrcStatus
 scrc_fetch_row(ScrcConnection *conn, ScrcRow *row) {
-    ScrcStatus ret = recv_row(conn, row);
+    ScrcStatus ret;
+
+    if (row == NULL)
+        return conn->status = SCRC_INCORRECT_PARAM;
+
+    ret = recv_row(conn, row);
 
     if (ret == SCRC_END) {
         *row = NULL;
@@ -236,26 +256,28 @@ scrc_fetch_row(ScrcConnection *conn, ScrcRow *row) {
 
     if (ret != SCRC_OK) {
         *row = NULL;
-        return ret;
+        return conn->status = ret;
     }
 
-    *row = conn->rbuf;
-    return SCRC_OK;
+    return conn->status = SCRC_OK;
 }
 
 ScrcStatus
-scrc_fetch_cell(ScrcConnection *conn, const ScrcRow row, size_t n, ScrcCell **cell) {
+scrc_fetch_cell(ScrcConnection *conn, const ScrcRow row, size_t n, ScrcCell *cell) {
     const Column *c;
 
+    if (row == NULL || cell == NULL)
+        return conn->status = SCRC_INCORRECT_PARAM;
+
     if (n >= conn->columnsz) {
-        *cell = NULL;
-        return SCRC_OUT_OF_RANGE;
+        *cell = (ScrcCell){ .data = NULL, .size = 0 };
+        return conn->status = SCRC_OUT_OF_RANGE;
     }
 
     c = conn->columns + n;
-    **cell = (ScrcCell){ .data = (const char *)row + c->offs, .size = c->size };
+    *cell = (ScrcCell){ .data = (const char *)row + c->offs, .size = c->size };
 
-    return SCRC_OK;
+    return conn->status = SCRC_OK;
 }
 
 static ScrcStatus
@@ -273,7 +295,7 @@ send_header(ScrcConnection *conn) {
     /* Add header end marker */
     len += snprintf(header + len, sizeof(header) - len, "$$\n");
 
-    return conn->status = send_block(conn->sockfd, header, len);
+    return send_block(conn->sockfd, header, len);
 }
 
 static ScrcStatus
@@ -288,7 +310,7 @@ send_query(ScrcConnection *conn, const char *query) {
     /* Build query with request end marker */
     len = snprintf(buffer, sizeof(buffer), "%s$$\n", query);
 
-    return conn->status = send_block(conn->sockfd, buffer, len);
+    return send_block(conn->sockfd, buffer, len);
 }
 
 static ScrcStatus 
@@ -328,20 +350,29 @@ recv_header(ScrcConnection *conn) {
             return ret;
 
         if (hl.name == NULL || *hl.name == '\0')
-            return conn->status = SCRC_PROTOCOL_ERROR;
+            return SCRC_PROTOCOL_ERROR;
 
         /* Check for end of header */
         if (strcmp(hl.name, "$$") == 0) {
             return SCRC_OK;
         } else if (strcmp(hl.name, "Status") == 0) {
-            char *res;
-            int status = strtol(hl.value, &res, 10);
+            char *end;
+            long int status;
+            errno = 0;
 
-            if (res)
-                return conn->status = SCRC_PROTOCOL_ERROR;
+            if (hl.value == NULL)
+                return SCRC_HEADER_ERROR;
+
+            status = strtol(hl.value, &end, 10);
+
+            if (errno == ERANGE)
+                return SCRC_OUT_OF_RANGE;
+
+            if (*end != '\0')
+                return SCRC_PROTOCOL_ERROR;
 
             if (status != 0)
-                return conn->status = status;
+                return status;
         }
         /* Ignore unknown headers */
     }
@@ -349,6 +380,7 @@ recv_header(ScrcConnection *conn) {
 
 /**
  * @brief Read one header line from socket (up to \n)
+ * @note: it edits buffer (replaces ';' and '\n' with '\0')
  *
  * @param conn Connection
  * @param hl HeaderLine structure with found variables
@@ -356,82 +388,90 @@ recv_header(ScrcConnection *conn) {
  */
 static ScrcStatus
 recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
-    for (;;) {
-        char *begin;
-        char *find;
-        bool delim;
+    static const size_t HEADER_MAX = BUFSZ / 2;
+    char *line_begin;
+    char *begin;
+    char *find;
+    bool delim;
+    size_t bufsz = HEADER_MAX;
 
-        ScrcStatus ret = recv_block(conn, 1);
-        if (ret != SCRC_OK)
-            return ret;
+    ScrcStatus ret = recv_block(conn, bufsz, &line_begin);
+    if (ret != SCRC_OK)
+        return ret;
 
-        /* Find ':' in buffer */
-        begin = conn->rbuf + conn->rpos;
-        find = memchr(begin, ':', conn->rlen - conn->rpos);
-        if (find) {
-            *find = '\0';
-            conn->rpos += find - begin + 1;
-            hl->name = begin; /* @todo: trim */
-            begin = conn->rbuf + conn->rpos;
-            delim = true;
-        } else
-            delim = false;
+    begin = line_begin;
 
-        /* Find '\n' in buffer */
-        find = memchr(begin, '\n', conn->rlen - conn->rpos);
-        if (find == NULL)
-            continue;
-
+    /* Find ':' in buffer */
+    find = memchr(begin, ':', HEADER_MAX);
+    if (find) {
         *find = '\0';
-        conn->rpos += find - begin + 1;
-        if (delim)
-            hl->value = begin;
-        else
-            hl->name = begin, hl->value = NULL; /* @todo: trum */
+        hl->name = begin; /* @todo: trim */
+        bufsz -= find + 1 - begin;
+        begin = find + 1;
+        delim = true;
+    } else
+        delim = false;
 
-        return SCRC_OK;
+    /* Find '\n' in buffer */
+    find = memchr(begin, '\n', bufsz);
+    if (find == NULL) {
+        conn->rpos -= HEADER_MAX;
+        return SCRC_HEADER_ERROR;
     }
+
+    *find = '\0';
+    if (delim)
+        hl->value = begin;
+    else
+        hl->name = begin, hl->value = NULL; /* @todo: trum */
+
+    conn->rpos -= HEADER_MAX - (find + 1 - line_begin);
+
+    return SCRC_OK;
 }
 
+/*
+ * WARNING: row must be legal pointer not null
+ */
 static ScrcStatus
 recv_row(ScrcConnection *conn, ScrcRow *row) {
     ScrcCmd cmd;
     size_t size;
+    char *p;
     ScrcStatus ret = recv_cmd(conn, &cmd);
 
     switch (cmd) {
         case SCRC_CMD_ROW: break;
         case SCRC_CMD_TABHEADER:
-        case SCRC_CMD_TABDATA: return conn->status = SCRC_PROTOCOL_ERROR;
-        case SCRC_CMD_END: return conn->status = SCRC_END;
-        default: return conn->status = SCRC_UNKNOWN_COMMAND;
+        case SCRC_CMD_TABDATA: return SCRC_PROTOCOL_ERROR;
+        case SCRC_CMD_END: return SCRC_END;
+        default: return SCRC_UNKNOWN_COMMAND;
     }
 
-    ret = recv_block(conn, sizeof(size_t));
+    ret = recv_block(conn, sizeof(size_t), &p);
     if (ret != SCRC_OK)
         return ret;
 
-    size = *conn->rbuf;
+    memcpy(&size, p, sizeof(size_t));
 
-    if (size != sizeof(Column))
-        return conn->status = SCRC_INCORRECT_COLUMNSZ;
-
-    ret = recv_block(conn, size);
+    ret = recv_block(conn, size, &p);
     if (ret != SCRC_OK)
         return ret;
 
-    *row = conn->rbuf;
+    *row = p;
 
     return SCRC_OK;
 }
 
 static ScrcStatus
 recv_cmd(ScrcConnection *conn, ScrcCmd *cmd) {
-    ScrcStatus ret = recv_block(conn, sizeof(ScrcCmd));
+    char *p;
+
+    ScrcStatus ret = recv_block(conn, sizeof(ScrcCmd), &p);
     if (ret != SCRC_OK)
         return ret;
 
-    *cmd = *(conn->rbuf + conn->rpos);
+    memcpy(cmd, p, sizeof(ScrcCmd));
 
     return SCRC_OK;
 }
@@ -441,37 +481,32 @@ recv_cmd(ScrcConnection *conn, ScrcCmd *cmd) {
  *
  * Uses the connection's buffer. If data is available in buffer,
  * returns pointer to it. Otherwise refills buffer.
+ * WARNING: param p must be legal pointer not null, for performance
+ * reasons function doesn't check it!
  *
  * @param conn Connection
  * @param size Number of bytes to receive
+ * @param pointer to received block
  * @return SCRC_OK on success
  */
 static ScrcStatus
-recv_block(ScrcConnection *conn, size_t size) {
-    size_t total = 0; /* Bytes read */
-
-    while (total < size) {
-        /* How many bytes available in buffer? */
-        const size_t available = conn->rlen - conn->rpos;
-
-        if (available == 0) {
-            /* Refill and retry */
-            ScrcStatus ret = recv_refill(conn);
-            if (ret == SCRC_CONNECTION_CLOSED) {
-                return conn->status = (total == 0) ? SCRC_CONNECTION_CLOSED
-                                    : SCRC_RECV_ERROR;
-            }
-            if (ret != SCRC_OK) {
-                return ret;
-            }
-            continue;
-        }
-
-        /* Copy min(available, size - total) bytes */
-        const size_t chunk = (available < size - total) ? available : size - total;
-        conn->rpos += chunk;
-        total += chunk;
+recv_block(ScrcConnection *conn, size_t size, char **p) {
+    if (size > BUFSZ) {
+        *p = NULL;
+        return SCRC_BUFFER_OVERFLOW;
     }
+
+    /* Ensure we have `size` bytes available */
+    while (conn->rlen - conn->rpos < size) {
+        ScrcStatus ret = recv_refill(conn);
+        if (ret != SCRC_OK) {
+            *p = NULL;
+            return ret;
+        }
+    }
+
+    *p = conn->rbuf + conn->rpos;
+    conn->rpos += size;
 
     return SCRC_OK;
 }
@@ -506,19 +541,21 @@ recv_refill(ScrcConnection *conn) {
     }
 
     /* Read into buffer */
-    const ssize_t n = recv(conn->sockfd, conn->rbuf + conn->rlen, space, 0);
-    if (n < 0) {
-        if (errno == EINTR) {
-            return SCRC_OK;  /* Caller retries */
+    for (;;) {
+        const ssize_t n = recv(conn->sockfd, conn->rbuf + conn->rlen, space, 0);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;  /* Caller retries */
+
+            return SCRC_RECV_ERROR;
         }
-        return conn->status = SCRC_RECV_ERROR;
-    }
-    if (n == 0) {
-        return conn->status = SCRC_CONNECTION_CLOSED;
-    }
+        if (n == 0) {
+            return SCRC_CONNECTION_CLOSED;
+        }
 
-    conn->rlen += n;
+        conn->rlen += n;
 
-    return SCRC_OK;
+        return SCRC_OK;
+    }
 }
 

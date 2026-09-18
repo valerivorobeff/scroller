@@ -48,7 +48,6 @@ typedef struct Column Column;
 
 typedef enum ScrcStatus {
     SCRC_OK = 0,
-    SCRC_CONNECTED,
     SCRC_END,
     SCRC_BAD_ALLOC,
     SCRC_NO_HOST,
@@ -62,8 +61,10 @@ typedef enum ScrcStatus {
     SCRC_SEND_ERROR,
     SCRC_RECV_ERROR,
     SCRC_PROTOCOL_ERROR,
+    SCRC_HEADER_ERROR,
     SCRC_UNKNOWN_COMMAND,
-    SCRC_INCORRECT_COLUMNSZ,
+    SCRC_BUFFER_OVERFLOW,
+    SCRC_INCORRECT_PARAM,
     SCRC_OUT_OF_RANGE
 } ScrcStatus;
 
@@ -102,9 +103,6 @@ typedef struct ScrcCell {
 ScrcConnection *scrc_connect(const char *host, int port, const char *user,
         const char *catalog);
 
-ScrcConnection *scrc_reconnect(ScrcConnection *conn, const char *host,
-        int port, const char *user, const char *catalog);
-
 void scrc_close(ScrcConnection *conn);
 
 ScrcStatus scrc_query(ScrcConnection *conn, const char *query);
@@ -112,7 +110,7 @@ ScrcStatus scrc_query(ScrcConnection *conn, const char *query);
 ScrcStatus scrc_fetch_row(ScrcConnection *conn, ScrcRow *row);
 
 ScrcStatus scrc_fetch_cell(ScrcConnection *conn, const ScrcRow row, size_t n,
-        ScrcCell **cell);
+        ScrcCell *cell);
 
 #endif /* _SCRC_H_ */
 
