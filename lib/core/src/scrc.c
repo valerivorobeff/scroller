@@ -1,3 +1,10 @@
+/**
+ * @file scrc.c
+ * @brief Scroller client library implementation
+ *
+ * @see scrc.h for protocol description and API documentation.
+ */
+
 #include "scrc.h"
 #include "grid.h"
 #include <malloc.h>
@@ -11,17 +18,29 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+/**
+ * @brief Main buffer size (64 KB)
+ */
 #define BUFSZ   65536
-/* RESERVESZ must be >= BUFSZ */
+
+/**
+ * @brief Reserve size for reads without memmove
+ * @note RESERVESZ must be >= BUFSZ
+ */
 #define RESERVESZ BUFSZ
+
+/**
+ * @brief Full buffer size (BUFSZ + RESERVESZ)
+ */
 #define FULLSZ (BUFSZ + RESERVESZ)
 
-/*
- * @brief helper structure to pass header line parameters
+/**
+ * @struct HeaderLine
+ * @brief Parsed header line (name and value)
  */
 typedef struct HeaderLine {
-    char *name;
-    char *value;
+    char *name;     /**< Pointer to name (in buffer) */
+    char *value;    /**< Pointer to value (in buffer), or NULL */
 } HeaderLine;
 
 static ScrcStatus send_header(ScrcConnection *conn);
@@ -35,6 +54,10 @@ static ScrcStatus recv_cmd(ScrcConnection *conn, ScrcCmd *cmd);
 static ScrcStatus recv_block(ScrcConnection *conn, size_t size, char **p);
 static ScrcStatus recv_refill(ScrcConnection *conn);
 
+/**
+ * @brief Connect to server and perform handshake
+ * @see scrc.h for full documentation
+ */
 ScrcConnection *
 scrc_connect(const char *host, int port, const char *user,
         const char *catalog) {
@@ -147,6 +170,10 @@ err:
     return conn;
 }
 
+/**
+ * @brief Close connection and free resources
+ * @see scrc.h for full documentation
+ */
 void
 scrc_close(ScrcConnection *conn) {
     if (conn) {
@@ -163,6 +190,10 @@ scrc_close(ScrcConnection *conn) {
     }
 }
 
+/**
+ * @brief Send query and receive response header
+ * @see scrc.h for full documentation
+ */
 ScrcStatus
 scrc_query(ScrcConnection *conn, const char *query) {
     static const size_t column_blocksz = 16;
@@ -240,6 +271,10 @@ scrc_query(ScrcConnection *conn, const char *query) {
     return conn->status = SCRC_OK;
 }
 
+/**
+ * @brief Fetch next row
+ * @see scrc.h for full documentation
+ */
 ScrcStatus
 scrc_fetch_row(ScrcConnection *conn, ScrcRow *row) {
     ScrcStatus ret;
@@ -262,6 +297,10 @@ scrc_fetch_row(ScrcConnection *conn, ScrcRow *row) {
     return conn->status = SCRC_OK;
 }
 
+/**
+ * @brief Extract cell from row
+ * @see scrc.h for full documentation
+ */
 ScrcStatus
 scrc_fetch_cell(ScrcConnection *conn, const ScrcRow row, size_t n, ScrcCell *cell) {
     const Column *c;
@@ -280,6 +319,16 @@ scrc_fetch_cell(ScrcConnection *conn, const ScrcRow row, size_t n, ScrcCell *cel
     return conn->status = SCRC_OK;
 }
 
+/**
+ * @brief Send header to server
+ *
+ * Builds and sends header with user, optional catalog, and end marker "$$".
+ *
+ * @param conn Connection
+ * @return SCRC_OK on success, SCRC_SEND_ERROR on failure
+ *
+ * @note Called only from scrc_connect()
+ */
 static ScrcStatus
 send_header(ScrcConnection *conn) {
     char header[BUFSZ];
@@ -298,6 +347,17 @@ send_header(ScrcConnection *conn) {
     return send_block(conn->sockfd, header, len);
 }
 
+/**
+ * @brief Send query string to server
+ *
+ * Appends "$$" end marker and sends to server.
+ *
+ * @param conn  Connection
+ * @param query SQL query string
+ * @return      SCRC_OK on success, SCRC_SEND_ERROR on failure
+ *
+ * @note Empty query (NULL or "") is silently ignored (returns SCRC_OK).
+ */
 static ScrcStatus
 send_query(ScrcConnection *conn, const char *query) {
     char buffer[BUFSZ];
@@ -313,7 +373,20 @@ send_query(ScrcConnection *conn, const char *query) {
     return send_block(conn->sockfd, buffer, len);
 }
 
-static ScrcStatus 
+/**
+ * @brief Send all data, handling partial sends
+ *
+ * Loops until all `len` bytes are sent. Handles EINTR.
+ * Uses MSG_NOSIGNAL to avoid SIGPIPE.
+ *
+ * @param sockfd Socket descriptor
+ * @param data   Data to send
+ * @param len    Data length
+ * @return       SCRC_OK on success, SCRC_SEND_ERROR on failure
+ *
+ * @note This function blocks until all data is sent.
+ */
+static ScrcStatus
 send_block(int sockfd, const char *data, size_t len) {
     ssize_t sent = 0;
     ssize_t total = 0;
@@ -335,11 +408,14 @@ send_block(int sockfd, const char *data, size_t len) {
 /**
  * @brief Receive response header
  *
- * Reads lines until "$$\n". Parses name:value pairs.
- * Stores status, column count, etc.
+ * Reads lines until "$$" end marker. Parses "Status: <code>" lines
+ * and returns server status if non-zero. Ignores unknown headers.
  *
  * @param conn Connection
- * @return SCRC_OK on success
+ * @return SCRC_OK on success, error code otherwise
+ *
+ * @note Server status is returned as-is (see ScrcStatus for server range).
+ * @warning Header lines are modified in-place (':' and '\n' replaced with '\0').
  */
 static ScrcStatus
 recv_header(ScrcConnection *conn) {
@@ -379,12 +455,20 @@ recv_header(ScrcConnection *conn) {
 }
 
 /**
- * @brief Read one header line from socket (up to \n)
- * @note: it edits buffer (replaces ';' and '\n' with '\0')
+ * @brief Read one header line from socket (up to '\n')
+ *
+ * Reads up to HEADER_MAX bytes, finds ':' and '\n'. Modifies buffer
+ * in-place: replaces ':' and '\n' with '\0'. Adjusts rpos to point
+ * right after the line.
  *
  * @param conn Connection
- * @param hl HeaderLine structure with found variables
- * @return SCRC_OK on success
+ * @param hl   Output HeaderLine structure
+ * @return     SCRC_OK on success, SCRC_HEADER_ERROR if line too long
+ *
+ * @note The line must fit in HEADER_MAX bytes.
+ * @note hl->name and hl->value point into conn->rbuf. Valid until
+ *       next refill.
+ * @warning On error, rpos is restored to original position.
  */
 static ScrcStatus
 recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
@@ -430,8 +514,19 @@ recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
     return SCRC_OK;
 }
 
-/*
- * WARNING: row must be legal pointer not null
+/**
+ * @brief Receive one row (or column) from server
+ *
+ * Reads command, size, and data. Data pointer is returned in *row.
+ *
+ * @param conn Connection
+ * @param row  Output pointer to row data
+ * @return     SCRC_OK on success, SCRC_END on end of rows,
+ *             error code otherwise
+ *
+ * @pre row must not be NULL (not checked for performance reasons)
+ *
+ * @note The returned row pointer is valid until next refill.
  */
 static ScrcStatus
 recv_row(ScrcConnection *conn, ScrcRow *row) {
@@ -463,6 +558,15 @@ recv_row(ScrcConnection *conn, ScrcRow *row) {
     return SCRC_OK;
 }
 
+/**
+ * @brief Receive binary command from server
+ *
+ * @param conn Connection
+ * @param cmd  Output command
+ * @return     SCRC_OK on success, error code otherwise
+ *
+ * @note Uses memcpy to handle unaligned access.
+ */
 static ScrcStatus
 recv_cmd(ScrcConnection *conn, ScrcCmd *cmd) {
     char *p;
@@ -477,17 +581,21 @@ recv_cmd(ScrcConnection *conn, ScrcCmd *cmd) {
 }
 
 /**
- * @brief Receive al least `size` at most BUFSZ bytes
+ * @brief Receive at least `size` bytes and return pointer to them
  *
- * Uses the connection's buffer. If data is available in buffer,
- * returns pointer to it. Otherwise refills buffer.
- * WARNING: param p must be legal pointer not null, for performance
- * reasons function doesn't check it!
+ * Ensures that `size` bytes are available in the buffer simultaneously.
+ * If not, calls recv_refill() to read more data. Returns pointer to
+ * the beginning of the block in the internal buffer.
  *
  * @param conn Connection
- * @param size Number of bytes to receive
- * @param pointer to received block
- * @return SCRC_OK on success
+ * @param size Number of bytes to receive (must be <= BUFSZ)
+ * @param p    Output pointer to received block
+ * @return     SCRC_OK on success, SCRC_BUFFER_OVERFLOW if size > BUFSZ,
+ *             error code otherwise
+ *
+ * @warning p must not be NULL (not checked for performance reasons).
+ * @note The returned pointer is valid until next refill.
+ * @note Advances rpos by `size`.
  */
 static ScrcStatus
 recv_block(ScrcConnection *conn, size_t size, char **p) {
@@ -515,12 +623,15 @@ recv_block(ScrcConnection *conn, size_t size, char **p) {
  * @brief Refill the receive buffer
  *
  * Reads up to RESERVESZ bytes into the buffer. If the buffer is
- * full (or nearly full), compacts it first by moving valid data
- * to the beginning.
+ * nearly full, compacts it first by moving valid data to the beginning.
  *
  * @param conn Connection
- * @return SCRC_OK on success, SCRC_RECV_ERROR on error,
- *         SCRC_CONNECTION_CLOSED on EOF
+ * @return     SCRC_OK on success,
+ *             SCRC_RECV_ERROR on recv error,
+ *             SCRC_CONNECTION_CLOSED on EOF
+ *
+ * @note Handles EINTR internally.
+ * @note After compaction, rpos is reset to 0 and rlen is set to valid bytes.
  */
 static ScrcStatus
 recv_refill(ScrcConnection *conn) {
