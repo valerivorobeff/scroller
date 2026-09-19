@@ -170,7 +170,7 @@ $(BIN_DIR)/scroller: $(UTIL_OBJS_scroller) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
-# scroller linkage
+# scrc linkage
 $(BIN_DIR)/scrc: $(UTIL_OBJS_scrc) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
