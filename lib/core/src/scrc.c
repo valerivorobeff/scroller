@@ -473,43 +473,43 @@ recv_header(ScrcConnection *conn) {
 static ScrcStatus
 recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
     static const size_t HEADER_MAX = BUFSZ / 2;
-    char *line_begin;
     char *begin;
-    char *find;
-    bool delim;
-    size_t bufsz = HEADER_MAX;
+    bool delim = false;;
+    ScrcStatus ret = recv_block(conn, 1, &begin);
+    size_t len = 1;
 
-    ScrcStatus ret = recv_block(conn, bufsz, &line_begin);
     if (ret != SCRC_OK)
         return ret;
 
-    begin = line_begin;
-
-    /* Find ':' in buffer */
-    find = memchr(begin, ':', HEADER_MAX);
-    if (find) {
-        *find = '\0';
-        hl->name = begin; /* @todo: trim */
-        bufsz -= find + 1 - begin;
-        begin = find + 1;
-        delim = true;
-    } else
-        delim = false;
-
-    /* Find '\n' in buffer */
-    find = memchr(begin, '\n', bufsz);
-    if (find == NULL) {
-        conn->rpos -= HEADER_MAX;
+    if (*begin == ':' || *begin == '\n')
         return SCRC_HEADER_ERROR;
+
+    for (;;) {
+        char *p;
+
+        if (++len >= HEADER_MAX)
+            return SCRC_HEADER_TOO_LARGE;
+
+        ret = recv_block(conn, 1, &p);
+        if (ret != SCRC_OK)
+            return ret;
+
+        /* Find ':' in buffer */
+        if (*p == ':') {
+            *p = '\0';
+            hl->name = begin; /* @todo: trim */
+            begin = p + 1;
+            delim = true;
+        /* Find '\n' in buffer */
+        } else if (*p == '\n') {
+            *p = '\0';
+            if (delim)
+                hl->value = begin;
+            else
+                hl->name = begin, hl->value = NULL; /* @todo: trim */
+            break;
+        }
     }
-
-    *find = '\0';
-    if (delim)
-        hl->value = begin;
-    else
-        hl->name = begin, hl->value = NULL; /* @todo: trum */
-
-    conn->rpos -= HEADER_MAX - (find + 1 - line_begin);
 
     return SCRC_OK;
 }
