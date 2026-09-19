@@ -3,175 +3,27 @@
  * @brief Scroller console client implementation
  */
 
-#include "client.h"
+#include "scrc.h"
 #include "../scroller/server.h"
 #include <ctype.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 #define BUFFER_SIZE 65536
 #define PROMPT "scroller> "
 
 /* Forward declarations of helper functions */
-static int send_all(int sockfd, const char *data, size_t len);
-static int recv_all(int sockfd, char *buffer, size_t size);
 static char *trim(char *str);
-
-/**
- * @brief Initialize client
- */
-int
-client_create(Client *client, const char *host, int port,
-                const char *user, const char *catalog) {
-    if (!client || !host || !user) {
-        fprintf(stderr, "Error: Invalid parameters\n");
-        return -1;
-    }
-
-    memset(client, 0, sizeof(Client));
-
-    client->host = strdup(host);
-    if (!client->host) {
-        fprintf(stderr, "Error: Memory allocation failed\n");
-        return -1;
-    }
-
-    client->port = port;
-    client->user = strdup(user);
-    if (!client->user) {
-        fprintf(stderr, "Error: Memory allocation failed\n");
-        free(client->host);
-        return -1;
-    }
-
-    if (catalog) {
-        client->catalog = strdup(catalog);
-        if (!client->catalog) {
-            fprintf(stderr, "Error: Memory allocation failed\n");
-            free(client->host);
-            free(client->user);
-            return -1;
-        }
-    }
-
-    client->sockfd = -1;
-    client->interactive = isatty(STDIN_FILENO);
-
-    return 0;
-}
-
-/**
- * @brief Connect to server
- */
-int
-client_connect(Client *client) {
-    struct sockaddr_in server_addr;
-    struct hostent *host_info;
-
-    /* Create socket */
-    client->sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (client->sockfd < 0) {
-        perror("socket");
-        return -1;
-    }
-
-    /* Resolve hostname */
-    host_info = gethostbyname(client->host);
-    if (!host_info) {
-        fprintf(stderr, "Error: Unknown host '%s'\n", client->host);
-        close(client->sockfd);
-        client->sockfd = -1;
-        return -1;
-    }
-
-    /* Set up server address */
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(client->port);
-    memcpy(&server_addr.sin_addr, host_info->h_addr, host_info->h_length);
-
-    /* Connect to server */
-    if (connect(client->sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("connect");
-        close(client->sockfd);
-        client->sockfd = -1;
-        return -1;
-    }
-
-    printf("Connected to %s:%d\n", client->host, client->port);
-    return 0;
-}
-
-/**
- * @brief Send header (user and catalog) to server
- */
-int
-client_send_header(Client *client) {
-    char header[BUFFER_SIZE];
-    int len = 0;
-
-    /* Build header: user: <username>\ncatalog: <catalog>\n */
-    len += snprintf(header + len, sizeof(header) - len, "user: %s\n", client->user);
-
-    if (client->catalog) {
-        len += snprintf(header + len, sizeof(header) - len, "catalog: %s\n", client->catalog);
-    }
-
-    /* Add header end marker */
-    len += snprintf(header + len, sizeof(header) - len, "$$\n");
-
-    if (send_all(client->sockfd, header, len) < 0) {
-        fprintf(stderr, "Error: Failed to send header\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-/**
- * @brief Send query to server
- */
-int
-client_send_query(Client *client, const char *query) {
-    char buffer[BUFFER_SIZE];
-    int len;
-
-    if (!query || !*query) {
-        return 0;
-    }
-
-    /* Build query with request end marker */
-    len = snprintf(buffer, sizeof(buffer), "%s$$\n", query);
-
-    if (send_all(client->sockfd, buffer, len) < 0) {
-        fprintf(stderr, "Error: Failed to send query\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-/**
- * @brief Receive response from server
- */
-int
-client_receive_response(Client *client, char *response, size_t size) {
-    return recv_all(client->sockfd, response, size);
-}
 
 /**
  * @brief Run interactive mode
  */
 int
-client_run_interactive(Client *client) {
+client_run_interactive(ScrcConnection *conn) {
     char input[BUFFER_SIZE];
-    char response[BUFFER_SIZE];
-    int ret;
 
     printf("Scroller client (type 'exit' or 'quit' to quit)\n");
-
-    /* Send header first */
-    if (client_send_header(client) < 0) {
-        return -1;
-    }
 
     while (1) {
         /* Print prompt */
@@ -201,20 +53,14 @@ client_run_interactive(Client *client) {
         }
 
         /* Send query */
-        if (client_send_query(client, cmd) < 0) {
-            break;
+        if (scrc_query(conn, input) != SCRC_OK) {
+            fprintf(stderr, "Error sending query at line, %s\n", scrc_error(conn));
+            return -1;
+        } else {
+            printf("Ok\n");
         }
 
         /* Receive response */
-        ret = client_receive_response(client, response, sizeof(response));
-        if (ret < 0) {
-            break;
-        }
-
-        /* Print response */
-        if (ret > 0) {
-            printf("%s", response);
-        }
     }
 
     return 0;
@@ -224,18 +70,11 @@ client_run_interactive(Client *client) {
  * @brief Run script mode (read from stdin)
  */
 int
-client_run_script(Client *client) {
+client_run_script(ScrcConnection *conn) {
     char input[BUFFER_SIZE];
-    char response[BUFFER_SIZE];
     char query[BUFFER_SIZE] = "";
-    int ret;
     int line_num = 0;
     int in_multiline = 0;
-
-    /* Send header first */
-    if (client_send_header(client) < 0) {
-        return -1;
-    }
 
     while (fgets(input, sizeof(input), stdin)) {
         line_num++;
@@ -281,42 +120,19 @@ client_run_script(Client *client) {
         }
 
         /* Send query */
-        if (client_send_query(client, query) < 0) {
-            fprintf(stderr, "Error sending query at line %d\n", line_num);
+        if (scrc_query(conn, query) != SCRC_OK) {
+            fprintf(stderr, "Error sending query at line %d, %s\n", line_num, scrc_error(conn));
             return -1;
+        } else {
+            printf("Ok\n");
         }
 
         /* Receive response */
-        ret = client_receive_response(client, response, sizeof(response));
-        if (ret < 0) {
-            fprintf(stderr, "Error receiving response at line %d\n", line_num);
-            return -1;
-        }
-
-        /* Print response */
-        if (ret > 0) {
-            printf("%s", response);
-        }
 
         query[0] = '\0';
     }
 
     return 0;
-}
-
-/**
- * @brief Close client connection
- */
-void
-client_free(Client *client) {
-    if (client->sockfd >= 0) {
-        close(client->sockfd);
-        client->sockfd = -1;
-    }
-
-    free(client->host);
-    free(client->user);
-    free(client->catalog);
 }
 
 /**
@@ -342,7 +158,7 @@ print_usage(const char *program) {
  */
 int
 main(int argc, char **argv) {
-    Client client;
+    ScrcConnection *conn;
     int port = DEFAULT_PORT;
     const char *host = "localhost";
     const char *user = NULL;
@@ -380,93 +196,30 @@ main(int argc, char **argv) {
     }
 
     /* Initialize client */
-    if (client_create(&client, host, port, user, catalog) < 0) {
+    conn = scrc_connect(host, port, user, catalog);
+    if (conn == NULL) {
+        perror("Cannot create socket");
         return 1;
+    } else if (conn->status != SCRC_OK) {
+        perror(scrc_error(conn));
+        return conn->status;
     }
 
     /* Redirect stdin if file specified */
     if (file) {
         if (freopen(file, "r", stdin) == NULL) {
-            perror("freopen");
-            client_free(&client);
+            perror("error freopen");
+            scrc_close(conn);
             return 1;
         }
-        client.interactive = 0;
-    }
-
-    /* Connect to server */
-    if (client_connect(&client) < 0) {
-        client_free(&client);
-        return 1;
-    }
-
-    /* Run client */
-    if (client.interactive) {
-        ret = client_run_interactive(&client);
-    } else {
-        ret = client_run_script(&client);
-    }
+        ret = client_run_script(conn);
+    } else
+        ret = client_run_interactive(conn);
 
     /* Clean up */
-    client_free(&client);
+    scrc_close(conn);
 
     return ret;
-}
-
-/**
- * @brief Send all data (wrapper for send)
- */
-static int
-send_all(int sockfd, const char *data, size_t len) {
-    ssize_t sent = 0;
-    ssize_t total = 0;
-
-    while (total < (ssize_t)len) {
-        sent = send(sockfd, data + total, len - total, MSG_NOSIGNAL);
-        if (sent < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            perror("send");
-            return -1;
-        }
-        total += sent;
-    }
-
-    return 0;
-}
-
-/**
- * @brief Receive all data until server closes or buffer full
- */
-static int
-recv_all(int sockfd, char *buffer, size_t size) {
-    ssize_t received;
-    ssize_t total = 0;
-
-    while (total < (ssize_t)(size - 1)) {
-        received = recv(sockfd, buffer + total, size - 1 - total, 0);
-        if (received < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            perror("recv");
-            return -1;
-        }
-        if (received == 0) {
-            /* Server closed connection */
-            break;
-        }
-        total += received;
-
-        /* Check if we have a complete response (ends with \n\n) */
-        if (total >= 2 && buffer[total - 1] == '\n' && buffer[total - 2] == '\n') {
-            break;
-        }
-    }
-
-    buffer[total] = '\0';
-    return total;
 }
 
 /**

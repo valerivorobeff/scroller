@@ -83,10 +83,7 @@ scrc_connect(const char *host, int port, const char *user,
         }
     }
 
-    if (!port) {
-        conn->status = SCRC_NO_PORT;
-        goto host;
-    } else if (port < 0 || port > UINT16_MAX) {
+    if (port < 0 || port > UINT16_MAX) {
         conn->status = SCRC_INCORRECT_PORT;
         goto host;
     } else
@@ -188,6 +185,36 @@ scrc_close(ScrcConnection *conn) {
         free(conn->rbuf);
         free(conn);
     }
+}
+
+const char *
+scrc_error(ScrcConnection *conn) {
+    if (conn == NULL)
+        return NULL;
+
+    switch (conn->status) {
+        case SCRC_OK:                   return "";
+        case SCRC_END:                  return "";
+        case SCRC_BAD_ALLOC:            return "Bad alloc";
+        case SCRC_NO_HOST:              return "No host";
+        case SCRC_UNKNOWN_HOST:         return "Unknown host";
+        case SCRC_INCORRECT_PORT:       return "Incorrect port";
+        case SCRC_NO_USER:              return "No user";
+        case SCRC_SOCKET_ERROR:         return "Socket error";
+        case SCRC_CONNECTION_ERROR:     return "Connection error";
+        case SCRC_CONNECTION_CLOSED:    return "Connection closed";
+        case SCRC_SEND_ERROR:           return "Send error";
+        case SCRC_RECV_ERROR:           return "Receive error";
+        case SCRC_PROTOCOL_ERROR:       return "Protocol error";
+        case SCRC_HEADER_ERROR:         return "Header error";
+        case SCRC_HEADER_TOO_LARGE:     return "Header too large";
+        case SCRC_UNKNOWN_COMMAND:      return "Unknown command";
+        case SCRC_BUFFER_OVERFLOW:      return "Buffer overflow";
+        case SCRC_INCORRECT_PARAM:      return "Incorrect param";
+        case SCRC_OUT_OF_RANGE:         return "Out of range";
+    }
+
+    return "Unknown error";
 }
 
 /**
@@ -474,7 +501,7 @@ static ScrcStatus
 recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
     static const size_t HEADER_MAX = BUFSZ / 2;
     char *begin;
-    bool delim = false;;
+    bool delim = false;
     ScrcStatus ret = recv_block(conn, 1, &begin);
     size_t len = 1;
 

@@ -61,8 +61,11 @@ session:
 
 header:
     header_exprs '\n' {
+        const char *response = "Status: 0\n$$\n";
         if (session->user == NULL)
             ferr("Parameter 'user' not found in query header");
+
+        send(session->client_fd, response, strlen(response), 0);
     }
     ;
 

@@ -62,7 +62,6 @@ typedef enum ScrcStatus {
     SCRC_BAD_ALLOC,
     SCRC_NO_HOST,
     SCRC_UNKNOWN_HOST,
-    SCRC_NO_PORT,
     SCRC_INCORRECT_PORT,
     SCRC_NO_USER,
     SCRC_SOCKET_ERROR,
@@ -179,6 +178,14 @@ ScrcConnection *scrc_connect(const char *host, int port, const char *user,
  */
 void scrc_close(ScrcConnection *conn);
 
+/**
+ * @brief Returns status description of connection status
+ *
+ * @param conn Pointer to connection (can be NULL, in which case NULL is returned)
+ * @return c-string description of connection status
+ */
+const char *scrc_error(ScrcConnection *conn);
+    
 /**
  * @brief Send query to server and receive response header
  *
