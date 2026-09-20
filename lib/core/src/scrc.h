@@ -57,6 +57,8 @@ typedef struct Column Column;
  * Server errors: 100..199 (passed through from server)
  */
 typedef enum ScrcStatus {
+
+    /* Client errors */
     SCRC_OK = 0,
     SCRC_END,
     SCRC_BAD_ALLOC,
@@ -75,7 +77,16 @@ typedef enum ScrcStatus {
     SCRC_UNKNOWN_COMMAND,
     SCRC_BUFFER_OVERFLOW,
     SCRC_INCORRECT_PARAM,
-    SCRC_OUT_OF_RANGE
+    SCRC_OUT_OF_RANGE,
+
+    /* Server errors */
+    SCRS_OK = 0,
+    SCRS_NO_USER = 101,
+    SCRS_PARSER_ERROR,
+    SCRS_PARSER_MEMORY_EXHAUSTION,
+    SCRS_UNKNOWN_PARSER_ERROR,
+    SCRS_SEND_ERROR,
+    SCRS_SESSION_CLOSED
 } ScrcStatus;
 
 /**

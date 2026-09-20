@@ -193,25 +193,32 @@ scrc_error(ScrcConnection *conn) {
         return NULL;
 
     switch (conn->status) {
-        case SCRC_OK:                   return "";
-        case SCRC_END:                  return "";
-        case SCRC_BAD_ALLOC:            return "Bad alloc";
-        case SCRC_NO_HOST:              return "No host";
-        case SCRC_UNKNOWN_HOST:         return "Unknown host";
-        case SCRC_INCORRECT_PORT:       return "Incorrect port";
-        case SCRC_NO_USER:              return "No user";
-        case SCRC_SOCKET_ERROR:         return "Socket error";
-        case SCRC_CONNECTION_ERROR:     return "Connection error";
-        case SCRC_CONNECTION_CLOSED:    return "Connection closed";
-        case SCRC_SEND_ERROR:           return "Send error";
-        case SCRC_RECV_ERROR:           return "Receive error";
-        case SCRC_PROTOCOL_ERROR:       return "Protocol error";
-        case SCRC_HEADER_ERROR:         return "Header error";
-        case SCRC_HEADER_TOO_LARGE:     return "Header too large";
-        case SCRC_UNKNOWN_COMMAND:      return "Unknown command";
-        case SCRC_BUFFER_OVERFLOW:      return "Buffer overflow";
-        case SCRC_INCORRECT_PARAM:      return "Incorrect param";
-        case SCRC_OUT_OF_RANGE:         return "Out of range";
+        case SCRC_OK:                       return "";
+        case SCRC_END:                      return "";
+        case SCRC_BAD_ALLOC:                return "Bad alloc";
+        case SCRC_NO_HOST:                  return "No host";
+        case SCRC_UNKNOWN_HOST:             return "Unknown host";
+        case SCRC_INCORRECT_PORT:           return "Incorrect port";
+        case SCRC_NO_USER:                  return "No user";
+        case SCRC_SOCKET_ERROR:             return "Socket error";
+        case SCRC_CONNECTION_ERROR:         return "Connection error";
+        case SCRC_CONNECTION_CLOSED:        return "Server closed connection";
+        case SCRC_SEND_ERROR:               return "Client send error";
+        case SCRC_RECV_ERROR:               return "Client receive error";
+        case SCRC_PROTOCOL_ERROR:           return "Protocol error";
+        case SCRC_HEADER_ERROR:             return "Header error";
+        case SCRC_HEADER_TOO_LARGE:         return "Header too large";
+        case SCRC_UNKNOWN_COMMAND:          return "Unknown command";
+        case SCRC_BUFFER_OVERFLOW:          return "Buffer overflow";
+        case SCRC_INCORRECT_PARAM:          return "Incorrect param";
+        case SCRC_OUT_OF_RANGE:             return "Out of range";
+
+        case SCRS_NO_USER:                  return "No user";
+        case SCRS_PARSER_ERROR:             return "Parser error";
+        case SCRS_PARSER_MEMORY_EXHAUSTION: return "Parser memory exhaustion";
+        case SCRS_UNKNOWN_PARSER_ERROR:     return "Unknown parser error";
+        case SCRS_SEND_ERROR:               return "Server send error";
+        case SCRS_SESSION_CLOSED:           return "Client closed connection";
     }
 
     return "Unknown error";
