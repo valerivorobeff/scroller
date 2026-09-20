@@ -9,9 +9,8 @@
 #include "grid.h"
 #include <malloc.h>
 #include <string.h>
-#include <stdint.h>
+#include <ctype.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/socket.h>
@@ -53,6 +52,7 @@ static ScrcStatus recv_row(ScrcConnection *conn, ScrcRow *row);
 static ScrcStatus recv_cmd(ScrcConnection *conn, ScrcCmd *cmd);
 static ScrcStatus recv_block(ScrcConnection *conn, size_t size, char **p);
 static ScrcStatus recv_refill(ScrcConnection *conn);
+static char *trim(char *src);
 
 /**
  * @brief Connect to server and perform handshake
@@ -219,6 +219,8 @@ scrc_error(ScrcConnection *conn) {
         case SCRS_UNKNOWN_PARSER_ERROR:     return "Unknown parser error";
         case SCRS_SEND_ERROR:               return "Server send error";
         case SCRS_SESSION_CLOSED:           return "Client closed connection";
+        case SCRS_UNKNOWN_RELATION:         return "Unknown relation";
+        case SCRS_UNKNOWN_COLUMN:           return "Unknown column";
     }
 
     return "Unknown error";
@@ -251,6 +253,9 @@ scrc_query(ScrcConnection *conn, const char *query) {
     ret = recv_header(conn);
     if (ret != SCRC_OK)
         return conn->status = ret;
+
+    if (conn->body == false)
+        return ret;
 
     ret = recv_cmd(conn, &cmd);
     if (ret != SCRC_OK)
@@ -315,6 +320,9 @@ scrc_fetch_row(ScrcConnection *conn, ScrcRow *row) {
 
     if (row == NULL)
         return conn->status = SCRC_INCORRECT_PARAM;
+
+    if (conn->body == false)
+        return conn->status = SCRC_OK;
 
     ret = recv_row(conn, row);
 
@@ -453,6 +461,8 @@ send_block(int sockfd, const char *data, size_t len) {
  */
 static ScrcStatus
 recv_header(ScrcConnection *conn) {
+    conn->body = false;
+
     for (;;) {
         HeaderLine hl;
         ScrcStatus ret = recv_header_line(conn, &hl);
@@ -483,6 +493,17 @@ recv_header(ScrcConnection *conn) {
 
             if (status != 0)
                 return status;
+        } else if (strcmp(hl.name, "Body") == 0) {
+            if (hl.value == NULL)
+                return SCRC_HEADER_ERROR;
+
+            if (strcmp(hl.value, "Yes") == 0) {
+                conn->body = true;
+            } else if (strcmp(hl.value, "No") == 0) {
+
+            } else {
+                return SCRC_PROTOCOL_ERROR;
+            }
         }
         /* Ignore unknown headers */
     }
@@ -531,16 +552,16 @@ recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
         /* Find ':' in buffer */
         if (*p == ':') {
             *p = '\0';
-            hl->name = begin; /* @todo: trim */
+            hl->name = trim(begin);
             begin = p + 1;
             delim = true;
         /* Find '\n' in buffer */
         } else if (*p == '\n') {
             *p = '\0';
             if (delim)
-                hl->value = begin;
+                hl->value = trim(begin);
             else
-                hl->name = begin, hl->value = NULL; /* @todo: trim */
+                hl->name = trim(begin), hl->value = NULL;
             break;
         }
     }
@@ -702,5 +723,46 @@ recv_refill(ScrcConnection *conn) {
 
         return SCRC_OK;
     }
+}
+
+/**
+ * @brief Trims line
+ *
+ * Trims spaces in beginning and end of line. It considers end of line
+ * '\n' or '\0' characters
+ *
+ * @note it edits line
+ *
+ * @param src Socuse string
+ * @return Edited string
+ */
+static char *
+trim(char *src) {
+    char *c;
+
+    if (src == NULL || *src == '\0')
+        return src;
+
+    /* Ignore beginning spaces */
+    while (*src && isspace(*src))
+        ++src;
+
+    c = src;
+
+    /* Roll till the end of line */
+    while (*c && *c != '\n')
+        ++c;
+
+    /* The final character */
+    --c;
+
+    /* Roll till the first not space character */
+    while (c != src && isspace(*c))
+        --c;
+
+    /* Ignore ending spaces */
+    *(c + 1) = '\0';
+
+    return src;
 }
 

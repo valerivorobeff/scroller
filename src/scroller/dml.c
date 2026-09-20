@@ -21,9 +21,9 @@
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool create_if_data_undef);
 
-int
+ScrcStatus
 insert(Session *session, const char *schema, const char *table, const char **names, const Datum *values) {
-    int ret = 0;
+    ScrcStatus ret = SCRS_OK;
     GidPair gp_relation = find_relation(session, schema, table, true);
     Grid *header;
     Grid *data;
@@ -34,8 +34,8 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 
     /* Exit if table header not found */
     if (gp_relation.header.full == GID_UNDEF) {
-        ferr("Unknown table '%s'", table);
-        return 1;
+        ferr("Unknown relation '%s'", table);
+        return SCRS_UNKNOWN_RELATION;
     }
 
     assert(gp_relation.data.full != GID_UNDEF);
@@ -47,7 +47,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 
         if (column_idx == GRID_INVALID_IDX) {
             ferr("Unknown column '%s'", names[i]);
-            return 1;
+            return SCRS_UNKNOWN_COLUMN;
         }
 
         array_put(indices, column_idx);
@@ -68,7 +68,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     return ret;
 }
 
-int
+ScrcStatus
 dml_select(Session *session, const char *schema, const char *table, const char **names, Titor *out) {
     GidPair gp_relation = find_relation(session, schema, table, false);
     Grid *header;
@@ -77,8 +77,8 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
     /* Exit if table header not found */
     if (gp_relation.header.full == GID_UNDEF) {
-        ferr("Unknown table '%s'", table);
-        return 1;
+        ferr("Unknown relation '%s'", table);
+        return SCRS_UNKNOWN_RELATION;
     }
 
     header = pagecache_put_page(g_pagecache, gp_relation.header.full);
@@ -88,7 +88,7 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
         if (column_idx == GRID_INVALID_IDX) {
             ferr("Unknown column '%s'", names[i]);
-            return 1;
+            return SCRS_UNKNOWN_COLUMN;
         }
 
         array_put(indices, column_idx);
@@ -97,7 +97,7 @@ dml_select(Session *session, const char *schema, const char *table, const char *
     /* Check if table is empty */
     if (gp_relation.data.full == GID_UNDEF) {
         *out = titor_init(header, NULL);
-        return 0;
+        return SCRS_OK;
     }
 
     /* Load table data */
@@ -105,7 +105,7 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
     *out = titor_init(header, data);
 
-    return 0;
+    return SCRS_OK;
 }
 
 GidPair

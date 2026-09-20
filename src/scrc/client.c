@@ -54,13 +54,30 @@ client_run_interactive(ScrcConnection *conn) {
 
         /* Send query */
         if (scrc_query(conn, input) != SCRC_OK) {
-            fprintf(stderr, "Error sending query at line, %s\n", scrc_error(conn));
+            fprintf(stderr, "Error sending query: %s\n", scrc_error(conn));
             return -1;
         } else {
-            printf("Ok\n");
-        }
+            /* Receive response */
 
-        /* Receive response */
+            size_t cnt = 0;
+            ScrcRow row;
+            ScrcStatus status;
+
+            while ((status = scrc_fetch_row(conn, &row)) == SCRC_OK && row != NULL) {
+                ScrcCell cell;
+
+                for (size_t i = 0; i < conn->columnsz; i++) {
+                    scrc_fetch_cell(conn, row, i, &cell);
+                }
+
+                ++cnt;
+            }
+
+            if (status != SCRC_OK)
+                fprintf(stderr, "Error receiving response: %s\n", scrc_error(conn));
+            else
+                printf("%li lines received\n", cnt);
+        }
     }
 
     return 0;
@@ -121,7 +138,7 @@ client_run_script(ScrcConnection *conn) {
 
         /* Send query */
         if (scrc_query(conn, query) != SCRC_OK) {
-            fprintf(stderr, "Error sending query at line %d, %s\n", line_num, scrc_error(conn));
+            fprintf(stderr, "Error sending query at line %d: %s\n", line_num, scrc_error(conn));
             return -1;
         } else {
             printf("Ok\n");

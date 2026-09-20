@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * @file scrc.h
@@ -42,9 +43,7 @@
  *              row binary      size mentioned above - next row binary data
  *          ....
  *      SCRC_CMD_END            ScrcCmd              - table data finish
- * 2.3. Response end
- *      SCRC_CMD_END            ScrcCmd              - response end
- *
+ * -----------------------------------------------------------------------------
  */
 
 typedef struct Column Column;
@@ -86,7 +85,9 @@ typedef enum ScrcStatus {
     SCRS_PARSER_MEMORY_EXHAUSTION,
     SCRS_UNKNOWN_PARSER_ERROR,
     SCRS_SEND_ERROR,
-    SCRS_SESSION_CLOSED
+    SCRS_SESSION_CLOSED,
+    SCRS_UNKNOWN_RELATION,
+    SCRS_UNKNOWN_COLUMN
 } ScrcStatus;
 
 /**
@@ -123,6 +124,8 @@ typedef struct ScrcConnection {
     char   *rbuf;       /**< Receive buffer (FULLSZ bytes) */
     size_t  rlen;       /**< Valid bytes in buffer */
     size_t  rpos;       /**< Read position in buffer */
+
+    bool body;          /**< Response contains body */
 } ScrcConnection;
 
 /**

@@ -100,7 +100,6 @@ query:
             but at the moment we don't have it, we should make it */
         /* @todo: log query body */
         flog("query received");
-        session_send_status(session, SCRS_OK);
     }
     ;
 
@@ -256,6 +255,6 @@ yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd
     (void)session;
     (void)query;
     (void)cmd;
-    ferr("%s\n", s);
+    ferr("y1 parser error: %s\n", s);
 }
 

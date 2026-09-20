@@ -70,7 +70,7 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
 Row
 grid_get_row(Grid *grid, uint16_t n) {
     assert(n < grid->rown);
-    return grid->datum + grid->rowsz * n;
+    return n < grid->occupied ? grid->datum + grid->rowsz * n : NULL;
 }
 
 Cell

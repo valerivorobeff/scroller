@@ -118,7 +118,7 @@ tcp_run(void) {
 
         if (pid == 0) {
             /* Worker process */
-            close(g_server.server_fd);  /* Close a copy of server process */
+            close(g_server.server_fd);  /* Close a copy of server socket */
             g_server.server_fd = -1;    /* Undefine server_fd */
             result = session_run(&session);
             session_drop(&session);
