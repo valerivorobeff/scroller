@@ -15,12 +15,12 @@
 Session *session_init(Session *session);
 int session_run(Session *session);
 int session_drop(Session *session);
-int session_send(Session *session, const void *buf, size_t len);
-int session_send_header_str(Session *session, const char *name, const char *value);
-int session_send_header_int(Session *session, const char *name, long long int value);
-int session_finish_header(Session *session);
-int session_flush(Session *session);
-static int send_block(int fd, const void *buf, size_t len);
+ScrcStatus session_send(Session *session, const void *buf, size_t len);
+ScrcStatus session_send_header_str(Session *session, const char *name, const char *value);
+ScrcStatus session_send_header_int(Session *session, const char *name, long long int value);
+ScrcStatus session_finish_header(Session *session);
+ScrcStatus session_flush(Session *session);
+static ScrcStatus send_block(int fd, const void *buf, size_t len);
 
 
 Session *
@@ -86,23 +86,23 @@ session_run(Session *session) {
 
     switch(ret) {
         case 0:
-            flog("Query parsed successfully");
-            send(client_fd, "Status: Session finished!\n\n", 27, 0);
+            flog("Session finished successfully");
+            session_send_status(session, SCRS_OK);
             break;
 
         case 1:
             ferr("Parser error");
-            send(client_fd, "Status: Parse error\n\n", 21, 0);
+            session_send_status(session, SCRS_PARSER_ERROR);
             break;
 
         case 2:
             ferr("Parser memory exhaustion");
-            send(client_fd, "Status: Memory error\n\n", 22, 0);
+            session_send_status(session, SCRS_PARSER_MEMORY_EXHAUSTION);
             break;
 
         default:
             ferr("Unknown parser error code: %i", ret);
-            send(client_fd, "Status: Unknown error\n\n", 23, 0);
+            session_send_status(session, SCRS_UNKNOWN_PARSER_ERROR);
     }
 
     cmd_drop(&cmd);
@@ -113,7 +113,7 @@ session_run(Session *session) {
     return ret;
 }
 
-int
+ScrcStatus
 session_send(Session *session, const void *buf, size_t len) {
     if (session->send_buf_idx + len >= SENDBUFSZ) {
         /* data length is more than left buffer size */
@@ -121,13 +121,15 @@ session_send(Session *session, const void *buf, size_t len) {
         const size_t remaining = len - head;
         const size_t full_blocks = remaining / SENDBUFSZ;
         const size_t tail = remaining % SENDBUFSZ;
+        ScrcStatus status;
 
         /* Buffer has some data already, append the new data to SENDBUFSZ and send */
         if (session->send_buf_idx > 0) {
             memcpy(session->send_buf + session->send_buf_idx, buf, head);
-            if (send_block(session->client_fd, session->send_buf, SENDBUFSZ) != 0) {
+            status = send_block(session->client_fd, session->send_buf, SENDBUFSZ);
+            if (status != SCRS_OK) {
                 ferr("send() error: %s", strerror(errno));
-                return 1;
+                return status;
             }
 
             buf += head;
@@ -136,9 +138,10 @@ session_send(Session *session, const void *buf, size_t len) {
         /* Send other data blocks directly without copying */
         if (full_blocks) {
             const size_t block_bytes = full_blocks * SENDBUFSZ;
-            if (send_block(session->client_fd, buf, block_bytes) != 0) {
+            status =send_block(session->client_fd, buf, block_bytes);
+            if (status != 0) {
                 ferr("send() error: %s", strerror(errno));
-                return 1;
+                return status;
             }
 
             buf += block_bytes;
@@ -153,52 +156,54 @@ session_send(Session *session, const void *buf, size_t len) {
         session->send_buf_idx += len;
     }
 
-    return 0;
+    return SCRS_OK;
 }
 
-int
+ScrcStatus
 session_send_header_str(Session *session, const char *name, const char *value) {
-    int ret;
+    ScrcStatus ret;
     ret = session_send(session, name, strlen(name));
-    if (ret != 0)
+    if (ret != SCRS_OK)
         return ret;
 
     ret = session_send(session, ": ", 2);
-    if (ret != 0)
+    if (ret != SCRS_OK)
         return ret;
 
     ret = session_send(session, value, strlen(value));
-    if (ret != 0)
+    if (ret != SCRS_OK)
         return ret;
 
     return session_send(session, "\n", 1);
 }
 
-int
+ScrcStatus
 session_send_header_int(Session *session, const char *name, long long int value) {
-    char buf[64];
+    char buf[256];
     snprintf(buf, sizeof(buf), "%lli", value);
 
     return session_send_header_str(session, name, buf);
 }
 
-int
+ScrcStatus
 session_finish_header(Session *session) {
     return session_send(session, "$$\n", 3);
 }
 
-int
+ScrcStatus
 session_flush(Session *session) {
     if (session->send_buf_idx) {
-        if (send_block(session->client_fd, session->send_buf, session->send_buf_idx) != 0) {
+        ScrcStatus status;
+        status = send_block(session->client_fd, session->send_buf, session->send_buf_idx);
+        if (status != SCRC_OK) {
             ferr("flush error: %s", strerror(errno));
-            return 1;
+            return status;
         }
 
         session->send_buf_idx = 0;
     }
 
-    return 0;
+    return SCRS_OK;
 }
 
 /**
@@ -206,9 +211,9 @@ session_flush(Session *session) {
  * @param fd Socket descriptor
  * @param buf Data to send
  * @param len Data length
- * @return 0 on success, 1 on error
+ * @return Session status
  */
-static int
+static ScrcStatus
 send_block(int fd, const void *buf, size_t len) {
     size_t total = 0;
 
@@ -218,16 +223,16 @@ send_block(int fd, const void *buf, size_t len) {
             if (errno == EINTR) {
                 continue;
             }
-            return 1;
+            return SCRS_SEND_ERROR;
         }
         if (n == 0) {
             /* Connection is closed */
             errno = EPIPE;
-            return 1;
+            return SCRS_SESSION_CLOSED;
         }
         total += n;
     }
 
-    return 0;
+    return SCRS_OK;
 }
 

@@ -53,71 +53,76 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
 
 cmd:
     CREATE USER STRING {
-        create_user($3);
+        session_send_status(session, create_user($3));
     }
     |
     CREATE CATALOG STRING {
-        create_catalog($3);
-        }
+        session_send_status(session, create_catalog($3));
+    }
     |
     CREATE SCHEMA STRING {
-        create_schema(session, $3);
+        session_send_status(session, create_schema(session, $3));
     }
     |
     CREATE TABLE STRING STRING ARRAY_BEGIN decls ARRAY_END {
-        create_table(session, $3, $4, (Decl *)current);
+        session_send_status(session, create_table(session, $3, $4, (Decl *)current));
     }
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN values ARRAY_END {
-        insert(session, $2, $3, (const char **)$5, $9);
+        session_send_status(session, insert(session, $2, $3, (const char **)$5, $9));
     }
     | SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
         Titor row;
-        int res = dml_select(session, $5, $6, (const char **)$3, &row);
-        if (res == 0) {
-            int cmd = 1;
+        ScrcStatus res = dml_select(session, $5, $6, (const char **)$3, &row);
+        if (res == SCRS_OK) {
+            ScrcCmd cmd = SCRC_CMD_TABHEADER;
             size_t sz;
 
             /* Response header */
-            session_send_header_str(session, "Status", "Ok");
+            session_send_header_int(session, "Status", SCRC_OK);
+            session_send_header_str(session, "Body", "Yes");
             session_finish_header(session);
+            flog("Select response header sent");
 
-            session_send(session, &cmd, sizeof(cmd)); /* Table header start */
+            session_send(session, &cmd, sizeof(cmd));           /* Table header start */
 
-            cmd = 2;
+            cmd = SCRC_CMD_ROW;
 
             for (size_t i = 0; ; ++i) {
                 Column *c = htable_get_column(row.header, i);
                 if (c == NULL)
                     break;
 
-                session_send(session, &cmd, sizeof(cmd)); /* Column start */
+                session_send(session, &cmd, sizeof(cmd));       /* Column start */
                 sz = sizeof(Column);
-                session_send(session, &sz, sizeof(sz)); /* Column size */
-                session_send(session, c, sizeof(Column));
+                session_send(session, &sz, sizeof(sz));         /* Column size */
+                session_send(session, c, sizeof(Column));       /* Column */
             }
 
-            cmd = 3;
-            session_send(session, &cmd, sizeof(cmd)); /* Table header finish */
+            cmd = SCRC_CMD_END;
+            session_send(session, &cmd, sizeof(cmd));           /* Table header finish */
 
-            cmd = 4;
-            session_send(session, &cmd, sizeof(cmd)); /* Table data start */
+            cmd = SCRC_CMD_TABDATA;
+            session_send(session, &cmd, sizeof(cmd));           /* Table data start */
 
             sz = titor_get_row_size(row);
-            session_send(session, &sz, sizeof(sz)); /* Row size */
 
-            cmd = 2;
+            cmd = SCRC_CMD_ROW;
 
+            size_t cnt = 0;
             for (; titor_is_valid(row); titor_next(&row)) {
-                session_send(session, &cmd, sizeof(cmd)); /* Row start */
-                session_send(session, titor_get_row(row), sz);
+                session_send(session, &cmd, sizeof(cmd));       /* Row start */
+                session_send(session, &sz, sizeof(sz));         /* Row size */
+                session_send(session, titor_get_row(row), sz);  /* Row */
+                ++cnt;
             }
+            flog("%li lines sent", cnt);
 
-            cmd = 3;
-            session_send(session, &cmd, sizeof(cmd)); /* Table data finish */
+            cmd = SCRC_CMD_END;
+            session_send(session, &cmd, sizeof(cmd));           /* Table data finish */
             session_flush(session);
         } else {
-            /* @todo: handle error */
+            session_send_status(session, res);
         }
     }
     ;

@@ -108,9 +108,9 @@ init_cluster(const char *path) {
         htable_add_column(hcluster, "data", T_BIGINT, 0);
 
         name_idx = htable_get_column_idx(hcluster, "name");
-        assert(grid_idx_valid(name_idx));
+        assert(grid_idx_is_valid(name_idx));
         string_idx = htable_get_column_idx(hcluster, "string");
-        assert(grid_idx_valid(string_idx));
+        assert(grid_idx_is_valid(string_idx));
 
         pagecache_flush(g_pagecache, gp_cluster.header.full);
 
@@ -170,7 +170,7 @@ init_cluster(const char *path) {
         htable_add_column(huser, "name", T_CHAR, 32);
 
         name_idx = htable_get_column_idx(huser, "name");
-        assert(grid_idx_valid(name_idx));
+        assert(grid_idx_is_valid(name_idx));
 
         pagecache_flush(g_pagecache, currval);
 
@@ -320,9 +320,9 @@ add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp) {
 
     Titor row = table_alloc_row(hcluster, cluster);
 
-    assert(grid_idx_valid(name_idx));
-    assert(grid_idx_valid(header_idx));
-    assert(grid_idx_valid(data_idx));
+    assert(grid_idx_is_valid(name_idx));
+    assert(grid_idx_is_valid(header_idx));
+    assert(grid_idx_is_valid(data_idx));
 
     ret = titor_put_datum(row, name_idx, make_char((char *)name));
     ret |= titor_put_datum(row, header_idx, make_bigint(gidp.header.full));

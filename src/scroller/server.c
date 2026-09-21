@@ -80,19 +80,19 @@ server_init(const char *path) {
      */
     hcluster = pagecache_put_page(g_pagecache, g_server.system.cluster.header.full);
     name_idx = htable_get_column_idx(hcluster, "name");
-    if (!grid_idx_valid(name_idx))
+    if (!grid_idx_is_valid(name_idx))
         ffatal(1, "Column 'name' not found in cluster table");
 
     string_idx = htable_get_column_idx(hcluster, "string");
-    if (!grid_idx_valid(string_idx))
+    if (!grid_idx_is_valid(string_idx))
         ffatal(1, "Column 'string' not found in cluster table");
 
     header_idx = htable_get_column_idx(hcluster, "header");
-    if (!grid_idx_valid(header_idx))
+    if (!grid_idx_is_valid(header_idx))
         ffatal(1, "Column 'header' not found in cluster table");
 
     data_idx = htable_get_column_idx(hcluster, "data");
-    if (!grid_idx_valid(data_idx))
+    if (!grid_idx_is_valid(data_idx))
         ffatal(1, "Column 'data' not found in cluster table");
 
     /*

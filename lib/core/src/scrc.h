@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * @file scrc.h
@@ -42,9 +43,7 @@
  *              row binary      size mentioned above - next row binary data
  *          ....
  *      SCRC_CMD_END            ScrcCmd              - table data finish
- * 2.3. Response end
- *      SCRC_CMD_END            ScrcCmd              - response end
- *
+ * -----------------------------------------------------------------------------
  */
 
 typedef struct Column Column;
@@ -57,12 +56,13 @@ typedef struct Column Column;
  * Server errors: 100..199 (passed through from server)
  */
 typedef enum ScrcStatus {
+
+    /* Client errors */
     SCRC_OK = 0,
     SCRC_END,
     SCRC_BAD_ALLOC,
     SCRC_NO_HOST,
     SCRC_UNKNOWN_HOST,
-    SCRC_NO_PORT,
     SCRC_INCORRECT_PORT,
     SCRC_NO_USER,
     SCRC_SOCKET_ERROR,
@@ -76,7 +76,21 @@ typedef enum ScrcStatus {
     SCRC_UNKNOWN_COMMAND,
     SCRC_BUFFER_OVERFLOW,
     SCRC_INCORRECT_PARAM,
-    SCRC_OUT_OF_RANGE
+    SCRC_OUT_OF_RANGE,
+
+    /* Server errors */
+    SCRS_OK = 0,
+    SCRS_NO_USER = 101,
+    SCRS_PARSER_ERROR,
+    SCRS_PARSER_MEMORY_EXHAUSTION,
+    SCRS_UNKNOWN_PARSER_ERROR,
+    SCRS_SEND_ERROR,
+    SCRS_SESSION_CLOSED,
+    SCRS_UNKNOWN_RELATION,
+    SCRS_UNKNOWN_COLUMN,
+    SCRS_BAD_ALLOC,
+    SCRS_DATUM_TYPE_MISMATCH,
+    SCRS_SEQUENCE_OVERFLOW
 } ScrcStatus;
 
 /**
@@ -113,6 +127,8 @@ typedef struct ScrcConnection {
     char   *rbuf;       /**< Receive buffer (FULLSZ bytes) */
     size_t  rlen;       /**< Valid bytes in buffer */
     size_t  rpos;       /**< Read position in buffer */
+
+    bool body;          /**< Response contains body */
 } ScrcConnection;
 
 /**
@@ -129,7 +145,7 @@ typedef void *ScrcRow;
  *
  */
 typedef struct ScrcCell {
-    const void *data;   /**< Pointer to cell data (not null-terminated) */
+    const char *data;   /**< Pointer to cell data (not null-terminated) */
     size_t size;        /**< Size of cell data in bytes */
 } ScrcCell;
 
@@ -179,6 +195,14 @@ ScrcConnection *scrc_connect(const char *host, int port, const char *user,
  */
 void scrc_close(ScrcConnection *conn);
 
+/**
+ * @brief Returns status description of connection status
+ *
+ * @param conn Pointer to connection (can be NULL, in which case NULL is returned)
+ * @return c-string description of connection status
+ */
+const char *scrc_error(ScrcConnection *conn);
+    
 /**
  * @brief Send query to server and receive response header
  *

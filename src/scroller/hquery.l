@@ -14,7 +14,7 @@ static char *str_unescape(const char *s, size_t len, char q);
 %}
 
 %option noyywrap
-%option never-interactive
+%option always-interactive
 %option yylineno
 %option case-insensitive
 %option bison-bridge
@@ -25,7 +25,6 @@ static char *str_unescape(const char *s, size_t len, char q);
 %option noyyalloc
 %option noyyrealloc
 %option noyyfree
-%option full
 %option nodefault
 %option noinput
 %option nounput

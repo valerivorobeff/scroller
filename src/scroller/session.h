@@ -6,6 +6,7 @@
 #ifndef _SESSION_H_
 #define _SESSION_H_
 
+#include "scrc.h"
 #include <stddef.h>
 
 #define SENDBUFSZ  4096    /* size of send buffer */
@@ -48,18 +49,18 @@ int session_drop(Session *session);
  * @param session session struct
  * @param buf buffer
  * @param len buffer length
- * @return 0 - if succeed, error code otherwise
+ * @return Session status
  */
-int session_send(Session *session, const void *buf, size_t len);
+ScrcStatus session_send(Session *session, const void *buf, size_t len);
 
 /**
  * @brief Sends header to client with value of type const char *
  * @param session session struct
  * @param name
  * @param value
- * @return 0 - if succeed, error code otherwise
+ * @return Session status
  */
-int session_send_header_str(Session *session, const char *name, const char *value);
+ScrcStatus session_send_header_str(Session *session, const char *name, const char *value);
 
 /**
  * @brief Alias macro session_send_header_str
@@ -71,23 +72,32 @@ int session_send_header_str(Session *session, const char *name, const char *valu
  * @param session session struct
  * @param name
  * @param value
- * @return 0 - if succeed, error code otherwise
+ * @return Session status
  */
-int session_send_header_int(Session *session, const char *name, long long int value);
+ScrcStatus session_send_header_int(Session *session, const char *name, long long int value);
 
 /**
  * @brief Sends finish header mark to client
  * @param session session struct
- * @return 0 - if succeed, error code otherwise
+ * @return Session status
  */
-int session_finish_header(Session *session);
+ScrcStatus session_finish_header(Session *session);
 
 /**
  * @brief Flushes buffer to client
  * @param session session struct
- * @return 0 - if succeed, error code otherwise
+ * @return Session status
  */
-int session_flush(Session *session);
+ScrcStatus session_flush(Session *session);
+
+/**
+ * @brief Sends full response with status code and flushes it
+ */
+#define session_send_status(s, v) { \
+        session_send_header_int(s, "Status", v); \
+        session_finish_header(s); \
+        session_flush(s); \
+}
 
 #endif /* _SESSION_H_ */
 

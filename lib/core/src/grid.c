@@ -70,7 +70,7 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
 Row
 grid_get_row(Grid *grid, uint16_t n) {
     assert(n < grid->rown);
-    return grid->datum + grid->rowsz * n;
+    return n < grid->occupied ? grid->datum + grid->rowsz * n : NULL;
 }
 
 Cell
@@ -132,7 +132,7 @@ grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum dat
             case T_VARCHAR:  /* @todo make */ break;
             case T_MAX: assert(0 && "datum type T_MAX not supported"); break;
         }
-    /* Check detum type group equality */
+    /* Check datum type group equality */
     } else if (g_types[datum.type].group == g_types[hc->type].group) {
         switch (g_types[hc->type].group) {
             case TG_UNKNOWN: assert(0 && "datum type group T_UNKNOWN not supported"); break;
@@ -182,7 +182,7 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
     uint16_t column_idx = grid_alloc_row(grid);
     Column *hc;
 
-    if (!grid_idx_valid(column_idx))
+    if (!grid_idx_is_valid(column_idx))
         return NULL;
 
     hc = grid_get_row(grid, column_idx);

@@ -80,6 +80,7 @@ size_t array_size(const void *a);
             a = _new; \
             array_back_ref(a) = v; \
         } \
+        _new; \
     })
 
 /**

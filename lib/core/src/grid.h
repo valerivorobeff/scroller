@@ -98,7 +98,7 @@ typedef struct Column {
 
 #define GRID_INVALID_IDX    ((uint16_t)-1)
 
-#define grid_idx_valid(idx) ((idx) != GRID_INVALID_IDX)
+#define grid_idx_is_valid(idx) ((idx) != GRID_INVALID_IDX)
 
 /**
  * @brief Initializes a new grid within a memory page.

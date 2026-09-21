@@ -61,8 +61,11 @@ session:
 
 header:
     header_exprs '\n' {
-        if (session->user == NULL)
+        if (session->user == NULL) {
             ferr("Parameter 'user' not found in query header");
+            session_send_status(session, SCRS_NO_USER);
+        } else
+            session_send_status(session, SCRS_OK);
     }
     ;
 
@@ -88,19 +91,15 @@ query:
     '\n' {
         /* @todo: here we should reset header or query memory context
             but at the moment we don't have it, we should make it */
-        const char *response = "Status: Empty\n\n";
-        send(session->client_fd, response, strlen(response), 0);
-        flog("Status Empty");
-        flog_flush();
+        flog("empty query received");
+        session_send_status(session, SCRS_OK);
     }
     |
     body '\n' {
         /* @todo: here we should reset header or query memory context
             but at the moment we don't have it, we should make it */
-        const char *response = "Status: Ready\n\n";
-        send(session->client_fd, response, strlen(response), 0);
-        flog("Status Ready");
-        flog_flush();
+        /* @todo: log query body */
+        flog("query received");
     }
     ;
 
@@ -256,6 +255,6 @@ yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd
     (void)session;
     (void)query;
     (void)cmd;
-    ferr("%s\n", s);
+    ferr("y1 parser error: %s\n", s);
 }
 

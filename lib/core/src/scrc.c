@@ -9,9 +9,8 @@
 #include "grid.h"
 #include <malloc.h>
 #include <string.h>
-#include <stdint.h>
+#include <ctype.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/socket.h>
@@ -53,6 +52,7 @@ static ScrcStatus recv_row(ScrcConnection *conn, ScrcRow *row);
 static ScrcStatus recv_cmd(ScrcConnection *conn, ScrcCmd *cmd);
 static ScrcStatus recv_block(ScrcConnection *conn, size_t size, char **p);
 static ScrcStatus recv_refill(ScrcConnection *conn);
+static char *trim(char *src);
 
 /**
  * @brief Connect to server and perform handshake
@@ -83,10 +83,7 @@ scrc_connect(const char *host, int port, const char *user,
         }
     }
 
-    if (!port) {
-        conn->status = SCRC_NO_PORT;
-        goto host;
-    } else if (port < 0 || port > UINT16_MAX) {
+    if (port < 0 || port > UINT16_MAX) {
         conn->status = SCRC_INCORRECT_PORT;
         goto host;
     } else
@@ -190,6 +187,48 @@ scrc_close(ScrcConnection *conn) {
     }
 }
 
+const char *
+scrc_error(ScrcConnection *conn) {
+    if (conn == NULL)
+        return NULL;
+
+    switch (conn->status) {
+        case SCRC_OK:                       return "Ok";
+        case SCRC_END:                      return "Ok";
+        case SCRC_BAD_ALLOC:                return "Client bad alloc";
+        case SCRC_NO_HOST:                  return "No host";
+        case SCRC_UNKNOWN_HOST:             return "Unknown host";
+        case SCRC_INCORRECT_PORT:           return "Incorrect port";
+        case SCRC_NO_USER:                  return "No user";
+        case SCRC_SOCKET_ERROR:             return "Socket error";
+        case SCRC_CONNECTION_ERROR:         return "Connection error";
+        case SCRC_CONNECTION_CLOSED:        return "Server closed connection";
+        case SCRC_SEND_ERROR:               return "Client send error";
+        case SCRC_RECV_ERROR:               return "Client receive error";
+        case SCRC_PROTOCOL_ERROR:           return "Protocol error";
+        case SCRC_HEADER_ERROR:             return "Header error";
+        case SCRC_HEADER_TOO_LARGE:         return "Header too large";
+        case SCRC_UNKNOWN_COMMAND:          return "Unknown command";
+        case SCRC_BUFFER_OVERFLOW:          return "Buffer overflow";
+        case SCRC_INCORRECT_PARAM:          return "Incorrect param";
+        case SCRC_OUT_OF_RANGE:             return "Out of range";
+
+        case SCRS_NO_USER:                  return "No user";
+        case SCRS_PARSER_ERROR:             return "Parser error";
+        case SCRS_PARSER_MEMORY_EXHAUSTION: return "Parser memory exhaustion";
+        case SCRS_UNKNOWN_PARSER_ERROR:     return "Unknown parser error";
+        case SCRS_SEND_ERROR:               return "Server send error";
+        case SCRS_SESSION_CLOSED:           return "Client closed connection";
+        case SCRS_UNKNOWN_RELATION:         return "Unknown relation";
+        case SCRS_UNKNOWN_COLUMN:           return "Unknown column";
+        case SCRS_BAD_ALLOC:                return "Server bad alloc";
+        case SCRS_DATUM_TYPE_MISMATCH:      return "Datum type mismatch";
+        case SCRS_SEQUENCE_OVERFLOW:        return "Sequence overflow";
+    }
+
+    return "Unknown error";
+}
+
 /**
  * @brief Send query and receive response header
  * @see scrc.h for full documentation
@@ -217,6 +256,9 @@ scrc_query(ScrcConnection *conn, const char *query) {
     ret = recv_header(conn);
     if (ret != SCRC_OK)
         return conn->status = ret;
+
+    if (conn->body == false)
+        return ret;
 
     ret = recv_cmd(conn, &cmd);
     if (ret != SCRC_OK)
@@ -282,6 +324,9 @@ scrc_fetch_row(ScrcConnection *conn, ScrcRow *row) {
     if (row == NULL)
         return conn->status = SCRC_INCORRECT_PARAM;
 
+    if (conn->body == false)
+        return conn->status = SCRC_OK;
+
     ret = recv_row(conn, row);
 
     if (ret == SCRC_END) {
@@ -314,7 +359,7 @@ scrc_fetch_cell(ScrcConnection *conn, const ScrcRow row, size_t n, ScrcCell *cel
     }
 
     c = conn->columns + n;
-    *cell = (ScrcCell){ .data = (const char *)row + c->offs, .size = c->size };
+    *cell = (ScrcCell){ .data = row + c->offs, .size = c->size };
 
     return conn->status = SCRC_OK;
 }
@@ -419,6 +464,8 @@ send_block(int sockfd, const char *data, size_t len) {
  */
 static ScrcStatus
 recv_header(ScrcConnection *conn) {
+    conn->body = false;
+
     for (;;) {
         HeaderLine hl;
         ScrcStatus ret = recv_header_line(conn, &hl);
@@ -449,6 +496,17 @@ recv_header(ScrcConnection *conn) {
 
             if (status != 0)
                 return status;
+        } else if (strcmp(hl.name, "Body") == 0) {
+            if (hl.value == NULL)
+                return SCRC_HEADER_ERROR;
+
+            if (strcmp(hl.value, "Yes") == 0) {
+                conn->body = true;
+            } else if (strcmp(hl.value, "No") == 0) {
+
+            } else {
+                return SCRC_PROTOCOL_ERROR;
+            }
         }
         /* Ignore unknown headers */
     }
@@ -474,7 +532,7 @@ static ScrcStatus
 recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
     static const size_t HEADER_MAX = BUFSZ / 2;
     char *begin;
-    bool delim = false;;
+    bool delim = false;
     ScrcStatus ret = recv_block(conn, 1, &begin);
     size_t len = 1;
 
@@ -497,16 +555,16 @@ recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
         /* Find ':' in buffer */
         if (*p == ':') {
             *p = '\0';
-            hl->name = begin; /* @todo: trim */
+            hl->name = trim(begin);
             begin = p + 1;
             delim = true;
         /* Find '\n' in buffer */
         } else if (*p == '\n') {
             *p = '\0';
             if (delim)
-                hl->value = begin;
+                hl->value = trim(begin);
             else
-                hl->name = begin, hl->value = NULL; /* @todo: trim */
+                hl->name = trim(begin), hl->value = NULL;
             break;
         }
     }
@@ -668,5 +726,46 @@ recv_refill(ScrcConnection *conn) {
 
         return SCRC_OK;
     }
+}
+
+/**
+ * @brief Trims line
+ *
+ * Trims spaces in beginning and end of line. It considers end of line
+ * '\n' or '\0' characters
+ *
+ * @note it edits line
+ *
+ * @param src Socuse string
+ * @return Edited string
+ */
+static char *
+trim(char *src) {
+    char *c;
+
+    if (src == NULL || *src == '\0')
+        return src;
+
+    /* Ignore beginning spaces */
+    while (*src && isspace(*src))
+        ++src;
+
+    c = src;
+
+    /* Roll till the end of line */
+    while (*c && *c != '\n')
+        ++c;
+
+    /* The final character */
+    --c;
+
+    /* Roll till the first not space character */
+    while (c != src && isspace(*c))
+        --c;
+
+    /* Ignore ending spaces */
+    *(c + 1) = '\0';
+
+    return src;
 }
 

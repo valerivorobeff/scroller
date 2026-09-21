@@ -21,9 +21,9 @@
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool create_if_data_undef);
 
-int
+ScrcStatus
 insert(Session *session, const char *schema, const char *table, const char **names, const Datum *values) {
-    int ret = 0;
+    ScrcStatus ret = SCRS_OK;
     GidPair gp_relation = find_relation(session, schema, table, true);
     Grid *header;
     Grid *data;
@@ -34,41 +34,50 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 
     /* Exit if table header not found */
     if (gp_relation.header.full == GID_UNDEF) {
-        ferr("Unknown table '%s'", table);
-        return 1;
+        ferr("Unknown relation '%s'", table);
+        return SCRS_UNKNOWN_RELATION;
     }
 
     assert(gp_relation.data.full != GID_UNDEF);
 
     header = pagecache_put_page(g_pagecache, gp_relation.header.full);
 
+    assert(header);
+
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
         uint16_t column_idx = htable_get_column_idx(header, names[i]);
 
-        if (column_idx == GRID_INVALID_IDX) {
+        if (!grid_idx_is_valid(column_idx)) {
             ferr("Unknown column '%s'", names[i]);
-            return 1;
+            return SCRS_UNKNOWN_COLUMN;
         }
 
-        array_put(indices, column_idx);
+        if (array_put(indices, column_idx) == NULL) {
+            ferr("Bad alloc");
+            return SCRS_BAD_ALLOC;
+        }
     }
 
     /* Load table data */
     data = pagecache_put_page(g_pagecache, gp_relation.data.full);
 
     row = table_alloc_row(header, data);
+    if (!titor_is_valid(row))
+        return SCRS_BAD_ALLOC;
 
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
         ret |= titor_put_datum(row, indices[i], values[i]);
     }
 
-    if (ret == 0)
+    if (ret)
+        return SCRS_DATUM_TYPE_MISMATCH;
+    else
         pagecache_flush(g_pagecache, gp_relation.data.full);
 
     return ret;
 }
 
-int
+ScrcStatus
 dml_select(Session *session, const char *schema, const char *table, const char **names, Titor *out) {
     GidPair gp_relation = find_relation(session, schema, table, false);
     Grid *header;
@@ -77,27 +86,32 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
     /* Exit if table header not found */
     if (gp_relation.header.full == GID_UNDEF) {
-        ferr("Unknown table '%s'", table);
-        return 1;
+        ferr("Unknown relation '%s'", table);
+        return SCRS_UNKNOWN_RELATION;
     }
 
     header = pagecache_put_page(g_pagecache, gp_relation.header.full);
 
+    assert(header);
+
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
         uint16_t column_idx = htable_get_column_idx(header, names[i]);
 
-        if (column_idx == GRID_INVALID_IDX) {
+        if (!grid_idx_is_valid(column_idx)) {
             ferr("Unknown column '%s'", names[i]);
-            return 1;
+            return SCRS_UNKNOWN_COLUMN;
         }
 
-        array_put(indices, column_idx);
+        if (array_put(indices, column_idx) == NULL) {
+            ferr("Bad alloc");
+            return SCRS_BAD_ALLOC;
+        }
     }
 
     /* Check if table is empty */
     if (gp_relation.data.full == GID_UNDEF) {
         *out = titor_init(header, NULL);
-        return 0;
+        return SCRS_OK;
     }
 
     /* Load table data */
@@ -105,7 +119,7 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
     *out = titor_init(header, data);
 
-    return 0;
+    return SCRS_OK;
 }
 
 GidPair
@@ -117,6 +131,13 @@ find_relation(Session *session, const char *schema, const char *relation, bool c
     uint16_t relation_idx = htable_get_column_idx(hrelation, "relation");
     uint16_t header_gid_idx = htable_get_column_idx(hrelation, "header_gid");
     uint16_t data_gid_idx = htable_get_column_idx(hrelation, "data_gid");
+
+    assert(hrelation && drelation &&
+            grid_idx_is_valid(catalog_idx) &&
+            grid_idx_is_valid(schema_idx) &&
+            grid_idx_is_valid(relation_idx) &&
+            grid_idx_is_valid(header_gid_idx) &&
+            grid_idx_is_valid(data_gid_idx));
 
     for (Titor i = titor_init(hrelation, drelation); titor_is_valid(i); titor_next(&i)) {
         const Datum dcatalog = titor_get_datum(i, catalog_idx);
@@ -138,14 +159,17 @@ find_relation(Session *session, const char *schema, const char *relation, bool c
                 Grid *htable = pagecache_put_page(g_pagecache, header.value.bigint);
                 Grid *dtable;
 
+                assert(hsequence && sequence && htable);
+
                 sequence_nextval(hsequence, sequence, &data.value.bigint); /* Increment sequence */
                 pagecache_flush(g_pagecache, g_server.system.sequence.data.full);
 
                 dtable = pagecache_put_page(g_pagecache, data.value.bigint); /* Init data table */
+                assert(dtable);
                 dtable = dtable_init(dtable, PAGESZ, GT_FIXED, htable);
                 pagecache_flush(g_pagecache, data.value.bigint);
 
-                titor_put_datum(i, data_gid_idx, data);                     /* Save new data gid to system relation table */
+                titor_put_datum(i, data_gid_idx, data);                      /* Save new data gid to system relation table */
                 pagecache_flush(g_pagecache, g_server.system.relation.data.full);
             }
 
