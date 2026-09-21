@@ -23,7 +23,7 @@ echo "Setting up test data..."
 echo "Starting server..."
 ./build/debug/bin/scroller "$TEST_DIR" &
 SERVER_PID=$!
-sleep 2
+sleep 1
 
 # Check server is running
 if ! kill -0 $SERVER_PID 2>/dev/null; then
@@ -41,7 +41,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u scroler
 expect "scroller>"
 send "CREATE USER new_user;\n"
-expect "0 lines received"
+expect "Ok"
 send "exit\r"
 expect eof
 EOF
@@ -53,7 +53,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user
 expect "scroller>"
 send "CREATE CATALOG cat;\n"
-expect "0 lines received"
+expect "Ok"
 send "exit\r"
 expect eof
 EOF
@@ -65,7 +65,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user -c cat
 expect "scroller>"
 send "CREATE SCHEMA sch;\n"
-expect "0 lines received"
+expect "Ok"
 send "exit\r"
 expect eof
 EOF
@@ -77,7 +77,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user -c cat
 expect "scroller>"
 send "CREATE TABLE sch.users (id int, name char (16));\n"
-expect "0 lines received"
+expect "Ok"
 send "exit\r"
 expect eof
 EOF
@@ -89,7 +89,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user -c cat
 expect "scroller>"
 send "INSERT INTO sch.users (id, name) VALUES (1, 'Alice');\n"
-expect "0 lines received"
+expect "Ok"
 send "exit\r"
 expect eof
 EOF

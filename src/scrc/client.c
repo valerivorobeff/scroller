@@ -16,6 +16,7 @@
 #define PROMPT "scroller> "
 
 /* Forward declarations of helper functions */
+static ScrcStatus print_response_body(ScrcConnection *conn);
 static char *trim(char *str);
 
 /**
@@ -23,6 +24,7 @@ static char *trim(char *str);
  */
 int
 client_run_interactive(ScrcConnection *conn) {
+    ScrcStatus status;
     char input[BUFFER_SIZE];
 
     printf("Scroller client (type 'exit' or 'quit' to quit)\n");
@@ -55,132 +57,18 @@ client_run_interactive(ScrcConnection *conn) {
         }
 
         /* Send query */
-        if (scrc_query(conn, input) != SCRC_OK) {
+        status = scrc_query(conn, input);
+        if (status != SCRC_OK) {
             fprintf(stderr, "Error sending query: %s\n", scrc_error(conn));
-            return -1;
-        } else {
-            /* Receive response */
-
-            size_t cnt = 0;
-            size_t width = 0;
-            ScrcRow row;
-            ScrcStatus status;
-
-            /* Print columns */
-            for (size_t i = 0; i != conn->columnsz; ++i) {
-                const Column *col = &conn->columns[i];
-                const char *c = col->name;
-                size_t sz;
-
-                /* Calculate column size */
-                switch (get_type_group(col->type)) {
-                    case TG_CHARACTER:
-                        sz = col->size;
-                        break;
-
-                    case TG_INTEGER:
-                        switch (col->type) {
-                            case T_SMALLINT: sz = 5; break;
-                            case T_INTEGER: sz = 10; break;
-                            case T_BIGINT: sz = 19; break;
-                            default: sz = 0; break;
-                        }
-                        break;
-
-                    default:
-                        sz = 0;
-                        break;
-                }
-
-                putchar('|');
-                ++width;
-
-                while(sz && *c) {
-                    putchar(*c);
-                    ++width;
-                    --sz;
-                    ++c;
-                }
-
-                while(sz--) {
-                    putchar(' ');
-                    ++width;
-                }
-            }
-
-            puts("|");
-            ++width;
-
-            /* Wide horizontal line */
-            for (size_t i = 0; i != width; ++i)
-                putchar('-');
-
-            puts("");
-
-            /* Print values */
-            while ((status = scrc_fetch_row(conn, &row)) == SCRC_OK && row != NULL) {
-                ScrcCell cell;
-
-                for (size_t i = 0; i < conn->columnsz; i++) {
-                    const Column *col = &conn->columns[i];
-                    scrc_fetch_cell(conn, row, i, &cell);
-
-                    switch (get_type_group(col->type)) {
-                        case TG_CHARACTER:
-                            const char *c = cell.data;
-                            size_t sz = col->size;
-
-                            putchar('|');
-
-                            while (sz--)
-                                putchar(*c++);
-
-                            break;
-
-                        case TG_INTEGER:
-                            switch (col->type) {
-                                case T_SMALLINT:
-                                    printf("|% 5i", get_smallint(cell.data));
-                                    break;
-
-                                case T_INTEGER:
-                                    printf("|% 10i", get_integer(cell.data));
-                                    break;
-
-                                case T_BIGINT:
-                                    printf("|% 19li", get_bigint(cell.data));
-                                    break;
-
-                                default:
-                            }
-
-                            break;
-
-                        default:
-                            puts("|--Unknown type--");
-                            break;
-                    }
-                }
-
-                puts("|");
-
-                ++cnt;
-            }
-
-            /* Wide horizontal line */
-            for (size_t i = 0; i != width; ++i)
-                putchar('-');
-
-            puts("");
-
-            if (status != SCRC_OK)
-                fprintf(stderr, "Error receiving response: %s\n", scrc_error(conn));
-            else
-                printf("%li lines received\n", cnt);
+        } else if (conn->body) {
+            status = print_response_body(conn);
+        }
+        else {
+            puts("Ok");
         }
     }
 
-    return 0;
+    return status;
 }
 
 /**
@@ -337,6 +225,133 @@ main(int argc, char **argv) {
     scrc_close(conn);
 
     return ret;
+}
+
+/**
+ * @brief Prints response body
+ */
+static ScrcStatus
+print_response_body(ScrcConnection *conn) {
+    /* Receive response */
+
+    size_t cnt = 0;
+    size_t width = 0;
+    ScrcRow row;
+    ScrcStatus status;
+
+    /* Print columns */
+    for (size_t i = 0; i != conn->columnsz; ++i) {
+        const Column *col = &conn->columns[i];
+        const char *c = col->name;
+        size_t sz;
+
+        /* Calculate column size */
+        switch (get_type_group(col->type)) {
+            case TG_CHARACTER:
+                sz = col->size;
+                break;
+
+            case TG_INTEGER:
+                switch (col->type) {
+                    case T_SMALLINT: sz = 5; break;
+                    case T_INTEGER: sz = 10; break;
+                    case T_BIGINT: sz = 19; break;
+                    default: sz = 0; break;
+                }
+                break;
+
+            default:
+                sz = 0;
+                break;
+        }
+
+        putchar('|');
+        ++width;
+
+        while(sz && *c) {
+            putchar(*c);
+            ++width;
+            --sz;
+            ++c;
+        }
+
+        while(sz--) {
+            putchar(' ');
+            ++width;
+        }
+    }
+
+    puts("|");
+    ++width;
+
+    /* Wide horizontal line */
+    for (size_t i = 0; i != width; ++i)
+        putchar('-');
+
+    puts("");
+
+    /* Print values */
+    while ((status = scrc_fetch_row(conn, &row)) == SCRC_OK && row != NULL) {
+        ScrcCell cell;
+
+        for (size_t i = 0; i < conn->columnsz; i++) {
+            const Column *col = &conn->columns[i];
+            scrc_fetch_cell(conn, row, i, &cell);
+
+            switch (get_type_group(col->type)) {
+                case TG_CHARACTER:
+                    const char *c = cell.data;
+                    size_t sz = col->size;
+
+                    putchar('|');
+
+                    while (sz--)
+                        putchar(*c++);
+
+                    break;
+
+                case TG_INTEGER:
+                    switch (col->type) {
+                        case T_SMALLINT:
+                            printf("|% 5i", get_smallint(cell.data));
+                            break;
+
+                        case T_INTEGER:
+                            printf("|% 10i", get_integer(cell.data));
+                            break;
+
+                        case T_BIGINT:
+                            printf("|% 19li", get_bigint(cell.data));
+                            break;
+
+                        default:
+                    }
+
+                    break;
+
+                default:
+                    puts("|--Unknown type--");
+                    break;
+            }
+        }
+
+        puts("|");
+
+        ++cnt;
+    }
+
+    /* Wide horizontal line */
+    for (size_t i = 0; i != width; ++i)
+        putchar('-');
+
+    puts("");
+
+    if (status != SCRC_OK)
+        fprintf(stderr, "Error receiving response: %s\n", scrc_error(conn));
+    else
+        printf("%li lines received\n", cnt);
+
+    return status;
 }
 
 /**

@@ -21,7 +21,7 @@ create_user(const char *user) {
     uint16_t name_idx = htable_get_column_idx(header, "name");
     Titor row;
 
-    assert(header && data && (name_idx != GRID_INVALID_IDX));
+    assert(header && data && grid_idx_is_valid(name_idx));
 
     row = table_alloc_row(header, data);
 
@@ -46,7 +46,7 @@ create_catalog(const char *catalog) {
     uint16_t name_idx = htable_get_column_idx(header, "name");
     Titor row;
 
-    assert(header && data && (name_idx != GRID_INVALID_IDX));
+    assert(header && data && grid_idx_is_valid(name_idx));
 
     row = table_alloc_row(header, data);
 
@@ -72,7 +72,9 @@ create_schema(Session *session, const char *schema) {
     uint16_t schema_idx = htable_get_column_idx(header, "schema");
     Titor row;
 
-    assert(header && data && (catalog_idx != GRID_INVALID_IDX) && (schema_idx != GRID_INVALID_IDX));
+    assert(header && data &&
+            grid_idx_is_valid(catalog_idx)
+            && grid_idx_is_valid(schema_idx));
 
     row = table_alloc_row(header, data);
 
@@ -112,10 +114,12 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     Titor row;
 
     assert(hsequence && sequence && header && data &&
-            (catalog_idx != GRID_INVALID_IDX) &&
-            (schema_idx != GRID_INVALID_IDX) &&
-            (header_gid_idx != GRID_INVALID_IDX) &&
-            (data_gid_idx != GRID_INVALID_IDX));
+            grid_idx_is_valid(catalog_idx) &&
+            grid_idx_is_valid(schema_idx) &&
+            grid_idx_is_valid(relation_idx) &&
+            grid_idx_is_valid(header_gid_idx) &&
+            grid_idx_is_valid(data_gid_idx));
+
 
     /* Increment sequence */
     if (sequence_nextval(hsequence, sequence, &currval))
