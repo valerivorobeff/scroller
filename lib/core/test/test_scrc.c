@@ -163,12 +163,16 @@ mock_server_send_row(MockServer *ms, const void *data, size_t size) {
     mock_server_send(ms, data, size);
 }
 
-/* Send full response header (Status + $$) */
+/* Send full response header (Status + body (optional) + $$) */
 static void
-mock_server_send_full_header(MockServer *ms, int status) {
+mock_server_send_full_header(MockServer *ms, int status, const char *body) {
     char line[64];
     snprintf(line, sizeof(line), "Status: %d", status);
     mock_server_send_header_line(ms, line);
+    if (body) {
+        snprintf(line, sizeof(line), "Body: %s", body);
+        mock_server_send_header_line(ms, line);
+    }
     mock_server_send_header_end(ms);
 }
 
@@ -187,7 +191,7 @@ TEST(scrc)
             TEST_REQUIRE(ms != NULL);
 
             /* Send header + TABHEADER + TABDATA to complete a query */
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, NULL);
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_cmd(ms, SCRC_CMD_END);
             mock_server_send_cmd(ms, SCRC_CMD_TABDATA);
@@ -203,7 +207,7 @@ TEST(scrc)
             TEST_REQUIRE(ms != NULL);
 
             /* Send header with server error status */
-            mock_server_send_full_header(ms, 100);
+            mock_server_send_full_header(ms, 100, NULL);
 
             ScrcStatus ret = scrc_query(ms->conn, "test");
             TEST_CHECK(ret == 100);  /* Server error code passed through */
@@ -217,7 +221,7 @@ TEST(scrc)
 
             /* Send unknown header, then status, then end */
             mock_server_send_header_line(ms, "Unknown: value");
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, NULL);
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_cmd(ms, SCRC_CMD_END);
             mock_server_send_cmd(ms, SCRC_CMD_TABDATA);
@@ -250,7 +254,7 @@ TEST(scrc)
 
             /* Line without ':' should be treated as name with NULL value */
             mock_server_send_header_line(ms, "justname");
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, NULL);
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_cmd(ms, SCRC_CMD_END);
             mock_server_send_cmd(ms, SCRC_CMD_TABDATA);
@@ -269,7 +273,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_cmd(ms, SCRC_CMD_END);
@@ -289,7 +293,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_column(ms, "name", 4, 32);
@@ -312,7 +316,7 @@ TEST(scrc)
             TEST_REQUIRE(ms != NULL);
 
             /* First query */
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_cmd(ms, SCRC_CMD_END);
@@ -325,7 +329,7 @@ TEST(scrc)
             size_t cap_before = ms->conn->columncap;
 
             /* Second query — should reuse buffer */
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "x", 0, 4);
             mock_server_send_column(ms, "y", 4, 4);
@@ -348,7 +352,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_cmd(ms, SCRC_CMD_END);
@@ -380,7 +384,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_cmd(ms, SCRC_CMD_END);
@@ -416,7 +420,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_column(ms, "name", 4, 8);
@@ -463,7 +467,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_cmd(ms, SCRC_CMD_END);
@@ -497,7 +501,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
 
             /* Send TABDATA instead of TABHEADER */
             mock_server_send_cmd(ms, SCRC_CMD_TABDATA);
@@ -512,7 +516,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "id", 0, 4);
             mock_server_send_cmd(ms, SCRC_CMD_END);
@@ -530,7 +534,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+             mock_server_send_full_header(ms, 0, "Yes");
 
             /* Send unknown command */
             ScrcCmd bad_cmd = 0xDEADBEEF;
@@ -561,16 +565,9 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            /* Start query in background? Нет, блокирующий. */
-
-            /* Проще: закрыть после того, как клиент отправил данные */
-            /* Но send_query блокируется... */
-
-            /* Альтернатива: закрыть server_fd, но не client_fd */
-            shutdown(ms->server_fd, SHUT_WR);  /* Только запись */
+            shutdown(ms->server_fd, SHUT_WR);  /* Only writing */
 
             ScrcStatus ret = scrc_query(ms->conn, "test");
-            /* send пройдёт (буфер), recv вернёт EOF */
             TEST_CHECK(ret == SCRC_CONNECTION_CLOSED);
 
             mock_server_destroy(ms);
@@ -618,7 +615,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "data", 0, 1024);
             mock_server_send_cmd(ms, SCRC_CMD_END);
@@ -648,7 +645,7 @@ TEST(scrc)
             MockServer *ms = mock_server_create();
             TEST_REQUIRE(ms != NULL);
 
-            mock_server_send_full_header(ms, 0);
+            mock_server_send_full_header(ms, 0, "Yes");
             mock_server_send_cmd(ms, SCRC_CMD_TABHEADER);
             mock_server_send_column(ms, "n", 0, 4);
             mock_server_send_cmd(ms, SCRC_CMD_END);

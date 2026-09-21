@@ -4,6 +4,8 @@
  */
 
 #include "scrc.h"
+#include "grid.h"
+#include "cell.h"
 #include "../scroller/server.h"
 #include <ctype.h>
 #include <stdlib.h>
@@ -60,18 +62,116 @@ client_run_interactive(ScrcConnection *conn) {
             /* Receive response */
 
             size_t cnt = 0;
+            size_t width = 0;
             ScrcRow row;
             ScrcStatus status;
 
+            /* Print columns */
+            for (size_t i = 0; i != conn->columnsz; ++i) {
+                const Column *col = &conn->columns[i];
+                const char *c = col->name;
+                size_t sz;
+
+                /* Calculate column size */
+                switch (get_type_group(col->type)) {
+                    case TG_CHARACTER:
+                        sz = col->size;
+                        break;
+
+                    case TG_INTEGER:
+                        switch (col->type) {
+                            case T_SMALLINT: sz = 5; break;
+                            case T_INTEGER: sz = 10; break;
+                            case T_BIGINT: sz = 19; break;
+                            default: sz = 0; break;
+                        }
+                        break;
+
+                    default:
+                        sz = 0;
+                        break;
+                }
+
+                putchar('|');
+                ++width;
+
+                while(sz && *c) {
+                    putchar(*c);
+                    ++width;
+                    --sz;
+                    ++c;
+                }
+
+                while(sz--) {
+                    putchar(' ');
+                    ++width;
+                }
+            }
+
+            puts("|");
+            ++width;
+
+            /* Wide horizontal line */
+            for (size_t i = 0; i != width; ++i)
+                putchar('-');
+
+            puts("");
+
+            /* Print values */
             while ((status = scrc_fetch_row(conn, &row)) == SCRC_OK && row != NULL) {
                 ScrcCell cell;
 
                 for (size_t i = 0; i < conn->columnsz; i++) {
+                    const Column *col = &conn->columns[i];
                     scrc_fetch_cell(conn, row, i, &cell);
+
+                    switch (get_type_group(col->type)) {
+                        case TG_CHARACTER:
+                            const char *c = cell.data;
+                            size_t sz = col->size;
+
+                            putchar('|');
+
+                            while (sz--)
+                                putchar(*c++);
+
+                            break;
+
+                        case TG_INTEGER:
+                            switch (col->type) {
+                                case T_SMALLINT:
+                                    printf("|% 5i", get_smallint(cell.data));
+                                    break;
+
+                                case T_INTEGER:
+                                    printf("|% 10i", get_integer(cell.data));
+                                    break;
+
+                                case T_BIGINT:
+                                    printf("|% 19li", get_bigint(cell.data));
+                                    break;
+
+                                default:
+                            }
+
+                            break;
+
+                        default:
+                            puts("|--Unknown type--");
+                            break;
+                    }
                 }
+
+                puts("|");
 
                 ++cnt;
             }
+
+            /* Wide horizontal line */
+            for (size_t i = 0; i != width; ++i)
+                putchar('-');
+
+            puts("");
 
             if (status != SCRC_OK)
                 fprintf(stderr, "Error receiving response: %s\n", scrc_error(conn));

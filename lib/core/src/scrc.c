@@ -193,8 +193,8 @@ scrc_error(ScrcConnection *conn) {
         return NULL;
 
     switch (conn->status) {
-        case SCRC_OK:                       return "";
-        case SCRC_END:                      return "";
+        case SCRC_OK:                       return "Ok";
+        case SCRC_END:                      return "Ok";
         case SCRC_BAD_ALLOC:                return "Client bad alloc";
         case SCRC_NO_HOST:                  return "No host";
         case SCRC_UNKNOWN_HOST:             return "Unknown host";
@@ -359,7 +359,7 @@ scrc_fetch_cell(ScrcConnection *conn, const ScrcRow row, size_t n, ScrcCell *cel
     }
 
     c = conn->columns + n;
-    *cell = (ScrcCell){ .data = (const char *)row + c->offs, .size = c->size };
+    *cell = (ScrcCell){ .data = row + c->offs, .size = c->size };
 
     return conn->status = SCRC_OK;
 }

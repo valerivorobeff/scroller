@@ -134,6 +134,9 @@ ssize_t cmp_integer(Datum d1, Datum d2);
  */
 ssize_t cmp_character(Datum d1, Datum d2);
 
+/** @brief Get type group by type */
+#define get_type_group(g) g_types[g].group
+
 /** @brief Check if two integers are equal */
 #define eq_integer(d1, d2) (cmp_integer(d1, d2) == 0)
 /** @brief Check if two integers are not equal */

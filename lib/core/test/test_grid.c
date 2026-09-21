@@ -85,7 +85,7 @@ TEST(grid)
 
             /* INSERT ROW INTO TABLE - Add a new row and populate it */
             row = dgrid_alloc_row(g);    /* Allocate a new row slot */
-            if (grid_idx_valid(row)) {
+            if (grid_idx_is_valid(row)) {
                 Cell c;
 
                 /* Verify that one row is now occupied */

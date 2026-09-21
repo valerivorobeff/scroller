@@ -73,7 +73,7 @@ const char *datum_sdup(Datum src) {
                             ret[src.size] = '\0';
                             return ret;
                         }
-        case T_VARCHAR:     return sdup("<varchar typr not implemented>");
+        case T_VARCHAR:     return sdup("<varchar type not implemented>");
         case T_MAX:         return sdup("<Out of range type>");
         default:            return sdup("<Not implemented type>");
     }
@@ -150,8 +150,8 @@ to_base_type(Datum src) {
  */
 ssize_t
 cmp_integer(Datum d1, Datum d2) {
-    assert(g_types[d1.type].group == TG_INTEGER);
-    assert(g_types[d2.type].group == TG_INTEGER);
+    assert(get_type_group(d1.type) == TG_INTEGER);
+    assert(get_type_group(d2.type) == TG_INTEGER);
 
     d1 = to_base_type(d1);
     d2 = to_base_type(d2);
@@ -169,8 +169,8 @@ ssize_t
 cmp_character(Datum d1, Datum d2) {
     ssize_t ret;
 
-    assert(g_types[d1.type].group == TG_CHARACTER);
-    assert(g_types[d2.type].group == TG_CHARACTER);
+    assert(get_type_group(d1.type) == TG_CHARACTER);
+    assert(get_type_group(d2.type) == TG_CHARACTER);
 
     d1 = to_base_type(d1);
     d2 = to_base_type(d2);

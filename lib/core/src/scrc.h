@@ -145,7 +145,7 @@ typedef void *ScrcRow;
  *
  */
 typedef struct ScrcCell {
-    const void *data;   /**< Pointer to cell data (not null-terminated) */
+    const char *data;   /**< Pointer to cell data (not null-terminated) */
     size_t size;        /**< Size of cell data in bytes */
 } ScrcCell;
 
