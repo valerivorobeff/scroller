@@ -6,67 +6,95 @@
 #include "pagecache.h"
 #include "sequence.h"
 #include "array.h"
+#include <assert.h>
 
-int create_user(const char *user);
-int create_catalog(const char *catalog);
-int create_schema(Session *session, const char *schema);
-int create_table(Session *session, const char *schema, const char *tname, const Decl *decls);
+ScrcStatus create_user(const char *user);
+ScrcStatus create_catalog(const char *catalog);
+ScrcStatus create_schema(Session *session, const char *schema);
+ScrcStatus create_table(Session *session, const char *schema, const char *tname, const Decl *decls);
 
-int
+ScrcStatus
 create_user(const char *user) {
     int ret;
     Grid *header = pagecache_put_page(g_pagecache, g_server.system.user.header.full);
     Grid *data = pagecache_put_page(g_pagecache, g_server.system.user.data.full);
     uint16_t name_idx = htable_get_column_idx(header, "name");
-    Titor row = table_alloc_row(header, data);
+    Titor row;
+
+    assert(header && data && (name_idx != GRID_INVALID_IDX));
+
+    row = table_alloc_row(header, data);
+
+    if (!titor_is_valid(row))
+        return SCRS_BAD_ALLOC;
 
     ret = titor_put_datum(row, name_idx, make_char((char *)user));
 
-    if (ret == 0)
+    if (ret)
+        return SCRS_DATUM_TYPE_MISMATCH;
+    else
         pagecache_flush(g_pagecache, g_server.system.user.data.full);
 
-    return ret;
+    return SCRS_OK;
 }
 
-int
+ScrcStatus
 create_catalog(const char *catalog) {
     int ret;
     Grid *header = pagecache_put_page(g_pagecache, g_server.system.catalog.header.full);
     Grid *data = pagecache_put_page(g_pagecache, g_server.system.catalog.data.full);
     uint16_t name_idx = htable_get_column_idx(header, "name");
-    Titor row = table_alloc_row(header, data);
+    Titor row;
+
+    assert(header && data && (name_idx != GRID_INVALID_IDX));
+
+    row = table_alloc_row(header, data);
+
+    if (!titor_is_valid(row))
+        return SCRS_BAD_ALLOC;
 
     ret = titor_put_datum(row, name_idx, make_char((char *)catalog));
 
-    if (ret == 0)
+    if (ret)
+        return SCRS_DATUM_TYPE_MISMATCH;
+    else
         pagecache_flush(g_pagecache, g_server.system.catalog.data.full);
 
-    return ret; 
+    return SCRS_OK;
 }
 
-int
+ScrcStatus
 create_schema(Session *session, const char *schema) {
     int ret;
     Grid *header = pagecache_put_page(g_pagecache, g_server.system.schema.header.full);
     Grid *data = pagecache_put_page(g_pagecache, g_server.system.schema.data.full);
     uint16_t catalog_idx = htable_get_column_idx(header, "catalog");
     uint16_t schema_idx = htable_get_column_idx(header, "schema");
-    Titor row = table_alloc_row(header, data);
+    Titor row;
+
+    assert(header && data && (catalog_idx != GRID_INVALID_IDX) && (schema_idx != GRID_INVALID_IDX));
+
+    row = table_alloc_row(header, data);
+
+    if (!titor_is_valid(row))
+        return SCRS_BAD_ALLOC;
 
     ret = titor_put_datum(row, catalog_idx, make_char((char *)session->catalog));
 
     if (ret)
-        return ret;
+        return SCRS_DATUM_TYPE_MISMATCH;
 
     ret = titor_put_datum(row, schema_idx, make_char((char *)schema));
 
-    if (ret == 0)
+    if (ret)
+        return SCRS_DATUM_TYPE_MISMATCH;
+    else
         pagecache_flush(g_pagecache, g_server.system.schema.data.full);
 
-    return ret;
+    return SCRS_OK;
 }
 
-int
+ScrcStatus
 create_table(Session *session, const char *schema, const char *tname, const Decl *decls) {
     int ret;
     int64_t currval;
@@ -83,7 +111,15 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     uint16_t data_gid_idx = htable_get_column_idx(header, "data_gid");
     Titor row;
 
-    sequence_nextval(hsequence, sequence, &currval); /* Increment sequence */
+    assert(hsequence && sequence && header && data &&
+            (catalog_idx != GRID_INVALID_IDX) &&
+            (schema_idx != GRID_INVALID_IDX) &&
+            (header_gid_idx != GRID_INVALID_IDX) &&
+            (data_gid_idx != GRID_INVALID_IDX));
+
+    /* Increment sequence */
+    if (sequence_nextval(hsequence, sequence, &currval))
+        return SCRS_SEQUENCE_OVERFLOW;
 
     table = pagecache_put_page(g_pagecache, currval); /* Init header table */
     table = htable_init(table, PAGESZ, GT_FIXED);
@@ -91,11 +127,15 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     /* Add columns */
     for (int i = 0, ie = array_size(decls); i != ie; ++i) {
         const Decl *decl = &decls[i];
-        htable_add_column(table, decl->name, decl->type, decl->size);
+        if (htable_add_column(table, decl->name, decl->type, decl->size) == NULL)
+            return SCRS_BAD_ALLOC;
     }
 
     /* Add a new row of the new table into relation table */
     row = table_alloc_row(header, data);
+
+    if (!titor_is_valid(row))
+        return SCRS_BAD_ALLOC;
 
     ret = titor_put_datum(row, catalog_idx, make_char((char *)session->catalog));
     ret |= titor_put_datum(row, schema_idx, make_char((char *)schema));
@@ -103,12 +143,13 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     ret |= titor_put_datum(row, header_gid_idx, make_bigint(currval));
     ret |= titor_put_datum(row, data_gid_idx, make_bigint(GID_UNDEF));
 
-    if (ret == 0) {
-        pagecache_flush(g_pagecache, g_server.system.sequence.data.full);
-        pagecache_flush(g_pagecache, g_server.system.relation.data.full);
-        pagecache_flush(g_pagecache, currval);
-    }
+    if (ret)
+        return SCRS_DATUM_TYPE_MISMATCH;
 
-    return ret;
+    pagecache_flush(g_pagecache, g_server.system.sequence.data.full);
+    pagecache_flush(g_pagecache, g_server.system.relation.data.full);
+    pagecache_flush(g_pagecache, currval);
+
+    return SCRS_OK;
 }
 

@@ -52,7 +52,7 @@ void mitor_next(Mitor *mitor);
  * Finds the first unused row slot and marks it as occupied.
  *
  * @param grid      Pointer to the grid structure
- * @return          Index of the newly allocated row, or GRID_INVALID_IDXif grid is full
+ * @return          Index of the newly allocated row, or GRID_INVALID_IDX if grid is full
  *
  * @note The returned row's memory is zero-initialized.
  * @see grid_get_row()

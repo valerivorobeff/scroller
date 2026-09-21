@@ -53,19 +53,19 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
 
 cmd:
     CREATE USER STRING {
-        create_user($3);
+        session_send_status(session, create_user($3));
     }
     |
     CREATE CATALOG STRING {
-        create_catalog($3);
-        }
+        session_send_status(session, create_catalog($3));
+    }
     |
     CREATE SCHEMA STRING {
-        create_schema(session, $3);
+        session_send_status(session, create_schema(session, $3));
     }
     |
     CREATE TABLE STRING STRING ARRAY_BEGIN decls ARRAY_END {
-        create_table(session, $3, $4, (Decl *)current);
+        session_send_status(session, create_table(session, $3, $4, (Decl *)current));
     }
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN values ARRAY_END {

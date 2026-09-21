@@ -195,7 +195,7 @@ scrc_error(ScrcConnection *conn) {
     switch (conn->status) {
         case SCRC_OK:                       return "";
         case SCRC_END:                      return "";
-        case SCRC_BAD_ALLOC:                return "Bad alloc";
+        case SCRC_BAD_ALLOC:                return "Client bad alloc";
         case SCRC_NO_HOST:                  return "No host";
         case SCRC_UNKNOWN_HOST:             return "Unknown host";
         case SCRC_INCORRECT_PORT:           return "Incorrect port";
@@ -221,6 +221,9 @@ scrc_error(ScrcConnection *conn) {
         case SCRS_SESSION_CLOSED:           return "Client closed connection";
         case SCRS_UNKNOWN_RELATION:         return "Unknown relation";
         case SCRS_UNKNOWN_COLUMN:           return "Unknown column";
+        case SCRS_BAD_ALLOC:                return "Server bad alloc";
+        case SCRS_DATUM_TYPE_MISMATCH:      return "Datum type mismatch";
+        case SCRS_SEQUENCE_OVERFLOW:        return "Sequence overflow";
     }
 
     return "Unknown error";

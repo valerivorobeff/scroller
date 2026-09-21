@@ -41,7 +41,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u scroler
 expect "scroller>"
 send "CREATE USER new_user;\n"
-expect "Ready"
+expect "0 lines received"
 send "exit\r"
 expect eof
 EOF
@@ -53,7 +53,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user
 expect "scroller>"
 send "CREATE CATALOG cat;\n"
-expect "Ready"
+expect "0 lines received"
 send "exit\r"
 expect eof
 EOF
@@ -65,7 +65,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user -c cat
 expect "scroller>"
 send "CREATE SCHEMA sch;\n"
-expect "Ready"
+expect "0 lines received"
 send "exit\r"
 expect eof
 EOF
@@ -77,7 +77,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user -c cat
 expect "scroller>"
 send "CREATE TABLE sch.users (id int, name char (16));\n"
-expect "Ready"
+expect "0 lines received"
 send "exit\r"
 expect eof
 EOF
@@ -89,7 +89,7 @@ set timeout 10
 spawn ./build/debug/bin/scrc -h localhost -p $SERVER_PORT -u new_user -c cat
 expect "scroller>"
 send "INSERT INTO sch.users (id, name) VALUES (1, 'Alice');\n"
-expect "Ready"
+expect "0 lines received"
 send "exit\r"
 expect eof
 EOF
