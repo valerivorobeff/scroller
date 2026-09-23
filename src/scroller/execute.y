@@ -36,15 +36,12 @@ void yyerror(Session *session, Cmd *cmd, char const *s);
     size_t size;
     int64_t integer;
     Datum *datum;
-    /*struct {
-        int loop;
-        int dest;
-    } cmd;*/
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
 %token INSERT SELECT
-%token WHERE_BEGIN WHERE_END
+%token WHERE
+%token <integer> LOOP_BEGIN LOOP_END /* Used inside bc only */
 %token ARRAY_BEGIN ARRAY_END
 %token <integer> INTEGER
 %token <str> STRING
@@ -142,26 +139,30 @@ mb_where:
         }
     }
     |
-    where
+    WHERE where
     ;
 
 where:
+    %empty
+    |
     where_line
     |
     where where_line
     ;
 
 where_line:
-    WHERE_BEGIN expr WHERE_END {
+    expr {
         Titor row = cmd->titor;
-        const ScrcCmd scrc_cmd = SCRC_CMD_ROW;
 
-        if ($2 && titor_is_valid(row)) {
-            const size_t sz = titor_get_row_size(row);
+        if (titor_is_valid(row)) {
+            if ($1) {
+                const ScrcCmd scrc_cmd = SCRC_CMD_ROW;
+                const size_t sz = titor_get_row_size(row);
 
-            session_send(session, &scrc_cmd, sizeof(scrc_cmd)); /* Row start */
-            session_send(session, &sz, sizeof(sz));             /* Row size */
-            session_send(session, titor_get_row(row), sz);      /* Row */
+                session_send(session, &scrc_cmd, sizeof(scrc_cmd)); /* Row start */
+                session_send(session, &sz, sizeof(sz));             /* Row size */
+                session_send(session, titor_get_row(row), sz);      /* Row */
+            }
 
             titor_next(&row);
             cmd->titor = row;
