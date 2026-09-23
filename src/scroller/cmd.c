@@ -25,6 +25,8 @@ cmd_init(Cmd *cmd) {
     prev = context_switch(cmd->bc_cont);    /* switch to bytecode context */
     bc_init(&cmd->bc);                      /* Initialize bytecode */
 
+    cmd->titor = titor_init(NULL, NULL);    /* Initialize titor */
+
     cmd->current = NULL;
 
     context_switch(prev);                   /* Switch back */

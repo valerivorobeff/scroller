@@ -49,7 +49,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %token CREATE
 %token SCHEMA TABLE
 %token INSERT INTO VALUES
-%token SELECT FROM
+%token SELECT FROM WHERE
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 %token <integer>VINTEGER
 
@@ -104,9 +104,9 @@ query:
     ;
 
 body:
-    cmd ';' { y2parse(session, &cmd->bc, cmd->current); cmd_reset(cmd); }
+    cmd ';' { y2parse(session, cmd); cmd_reset(cmd); }
     |
-    body cmd ';' { y2parse(session, &cmd->bc, cmd->current); cmd_reset(cmd); }
+    body cmd ';' { y2parse(session, cmd); cmd_reset(cmd); }
     ;
 
 cmd:
@@ -169,9 +169,27 @@ cmd:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
     } ids {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
-    } FROM ID '.' ID {
+    } FROM ID '.' ID mb_where {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $6 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $8 }));
+    }
+    ;
+
+mb_where:
+    %empty
+    |
+    WHERE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_WHERE_BEGIN }));
+    } expr {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_WHERE_END }));
+    }
+    ;
+
+expr:
+    VINTEGER '=' VINTEGER {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $1 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $3 }));
     }
     ;
 

@@ -2,6 +2,7 @@
 #define _CMD_H_
 
 #include "bc.h"
+#include "table.h"
 
 typedef struct Context Context;
 
@@ -9,6 +10,7 @@ typedef struct Cmd {
     Context *bc_cont;
     Context *str_cont;
     Bc bc;
+    Titor titor;
     void *current;
 } Cmd;
 

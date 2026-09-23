@@ -1,4 +1,5 @@
 #include "bc.h"
+#include "cmd.h"
 #include "array.h"
 
 Bc *bc_init(Bc *bc);
@@ -6,7 +7,7 @@ void bc_drop(Bc *bc);
 void bc_clear(Bc *bc);
 void bc_reset(Bc *bc);
 void bc_put(Bc *bc, BcNode node);
-int y2lex(Y2STYPE *yylval, Bc *bc);
+int y2lex(Y2STYPE *yylval, Cmd *cmd);
 
 Bc *
 bc_init(Bc *bc) {
@@ -39,12 +40,24 @@ bc_put(Bc *bc, BcNode node) {
 }
 
 int
-y2lex(Y2STYPE *yylval, Bc *bc) {
+y2lex(Y2STYPE *yylval, Cmd *cmd) {
+    Bc *bc = &cmd->bc;
+
     if (bc->itor == array_size(bc->tokens)) {
         return 0;
     } else {
-        *yylval = bc->tokens[bc->itor].value;
-        return bc->tokens[bc->itor++].token;
+        int token = bc->tokens[bc->itor].token;
+
+        if (token == BC_WHERE_BEGIN) {
+
+        } else if (token == BC_WHERE_END) {
+
+        } else
+            *yylval = bc->tokens[bc->itor].value;
+
+        ++bc->itor;
+
+        return token;
     }
 }
 
