@@ -80,6 +80,7 @@ cmd:
     | SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
         Titor row;
         ScrcStatus res = dml_select(session, $5, $6, (const char **)$3, &row);
+
         if (res == SCRS_OK) {
             ScrcCmd scrc_cmd = SCRC_CMD_TABHEADER;
             size_t sz;
@@ -169,7 +170,7 @@ where_line:
     ;
 
 expr:
-    INTEGER '=' INTEGER { $$ = $1 == $3; }
+    INTEGER '=' INTEGER { $$ = ($1 == $3 ? 1 : 0); }
     ;
 
 decls:
@@ -232,7 +233,11 @@ value:
 void
 yyerror(Session *session, Cmd *cmd, char const *s) {
     (void)session;
-    (void)cmd;
-    ferr("y2 parser error: %s\n", s);
+    ferr("y2 parser error: %s, %li, %i, %li\n",
+        s,
+        cmd->bc.itor,
+        cmd->bc.tokens[cmd->bc.itor].token,
+        cmd->bc.tokens[cmd->bc.itor].value.integer
+    );
 }
 

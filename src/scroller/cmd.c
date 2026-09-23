@@ -41,9 +41,10 @@ void cmd_drop(Cmd *cmd) {
 }
 
 void cmd_reset(Cmd *cmd) {
-    /* We don't free cmd->bc here as it will be freed together with its memory context */
     context_reset(cmd->bc_cont);
     context_reset(cmd->str_cont);
+    bc_clear(&cmd->bc);
+    cmd->titor = titor_init(NULL, NULL); /* This line is not necessary as titor is reset inside y2 parser */
     cmd->current = NULL;
 }
 

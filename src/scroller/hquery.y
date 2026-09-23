@@ -169,10 +169,10 @@ cmd:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_BEGIN }));
     } ids {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
-    } FROM ID '.' ID mb_where {
+    } FROM ID '.' ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $6 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $8 }));
-    }
+    } mb_where
     ;
 
 mb_where:
@@ -182,6 +182,8 @@ mb_where:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_WHERE_BEGIN }));
     } expr {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_WHERE_END }));
+        for (size_t i = 0, ie = array_size(cmd->bc.tokens); i != ie; ++i)
+            printf("token: %i\n", cmd->bc.tokens[i].token);
     }
     ;
 
