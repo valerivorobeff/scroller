@@ -25,6 +25,8 @@ cmd_init(Cmd *cmd) {
     prev = context_switch(cmd->bc_cont);    /* switch to bytecode context */
     bc_init(&cmd->bc);                      /* Initialize bytecode */
 
+    cmd->titor = titor_init(NULL, NULL);    /* Initialize titor */
+
     cmd->current = NULL;
 
     context_switch(prev);                   /* Switch back */
@@ -39,9 +41,10 @@ void cmd_drop(Cmd *cmd) {
 }
 
 void cmd_reset(Cmd *cmd) {
-    /* We don't free cmd->bc here as it will be freed together with its memory context */
     context_reset(cmd->bc_cont);
     context_reset(cmd->str_cont);
+    bc_clear(&cmd->bc);
+    cmd->titor = titor_init(NULL, NULL); /* This line is not necessary as titor is reset inside y2 parser */
     cmd->current = NULL;
 }
 

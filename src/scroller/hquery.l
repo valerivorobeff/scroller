@@ -76,6 +76,7 @@ QUOTED          \'(\\.|[^\'])*\'
     "values"            return VALUES;
     "select"            return SELECT;
     "from"              return FROM;
+    "where"             return WHERE;
     "smallint"          return SMALLINT;
     "integer"           return INTEGER;
     "int"               return INTEGER;
@@ -88,6 +89,7 @@ QUOTED          \'(\\.|[^\'])*\'
     ")"                 return ')';
     ","                 return ',';
     "."                 return '.';
+    "="                 return '=';
     {INTEGER}           yylval->integer = atoll(yytext); return VINTEGER;
                         /* @todo atoll conterts to long long, but we need conversion to int64_t,
                         we should use or develop a special function that contecrt to int64_t

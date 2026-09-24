@@ -18,6 +18,7 @@ typedef struct Cmd Cmd;
 #include "../../../../src/scroller/flog.h"
 #include <sys/socket.h>
 
+int make_cmd(Session *session, Cmd *cmd);
 void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
 
@@ -49,7 +50,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %token CREATE
 %token SCHEMA TABLE
 %token INSERT INTO VALUES
-%token SELECT FROM
+%token SELECT FROM WHERE
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 %token <integer>VINTEGER
 
@@ -104,9 +105,15 @@ query:
     ;
 
 body:
-    cmd ';' { y2parse(session, &cmd->bc, cmd->current); cmd_reset(cmd); }
+    cmd ';' {
+        if (make_cmd(session, cmd))
+            cmd_reset(cmd);
+    }
     |
-    body cmd ';' { y2parse(session, &cmd->bc, cmd->current); cmd_reset(cmd); }
+    body cmd ';' {
+        if (make_cmd(session, cmd))
+            cmd_reset(cmd);
+    }
     ;
 
 cmd:
@@ -172,6 +179,27 @@ cmd:
     } FROM ID '.' ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $6 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $8 }));
+    } mb_where
+    ;
+
+mb_where:
+    %empty
+    |
+    WHERE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_WHERE }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_LOOP_BEGIN }));
+    } expr {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_LOOP_END }));
+        for (size_t i = 0, ie = array_size(cmd->bc.tokens); i != ie; ++i)
+            printf("token: %i\n", cmd->bc.tokens[i].token);
+    }
+    ;
+
+expr:
+    VINTEGER '=' VINTEGER {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $1 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $3 }));
     }
     ;
 
@@ -246,6 +274,57 @@ value:
     ;
 
 %%
+
+int make_cmd(Session *session, Cmd *cmd) {
+    int ret = bc_prepare(&cmd->bc);
+
+    switch (ret) {
+        case 0:
+            break;
+
+        case 1:
+            ferr("Bytecode stack overflow");
+            session_send_status(session, SCRS_BYTECODE_STACK_OVERFLOW);
+            return 1;
+
+        case 2:
+            ferr("Bytecode unbalanced stack");
+            session_send_status(session, SCRS_BYTECODE_UNBALANCED_STACK);
+            return 2;
+
+        default:
+            ferr("Bytecode unknown error");
+            session_send_status(session, SCRS_BYTECODE_UNKNOWN_ERROR);
+            return 3;
+
+    }
+
+    ret = y2parse(session, cmd);
+
+    switch (ret) {
+        case 0:
+            break;
+
+        case 1:
+            ferr("y2 Parser error");
+            session_send_status(session, SCRS_PARSER_ERROR);
+            return 4;
+
+        case 2:
+            ferr("y2 Parser memory exhaustion");
+            session_send_status(session, SCRS_PARSER_MEMORY_EXHAUSTION);
+            return 5;
+
+        default:
+            ferr("y2 Unknown parser error code: %i", ret);
+            session_send_status(session, SCRS_UNKNOWN_PARSER_ERROR);
+            return 6;
+    }
+
+    cmd_reset(cmd);
+
+    return 0;
+}
 
 /* Called by yyparse on error. */
 void

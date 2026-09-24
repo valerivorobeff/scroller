@@ -1,5 +1,5 @@
 %code requires{
-typedef struct Bc Bc;
+typedef struct Cmd Cmd;
 typedef struct Session Session;
 #include "type.h"
 #include <stddef.h>
@@ -8,22 +8,22 @@ typedef struct Session Session;
 
 %code {
 #include "array.h"
+#include "../../../../src/scroller/cmd.h"
 #include "../../../../src/scroller/bc.h"
 #include "../../../../src/scroller/ddl.h"
 #include "../../../../src/scroller/dml.h"
 #include "../../../../src/scroller/session.h"
 #include "../../../../src/scroller/flog.h"
-void yyerror(Session *session, Bc *bc, void *current, char const *s);
+void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
 %define api.prefix {y2}
 %define api.token.prefix {BC_}
  //%locations
-%lex-param      {Bc *bc}
+%lex-param      {Cmd *cmd}
 %parse-param    {Session *session}
-%parse-param    {Bc *bc}
-%parse-param    {void *current}
+%parse-param    {Cmd *cmd}
 
 /* @todo: write the functions */
  //%initial-action {}
@@ -40,6 +40,8 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
 
 %token CREATE USER CATALOG SCHEMA TABLE
 %token INSERT SELECT
+%token WHERE
+%token <integer> LOOP_BEGIN LOOP_END /* Used inside bc only */
 %token ARRAY_BEGIN ARRAY_END
 %token <integer> INTEGER
 %token <str> STRING
@@ -48,6 +50,7 @@ void yyerror(Session *session, Bc *bc, void *current, char const *s);
 
 %type <strs> strings
 %type <datum> value values
+%type <integer> expr
 
 %%
 
@@ -65,17 +68,18 @@ cmd:
     }
     |
     CREATE TABLE STRING STRING ARRAY_BEGIN decls ARRAY_END {
-        session_send_status(session, create_table(session, $3, $4, (Decl *)current));
+        session_send_status(session, create_table(session, $3, $4, (Decl *)cmd->current));
     }
     |
-    INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { current = NULL; } ARRAY_BEGIN values ARRAY_END {
+    INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { cmd->current = NULL; } ARRAY_BEGIN values ARRAY_END {
         session_send_status(session, insert(session, $2, $3, (const char **)$5, $9));
     }
     | SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
         Titor row;
         ScrcStatus res = dml_select(session, $5, $6, (const char **)$3, &row);
+
         if (res == SCRS_OK) {
-            ScrcCmd cmd = SCRC_CMD_TABHEADER;
+            ScrcCmd scrc_cmd = SCRC_CMD_TABHEADER;
             size_t sz;
 
             /* Response header */
@@ -84,47 +88,90 @@ cmd:
             session_finish_header(session);
             flog("Select response header sent");
 
-            session_send(session, &cmd, sizeof(cmd));           /* Table header start */
+            /* Table geader */
+            session_send(session, &scrc_cmd, sizeof(scrc_cmd));     /* Table header start */
 
-            cmd = SCRC_CMD_ROW;
+            scrc_cmd = SCRC_CMD_ROW;
 
             for (size_t i = 0; ; ++i) {
                 Column *c = htable_get_column(row.header, i);
                 if (c == NULL)
                     break;
 
-                session_send(session, &cmd, sizeof(cmd));       /* Column start */
+                session_send(session, &scrc_cmd, sizeof(scrc_cmd)); /* Column start */
                 sz = sizeof(Column);
-                session_send(session, &sz, sizeof(sz));         /* Column size */
-                session_send(session, c, sizeof(Column));       /* Column */
+                session_send(session, &sz, sizeof(sz));             /* Column size */
+                session_send(session, c, sizeof(Column));           /* Column */
             }
 
-            cmd = SCRC_CMD_END;
-            session_send(session, &cmd, sizeof(cmd));           /* Table header finish */
+            scrc_cmd = SCRC_CMD_END;
+            session_send(session, &scrc_cmd, sizeof(scrc_cmd));     /* Table header finish */
 
-            cmd = SCRC_CMD_TABDATA;
-            session_send(session, &cmd, sizeof(cmd));           /* Table data start */
+            /* Table data */
+            scrc_cmd = SCRC_CMD_TABDATA;
+            session_send(session, &scrc_cmd, sizeof(scrc_cmd));     /* Table data start */
 
-            sz = titor_get_row_size(row);
-
-            cmd = SCRC_CMD_ROW;
-
-            size_t cnt = 0;
-            for (; titor_is_valid(row); titor_next(&row)) {
-                session_send(session, &cmd, sizeof(cmd));       /* Row start */
-                session_send(session, &sz, sizeof(sz));         /* Row size */
-                session_send(session, titor_get_row(row), sz);  /* Row */
-                ++cnt;
-            }
-            flog("%li lines sent", cnt);
-
-            cmd = SCRC_CMD_END;
-            session_send(session, &cmd, sizeof(cmd));           /* Table data finish */
-            session_flush(session);
+            cmd->titor = row;
         } else {
             session_send_status(session, res);
+            /* @todo Raise error */
+        }
+    } mb_where {
+        ScrcCmd scrc_cmd = SCRC_CMD_END;
+        session_send(session, &scrc_cmd, sizeof(scrc_cmd));          /* Table data finish */
+        session_flush(session);
+    }
+    ;
+
+mb_where:
+    %empty {
+        Titor row = cmd->titor;
+        const ScrcCmd scrc_cmd = SCRC_CMD_ROW;
+
+        if (titor_is_valid(row)) {
+            const size_t sz = titor_get_row_size(row);
+
+            for (; titor_is_valid(row); titor_next(&row)) {
+                session_send(session, &scrc_cmd, sizeof(scrc_cmd)); /* Row start */
+                session_send(session, &sz, sizeof(sz));             /* Row size */
+                session_send(session, titor_get_row(row), sz);      /* Row */
+            }
         }
     }
+    |
+    WHERE where
+    ;
+
+where:
+    %empty
+    |
+    where_line
+    |
+    where where_line
+    ;
+
+where_line:
+    expr {
+        Titor row = cmd->titor;
+
+        if (titor_is_valid(row)) {
+            if ($1) {
+                const ScrcCmd scrc_cmd = SCRC_CMD_ROW;
+                const size_t sz = titor_get_row_size(row);
+
+                session_send(session, &scrc_cmd, sizeof(scrc_cmd)); /* Row start */
+                session_send(session, &sz, sizeof(sz));             /* Row size */
+                session_send(session, titor_get_row(row), sz);      /* Row */
+            }
+
+            titor_next(&row);
+            cmd->titor = row;
+        }
+    }
+    ;
+
+expr:
+    INTEGER '=' INTEGER { $$ = ($1 == $3 ? 1 : 0); }
     ;
 
 decls:
@@ -135,25 +182,25 @@ decls:
 
 decl:
     SIZE_T TYPE STRING {
-        Decl *decl = current;
+        Decl *decl = cmd->current;
         array_put(decl, ((Decl){ .name = $3, .size = $1, .type = $2 }));
-        current = decl;
+        cmd->current = decl;
     }
     ;
 
 strings:
     STRING {
-        char **str = current;
+        char **str = cmd->current;
         array_put(str, $1);
-        current = str;
+        cmd->current = str;
         $$ = str;
         flog("y2: %s", $1);
     }
     |
     strings STRING {
-        char **str = current;
+        char **str = cmd->current;
         array_put(str, $2);
-        current = str;
+        cmd->current = str;
         $$ = str;
         flog("y2: %s", $2);
     }
@@ -167,16 +214,16 @@ values:
 
 value:
     INTEGER {
-        Datum *d = current;
+        Datum *d = cmd->current;
         array_put(d, make_bigint($1));
-        current = d;
+        cmd->current = d;
         $$ = d;
     }
     |
     STRING {
-        Datum *d = current;
+        Datum *d = cmd->current;
         array_put(d, make_char($1));
-        current = d;
+        cmd->current = d;
         $$ = d;
     }
     ;
@@ -185,10 +232,13 @@ value:
 
 /* Called by yyparse on error. */
 void
-yyerror(Session *session, Bc *bc, void *current, char const *s) {
+yyerror(Session *session, Cmd *cmd, char const *s) {
     (void)session;
-    (void)bc;
-    (void)current;
-    ferr("y2 parser error: %s\n", s);
+    ferr("y2 parser error: %s, %li, %i, %li\n",
+        s,
+        cmd->bc.itor,
+        cmd->bc.tokens[cmd->bc.itor].token,
+        cmd->bc.tokens[cmd->bc.itor].value.integer
+    );
 }
 

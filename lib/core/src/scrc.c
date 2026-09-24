@@ -224,6 +224,9 @@ scrc_error(ScrcConnection *conn) {
         case SCRS_BAD_ALLOC:                return "Server bad alloc";
         case SCRS_DATUM_TYPE_MISMATCH:      return "Datum type mismatch";
         case SCRS_SEQUENCE_OVERFLOW:        return "Sequence overflow";
+        case SCRS_BYTECODE_STACK_OVERFLOW:  return "Bytecode stack overflow";
+        case SCRS_BYTECODE_UNBALANCED_STACK:return "Bytecode unbalanced stack";
+        case SCRS_BYTECODE_UNKNOWN_ERROR:   return "Bytecode unknown error";
     }
 
     return "Unknown error";
