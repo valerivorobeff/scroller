@@ -20,12 +20,26 @@ static const char *TEST_DIR = "/tmp/scroller/test/";
 /* Helper function: create temporary test directory */
 static int
 create_test_dir() {
-    int ret =  mkdir(TEST_DIR, 0755);
+    int ret = 0;
+    char *dir = strdup(TEST_DIR);
+    char *prev = dir + 1;               /* Ignore first '/' */
+    char *c;
 
-    if (ret == 0 || errno == EEXIST) {
-        chdir(TEST_DIR);
-        return 0;
+    while (prev && *prev && (c = strchr(prev, '/')) != NULL) {
+        *c = '\0';
+        ret = mkdir(dir, 0755);
+
+        if (ret == 0 || errno == EEXIST) {
+            *c = '/';
+            prev = c + 1;
+        } else
+            break;
     }
+
+    if (ret == 0)
+        chdir(dir);
+
+    free(dir);
 
     return ret;
 }
