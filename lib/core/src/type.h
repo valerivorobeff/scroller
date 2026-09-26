@@ -26,6 +26,7 @@ typedef enum TypeGroup : int16_t {
  */
 typedef enum Type : int16_t {
     T_UNKNOWN = 0,      /**< Unknown type */
+    T_NAME,             /**< Special type for parsing, not used in grids */
     T_SMALLINT,         /**< 16-bit integer */
     T_INTEGER,          /**< 32-bit integer */
     T_BIGINT,           /**< 64-bit integer */
@@ -119,6 +120,14 @@ Datum char2varchar(Datum src);
 Datum to_base_type(Datum src);
 
 /**
+ * @brief Checks comparability of two data
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return not 0 if data comparable, 0 otherwise
+ */
+int data_comparable(Datum d1, Datum d2);
+
+/**
  * @brief Compare two integer values
  * @param d1 First integer datum
  * @param d2 Second integer datum
@@ -133,6 +142,17 @@ ssize_t cmp_integer(Datum d1, Datum d2);
  * @return Negative if d1 < d2, zero if equal, positive if d1 > d2
  */
 ssize_t cmp_character(Datum d1, Datum d2);
+
+
+/**
+ * @brief Compare two data values
+ * @param d1 First character datum
+ * @param d2 Second character datum
+ * note if data not comparable it asserts and returns 0, you should
+ *      check data comparability before using this function by calling cmp_comparable!
+ * @return Negative if d1 < d2, zero if equal, positive if d1 > d2
+ */
+ssize_t cmp_data(Datum d1, Datum d2);
 
 /** @brief Get type group by type */
 #define get_type_group(g) g_types[g].group
@@ -163,6 +183,11 @@ ssize_t cmp_character(Datum d1, Datum d2);
 /** @brief Check if first character is greater than or equal to second */
 #define ge_character(d1, d2) (cmp_character(d1, d2) >= 0)
 
+/** @brief Check if two characters are equal */
+#define eq_data(d1, d2) (cmp_data(d1, d2) == 0)
+
+/** @brief Create T_NAME datum */
+#define make_name(v) ((Datum){ T_NAME, (v) ? strlen(v) : 0, .value.character = (v) })
 /** @brief Create T_SMALLINT datum */
 #define make_smallint(v) ((Datum){ T_SMALLINT, g_types[T_SMALLINT].size, .value.smallint = (v) })
 /** @brief Create T_INTEGER datum */

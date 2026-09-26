@@ -14,7 +14,7 @@ typedef struct Session Session;
 #include "../../../../src/scroller/dml.h"
 #include "../../../../src/scroller/session.h"
 #include "../../../../src/scroller/flog.h"
-void yyerror(Session *session, Cmd *cmd, char const *s);
+static void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
@@ -35,7 +35,8 @@ void yyerror(Session *session, Cmd *cmd, char const *s);
     int type;
     size_t size;
     int64_t integer;
-    Datum *datum;
+    Datum datum;
+    Datum *datuma;
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
@@ -45,11 +46,13 @@ void yyerror(Session *session, Cmd *cmd, char const *s);
 %token ARRAY_BEGIN ARRAY_END
 %token <integer> INTEGER
 %token <str> STRING
+%token <datum> DATUM
 %token <type> TYPE
 %token <size> SIZE_T
 
 %type <strs> strings
-%type <datum> value values
+%type <datum> value
+%type <datuma> values
 %type <integer> expr
 
 %%
@@ -171,7 +174,12 @@ where_line:
     ;
 
 expr:
-    INTEGER '=' INTEGER { $$ = ($1 == $3 ? 1 : 0); }
+    value '=' value {
+        if (!data_comparable($1, $3))
+            ferr("Data missmatch");
+
+        $$ = eq_data($1, $3);
+    }
     ;
 
 decls:
@@ -207,31 +215,53 @@ strings:
     ;
 
 values:
-    value
-    |
-    values value
-    ;
-
-value:
-    INTEGER {
+    value {
         Datum *d = cmd->current;
-        array_put(d, make_bigint($1));
+        array_put(d, $1);
         cmd->current = d;
         $$ = d;
     }
     |
-    STRING {
+    values value {
         Datum *d = cmd->current;
-        array_put(d, make_char($1));
+        array_put(d, $2);
         cmd->current = d;
         $$ = d;
+    }
+    ;
+
+value:
+    DATUM {
+        if ($1.type == T_NAME) {
+            Grid *header;
+
+            if (!titor_is_valid(cmd->titor))
+                ferr("Unexpected ID");
+
+            header = cmd->titor.header;
+
+            for (size_t i = 0; ; ++i) {
+                Column *c = htable_get_column(header, i);
+                if (c == NULL)
+                    break;
+
+                if (strcmp($1.value.character, c->name) == 0) {
+                    $$ = titor_get_datum(cmd->titor, i);
+                    goto fin;
+                }
+            }
+
+            ferr("Unknown ID \"%s\"", $1.value.character);
+
+        fin:
+        }
     }
     ;
 
 %%
 
 /* Called by yyparse on error. */
-void
+static void
 yyerror(Session *session, Cmd *cmd, char const *s) {
     (void)session;
     ferr("y2 parser error: %s, %li, %i, %li\n",

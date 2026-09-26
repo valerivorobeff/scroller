@@ -18,8 +18,8 @@ typedef struct Cmd Cmd;
 #include "../../../../src/scroller/flog.h"
 #include <sys/socket.h>
 
-int make_cmd(Session *session, Cmd *cmd);
-void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
+static int execute_cmd(Session *session, Cmd *cmd);
+static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
@@ -38,6 +38,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %union {
     char* str;
     int64_t integer;
+    Datum datum;
 }
 
 /* Common tokens */
@@ -53,6 +54,7 @@ void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query
 %token SELECT FROM WHERE
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 %token <integer>VINTEGER
+%type <datum> value
 
 %%
 
@@ -106,12 +108,12 @@ query:
 
 body:
     cmd ';' {
-        if (make_cmd(session, cmd))
+        if (execute_cmd(session, cmd))
             cmd_reset(cmd);
     }
     |
     body cmd ';' {
-        if (make_cmd(session, cmd))
+        if (execute_cmd(session, cmd))
             cmd_reset(cmd);
     }
     ;
@@ -196,10 +198,10 @@ mb_where:
     ;
 
 expr:
-    VINTEGER '=' VINTEGER {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $1 }));
+     value '=' value {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $1 }));
         bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $3 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $3 }));
     }
     ;
 
@@ -256,26 +258,36 @@ ids:
     ;
 
 values:
-    value
+    value {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $1 }));
+    }
     |
-    values ',' value
+    values ',' value {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $3 }));
+    }
     ;
 
 value:
     VINTEGER {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_INTEGER, .value.integer = $1 }));
+        $$ = make_bigint($1);
         flog("%l", $1);
     }
     |
     STRING {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $1 }));
+        $$ = make_char($1);
+        flog("%s", $1);
+    }
+    |
+    ID {
+        $$ = make_name($1);
         flog("%s", $1);
     }
     ;
 
 %%
 
-int make_cmd(Session *session, Cmd *cmd) {
+static int
+execute_cmd(Session *session, Cmd *cmd) {
     int ret = bc_prepare(&cmd->bc);
 
     switch (ret) {
@@ -327,7 +339,7 @@ int make_cmd(Session *session, Cmd *cmd) {
 }
 
 /* Called by yyparse on error. */
-void
+static void
 yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s) {
     (void)location;
     (void)scanner;
