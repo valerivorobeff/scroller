@@ -175,8 +175,11 @@ where_line:
 
 expr:
     value '=' value {
-        if (!data_comparable($1, $3))
+        if (!data_comparable($1, $3)) {
             ferr("Data missmatch");
+            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+            YYABORT;
+        }
 
         $$ = eq_data($1, $3);
     }

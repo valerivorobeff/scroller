@@ -108,14 +108,22 @@ query:
 
 body:
     cmd ';' {
-        if (execute_cmd(session, cmd))
-            cmd_reset(cmd);
+        int ret = execute_cmd(session, cmd);
+        cmd_reset(cmd);
+
+        if (ret)
+            YYERROR;
     }
     |
     body cmd ';' {
-        if (execute_cmd(session, cmd))
-            cmd_reset(cmd);
+        int ret = execute_cmd(session, cmd);
+        cmd_reset(cmd);
+
+        if (ret)
+            YYERROR;
     }
+    |
+    error
     ;
 
 cmd:
@@ -332,8 +340,6 @@ execute_cmd(Session *session, Cmd *cmd) {
             session_send_status(session, SCRS_UNKNOWN_PARSER_ERROR);
             return 6;
     }
-
-    cmd_reset(cmd);
 
     return 0;
 }
