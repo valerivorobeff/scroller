@@ -14,7 +14,7 @@ typedef struct Session Session;
 #include "../../../../src/scroller/dml.h"
 #include "../../../../src/scroller/session.h"
 #include "../../../../src/scroller/flog.h"
-void yyerror(Session *session, Cmd *cmd, char const *s);
+static void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
 %define api.pure full
@@ -35,7 +35,8 @@ void yyerror(Session *session, Cmd *cmd, char const *s);
     int type;
     size_t size;
     int64_t integer;
-    Datum *datum;
+    Datum datum;
+    Datum *datuma;
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
@@ -45,11 +46,16 @@ void yyerror(Session *session, Cmd *cmd, char const *s);
 %token ARRAY_BEGIN ARRAY_END
 %token <integer> INTEGER
 %token <str> STRING
+%token <datum> DATUM
 %token <type> TYPE
 %token <size> SIZE_T
+%left OR
+%left AND
+%nonassoc '='
 
 %type <strs> strings
-%type <datum> value values
+%type <datum> value
+%type <datuma> values
 %type <integer> expr
 
 %%
@@ -112,6 +118,7 @@ cmd:
             session_send(session, &scrc_cmd, sizeof(scrc_cmd));     /* Table data start */
 
             cmd->titor = row;
+            cmd->bc.titor = row;
         } else {
             session_send_status(session, res);
             /* @todo Raise error */
@@ -143,8 +150,6 @@ mb_where:
     ;
 
 where:
-    %empty
-    |
     where_line
     |
     where where_line
@@ -171,7 +176,27 @@ where_line:
     ;
 
 expr:
-    INTEGER '=' INTEGER { $$ = ($1 == $3 ? 1 : 0); }
+    value '=' value {
+        if (!data_comparable($1, $3)) {
+            ferr("Data missmatch");
+            /* @todo I can't send error message here as it is sent by y1parser
+                     but it sends just SCRS_SERVER ERROR and i want to send:
+                     session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+                     I don't know how to do it
+            */
+            YYABORT;
+        }
+
+        $$ = eq_data($1, $3);
+    }
+    |
+    expr AND expr {
+        $$ = $1 && $3;
+    }
+    |
+    expr OR expr {
+        $$ = $1 || $3;
+    }
     ;
 
 decls:
@@ -207,31 +232,55 @@ strings:
     ;
 
 values:
-    value
-    |
-    values value
-    ;
-
-value:
-    INTEGER {
+    value {
         Datum *d = cmd->current;
-        array_put(d, make_bigint($1));
+        array_put(d, $1);
         cmd->current = d;
         $$ = d;
     }
     |
-    STRING {
+    values value {
         Datum *d = cmd->current;
-        array_put(d, make_char($1));
+        array_put(d, $2);
         cmd->current = d;
         $$ = d;
+    }
+    ;
+
+value:
+    DATUM {
+        if ($1.type == T_NAME) {
+            Grid *header;
+
+            if (!titor_is_valid(cmd->titor)) {
+                ferr("Unexpected ID");
+                goto fin;
+            }
+
+            header = cmd->titor.header;
+
+            for (size_t i = 0; ; ++i) {
+                Column *c = htable_get_column(header, i);
+                if (c == NULL)
+                    break;
+
+                if (strcmp($1.value.character, c->name) == 0) {
+                    $$ = titor_get_datum(cmd->titor, i);
+                    goto fin;
+                }
+            }
+
+            ferr("Unknown ID \"%s\"", $1.value.character);
+
+        fin:
+        }
     }
     ;
 
 %%
 
 /* Called by yyparse on error. */
-void
+static void
 yyerror(Session *session, Cmd *cmd, char const *s) {
     (void)session;
     ferr("y2 parser error: %s, %li, %i, %li\n",

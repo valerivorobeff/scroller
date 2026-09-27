@@ -13,6 +13,7 @@ int y2lex(Y2STYPE *yylval, Cmd *cmd);
 Bc *
 bc_init(Bc *bc) {
     bc->itor = 0;
+    bc->titor = titor_init(NULL, NULL);
     bc->tokens = NULL;
 
     return bc;
@@ -21,18 +22,21 @@ bc_init(Bc *bc) {
 void
 bc_drop(Bc *bc) {
     bc->itor = 0;
+    bc->titor = titor_init(NULL, NULL);
     array_free(bc->tokens);
 }
 
 void
 bc_clear(Bc *bc) {
     bc->itor = 0;
+    bc->titor = titor_init(NULL, NULL);
     array_clear(bc->tokens);
 }
 
 void
 bc_reset(Bc *bc) {
     bc->itor = 0;
+    bc->titor = titor_init(NULL, NULL);
 }
 
 void
@@ -42,7 +46,7 @@ bc_put(Bc *bc, BcNode node) {
 
 int
 bc_prepare(Bc *bc) {
-    /* Stack of WHERE_BEGIN indices */
+    /* Stack of LOOP_BEGIN indices */
     static const size_t STACKSZ = 64;
     size_t stack[STACKSZ];
     size_t sp = 0;
@@ -61,10 +65,10 @@ bc_prepare(Bc *bc) {
 
             const size_t begin_idx = stack[--sp];
 
-            /* WHERE_BEGIN.integer = index after WHERE_END */
+            /* LOOP_BEGIN.integer = index after LOOP_END */
             bc->tokens[begin_idx].value.integer = i + 1;
 
-            /* WHERE_END.integer = index of WHERE_BEGIN */
+            /* LOOP_END.integer = index of LOOP_BEGIN */
             node->value.integer = begin_idx;
         }
     }
@@ -82,14 +86,14 @@ y2lex(Y2STYPE *yylval, Cmd *cmd) {
         int token = bc->tokens[bc->itor].token;
 
         if (token == BC_LOOP_BEGIN) {
-            if (titor_is_valid(cmd->titor)) {
+            if (titor_is_valid(bc->titor)) {
                 ++bc->itor;
                 if (bc->itor == array_size(bc->tokens))
                     return 0;
                 else
                     token = bc->tokens[bc->itor].token;
             } else {
-                /* Move forward past WHERE_END */
+                /* Move forward past LOOP_END */
                 bc->itor = bc->tokens[bc->itor].value.integer;
                 if (bc->itor == array_size(bc->tokens))
                     return 0;
@@ -98,11 +102,13 @@ y2lex(Y2STYPE *yylval, Cmd *cmd) {
             }
 
         } else if (token == BC_LOOP_END) {
-            if (titor_is_valid(cmd->titor)) {
+            /* Iterate titor */
+            titor_next(&bc->titor);
+            if (titor_is_valid(bc->titor)) {
                 bc->itor = bc->tokens[bc->itor].value.integer;
                 token = bc->tokens[++bc->itor].token;
             } else {
-                /* Move forward past WHERE_END */
+                /* Move forward past LOOP_END */
                 ++bc->itor;
                 if (bc->itor == array_size(bc->tokens))
                     return 0;

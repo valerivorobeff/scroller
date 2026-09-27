@@ -95,6 +95,7 @@ grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column) {
 
     switch (hc->type) {
         case T_UNKNOWN: assert(0 && "datum type T_UNKNOWN not supported"); break;
+        case T_NAME: assert(0 && "datum type T_NAME not used in grids"); break;
         case T_SMALLINT: ret.value.smallint = get_smallint(c); break;
         case T_INTEGER:  ret.value.integer = get_integer(c); break;
         case T_BIGINT:   ret.value.bigint = get_bigint(c); break;
@@ -125,6 +126,7 @@ grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum dat
     if (datum.type == g_types[hc->type].type) {
         switch (hc->type) {
             case T_UNKNOWN: assert(0 && "datum type T_UNKNOWN not supported"); break;
+            case T_NAME: assert(0 && "datum type T_NAME not used in grids"); break;
             case T_SMALLINT: put_smallint(c, datum.value.smallint); break;
             case T_INTEGER:  put_integer(c, datum.value.integer); break;
             case T_BIGINT:   put_bigint(c, datum.value.bigint); break;

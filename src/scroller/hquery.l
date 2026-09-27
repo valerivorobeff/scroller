@@ -85,6 +85,8 @@ QUOTED          \'(\\.|[^\'])*\'
     "char"              return CHAR;
     "varchar"           return VARCHAR;
     "varying"           return VARYING;
+    "or"                return OR;
+    "and"               return AND;
     "("                 return '(';
     ")"                 return ')';
     ","                 return ',';
@@ -103,6 +105,7 @@ QUOTED          \'(\\.|[^\'])*\'
 
 <<EOF>>                 return 0;
 \n                      /* eat */
+.                       /* eat */
 
 %%
 

@@ -26,6 +26,7 @@ const STypeGroup g_type_groups[TG_MAX] = {
  */
 const SType g_types[T_MAX] = {
     { T_UNKNOWN, TG_UNKNOWN, SM_TYPESZ, 0, NULL },
+    { T_NAME, TG_UNKNOWN, SM_TYPESZ, 0, NULL },
     { T_SMALLINT, TG_INTEGER, SM_TYPESZ, sizeof(int16_t), smallint2bigint },
     { T_INTEGER, TG_INTEGER, SM_TYPESZ, sizeof(int32_t), integer2bigint },
     { T_BIGINT, TG_INTEGER, SM_TYPESZ, sizeof(int64_t), NULL },
@@ -143,6 +144,18 @@ to_base_type(Datum src) {
 }
 
 /**
+ * @brief Checks comparability of two data
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return not 0 if data comparable, 0 otherwise
+ */
+int
+data_comparable(Datum d1, Datum d2) {
+    return get_type_group(d1.type) == get_type_group(d2.type) &&
+        get_type_group(d1.type) != TG_UNKNOWN;
+}
+
+/**
  * @brief Compare two integer values
  * @param d1 First integer datum
  * @param d2 Second integer datum
@@ -179,5 +192,27 @@ cmp_character(Datum d1, Datum d2) {
         d1.size < d2.size ? d1.size : d2.size);
 
     return ret == 0 ? (d1.size < d2.size ? -1 : (d1.size > d2.size ? 1 : 0)) : ret;
+}
+
+/**
+ * @brief Compare two data values
+ * @param d1 First character datum
+ * @param d2 Second character datum
+ * note if data not comparable it asserts and returns 0, you should
+ *      check data comparability before using this function by calling cmp_comparable!
+ * @return Negative if d1 < d2, zero if equal, positive if d1 > d2
+ */
+ssize_t
+cmp_data(Datum d1, Datum d2) {
+    if (data_comparable(d1, d2)) {
+        switch (get_type_group(d1.type)) {
+            case TG_UNKNOWN: assert(0 && "Cannot copmare TG_UNKNOWN"); break;
+            case TG_INTEGER: return cmp_integer(d1, d2);
+            case TG_CHARACTER: return cmp_character(d1, d2);
+            case TG_MAX: assert(0 && "Cannot copmare TG_MAX"); break;
+        }
+    }
+
+    return 0;
 }
 
