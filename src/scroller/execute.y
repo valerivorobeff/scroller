@@ -49,6 +49,9 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %token <datum> DATUM
 %token <type> TYPE
 %token <size> SIZE_T
+%left OR
+%left AND
+%nonassoc '='
 
 %type <strs> strings
 %type <datum> value
@@ -115,6 +118,7 @@ cmd:
             session_send(session, &scrc_cmd, sizeof(scrc_cmd));     /* Table data start */
 
             cmd->titor = row;
+            cmd->bc.titor = row;
         } else {
             session_send_status(session, res);
             /* @todo Raise error */
@@ -146,8 +150,6 @@ mb_where:
     ;
 
 where:
-    %empty
-    |
     where_line
     |
     where where_line
@@ -177,11 +179,23 @@ expr:
     value '=' value {
         if (!data_comparable($1, $3)) {
             ferr("Data missmatch");
-            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+            /* @todo I can't send error message here as it is sent by y1parser
+                     but it sends just SCRS_SERVER ERROR and i want to send:
+                     session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+                     I don't know how to do it
+            */
             YYABORT;
         }
 
         $$ = eq_data($1, $3);
+    }
+    |
+    expr AND expr {
+        $$ = $1 && $3;
+    }
+    |
+    expr OR expr {
+        $$ = $1 || $3;
     }
     ;
 
@@ -238,8 +252,10 @@ value:
         if ($1.type == T_NAME) {
             Grid *header;
 
-            if (!titor_is_valid(cmd->titor))
+            if (!titor_is_valid(cmd->titor)) {
                 ferr("Unexpected ID");
+                goto fin;
+            }
 
             header = cmd->titor.header;
 

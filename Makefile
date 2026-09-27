@@ -16,6 +16,7 @@ LEX = flex
 LEXFLAGS =
 
 YACC = bison
+YACCFLAGS = -Wcounterexamples
 GEN_HEADERDIR = build/$(BUILD)/gen/include
 
 CC = gcc

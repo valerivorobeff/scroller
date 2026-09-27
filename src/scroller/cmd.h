@@ -7,11 +7,11 @@
 typedef struct Context Context;
 
 typedef struct Cmd {
-    Context *bc_cont;
-    Context *str_cont;
-    Bc bc;
-    Titor titor;
-    void *current;
+    Context *bc_cont;       /**< COntext for bytecode */
+    Context *str_cont;      /**< Context for strings */
+    Bc bc;                  /**< Bytecode */
+    Titor titor;            /**< Titor of current row in where expressions */
+    void *current;          /**< Pointer to current data to use by parsers */
 } Cmd;
 
 Cmd *cmd_init(Cmd *cmd);

@@ -2,6 +2,7 @@
 #define _BC_H_
 
 #include "execute.y.h"
+#include "table.h"
 #include <stddef.h>
 
 typedef struct Cmd Cmd;
@@ -12,8 +13,9 @@ typedef struct BcNode {
 } BcNode;
 
 typedef struct Bc {
-    size_t itor;
-    BcNode *tokens;
+    size_t itor;        /**< Currect bytecode token */
+    Titor titor;        /**< Special titor for bc inner row calculation */
+    BcNode *tokens;     /**< Array of tokens */
 } Bc;
 
 Bc *bc_init(Bc *bc);

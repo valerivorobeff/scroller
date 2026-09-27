@@ -53,6 +53,9 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token INSERT INTO VALUES
 %token SELECT FROM WHERE
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
+%left OR
+%left AND
+%nonassoc '='
 %token <integer>VINTEGER
 %type <datum> value
 
@@ -123,7 +126,9 @@ body:
             YYERROR;
     }
     |
-    error
+    error ';' {
+        yyerrok;
+    }
     ;
 
 cmd:
@@ -206,11 +211,19 @@ mb_where:
     ;
 
 expr:
-     value '=' value {
+    value '=' value {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $1 }));
         bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $3 }));
     }
+    |
+    expr AND {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_AND }));
+    } expr
+    |
+    expr OR {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_OR }));
+    } expr
     ;
 
 decls:
