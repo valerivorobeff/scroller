@@ -75,6 +75,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %nonassoc '=' NE '<' LE '>' GE
 %left '+' '-'
 %left '*' '/' '%'
+%precedence '(' ')'
 
 %type <strs> strings
 %type <datum> value
@@ -348,6 +349,10 @@ value:
         }
 
         $$ = mod_data($1, $3);
+    }
+    |
+    '(' value ')' {
+        $$ = $2;
     }
     ;
 
