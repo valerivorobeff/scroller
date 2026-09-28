@@ -17,12 +17,6 @@ typedef struct Cmd Cmd;
 #include "../../../../src/scroller/cmd.h"
 #include "../../../../src/scroller/flog.h"
 #include <sys/socket.h>
-
-#define put_op(v1, op, v2) \
-    bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = (v1) })); \
-    bc_put(&cmd->bc, ((BcNode){ .token = op })); \
-    bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = (v2) }))
-
 static int execute_cmd(Session *session, Cmd *cmd);
 static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
@@ -58,10 +52,9 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token INSERT INTO VALUES
 %token SELECT FROM WHERE
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
-%left OR
-%left AND
-%nonassoc '=' NE '<' LE '>' GE
-%left '+' '-'
+/* We don't need operator priority or assoc here, y1parser should just put ahead
+    all the operators in the same order as it gets */
+%left OR AND '=' NE '<' LE '>' GE '+' '-'
 %token <integer>VINTEGER
 %type <datum> value
 
@@ -217,6 +210,8 @@ mb_where:
     ;
 
 expr:
+    value
+    |
     expr OR {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_OR }));
     } expr
@@ -225,37 +220,29 @@ expr:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_AND }));
     } expr
     |
-    value '=' value {
-        put_op($1, '=', $3);
-    }
-/*    |
-    value NE value {
-        put_op($1, BC_NE, $3);
-    }
+    value '=' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
+    } value
     |
-    value '<' value {
-        put_op($1, '<', $3);
-    }
+    value NE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_NE }));
+    } value
     |
-    value LE value {
-        put_op($1, BC_LE, $3);
-    }
+    value '<' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '<' }));
+    } value
     |
-    value '>' value {
-        put_op($1, '>', $3);
-    }
+    value LE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_LE }));
+    } value
     |
-    value GE value {
-        put_op($1, BC_GE, $3);
-    }
+    value '>' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '>' }));
+    } value
     |
-    value '+' value {
-        put_op($1, '-', $3);
-    }
-    |
-    value '-' value {
-        put_op($1, '-', $3);
-    }*/
+    value GE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_GE }));
+    } value
     ;
 
 decls:
@@ -311,32 +298,37 @@ ids:
     ;
 
 values:
-    value {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $1 }));
-    }
+    value
     |
-    values ',' value {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $3 }));
-    }
+    values ',' value
     ;
 
 value:
     VINTEGER {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_bigint($1) }));
         $$ = make_bigint($1);
         flog("%l", $1);
     }
     |
     STRING {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_char($1) }));
         $$ = make_char($1);
         flog("%s", $1);
     }
     |
     ID {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_name($1) }));
         $$ = make_name($1);
         flog("%s", $1);
     }
     |
-    value '+' value
+    value '+' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '+' }));
+    } value
+    |
+    value '-' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '-' }));
+    } value
     ;
 
 %%

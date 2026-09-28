@@ -98,6 +98,8 @@ QUOTED          \'(\\.|[^\'])*\'
     ","                 return ',';
     "."                 return '.';
     "="                 return '=';
+    "+"                 return '+';
+    "-"                 return '-';
     {INTEGER}           yylval->integer = atoll(yytext); return VINTEGER;
                         /* @todo atoll conterts to long long, but we need conversion to int64_t,
                         we should use or develop a special function that contecrt to int64_t

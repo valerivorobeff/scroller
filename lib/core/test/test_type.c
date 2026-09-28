@@ -375,6 +375,23 @@ TEST(type)
 
     TEST_SUITE(type_comparable_arithmetical_lexixal)
 
+        TEST_CASE(data_zeroed) {
+            TEST_CHECK(datum_zeroed(make_smallint(0)));
+            TEST_CHECK(!datum_zeroed(make_smallint(5)));
+
+            TEST_CHECK(datum_zeroed(make_integer(0)));
+            TEST_CHECK(!datum_zeroed(make_integer(5)));
+
+            TEST_CHECK(datum_zeroed(make_bigint(0)));
+            TEST_CHECK(!datum_zeroed(make_bigint(5)));
+
+            TEST_CHECK(datum_zeroed(make_char("")));
+            TEST_CHECK(!datum_zeroed(make_char("Hello")));
+
+            TEST_CHECK(datum_zeroed(make_varchar("")));
+            TEST_CHECK(!datum_zeroed(make_varchar("Hello")));
+        }
+
         TEST_CASE(data_comparable) {
             TEST_CHECK(data_comparable(make_char("Hello"), make_char("Again")));
             TEST_CHECK(data_comparable(make_integer(12), make_bigint(125)));

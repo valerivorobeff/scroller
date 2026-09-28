@@ -144,12 +144,34 @@ to_base_type(Datum src) {
 }
 
 /**
+ * brief - Answers if datum has a non-zero value (not NULL, 0, empty string)
+ * @param d datum
+ * @return true if zeroed, false otherwise
+ */
+bool
+datum_zeroed(Datum d) {
+    switch (d.type) {
+        case T_UNKNOWN:     assert(0 && "Unknown data type"); return false;
+        case T_SMALLINT:    return d.value.smallint == 0;
+        case T_INTEGER:     return d.value.integer == 0;
+        case T_BIGINT:      return d.value.bigint == 0;
+        case T_NAME:
+        case T_CHAR:
+        case T_VARCHAR:     return d.value.character == NULL ||
+                                *d.value.character == '\0';
+        case T_MAX:         assert(0 && "Incorrect data type"); return false;
+    }
+
+    return false;
+}
+
+/**
  * @brief Checks comparability of two data
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return not 0 if data comparable, 0 otherwise
+ * @return true if data comparable, false otherwise
  */
-int
+bool
 data_comparable(Datum d1, Datum d2) {
     return get_type_group(d1.type) == get_type_group(d2.type) &&
         get_type_group(d1.type) != TG_UNKNOWN;

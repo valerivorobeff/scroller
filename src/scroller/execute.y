@@ -24,6 +24,14 @@ typedef struct Session Session;
 #define check_op(v1, v2) \
     if (!data_comparable(v1, v2)) { \
         ferr("Data missmatch"); \
+        session_send_status(session, SCRS_DATUM_TYPE_MISMATCH); \
+        YYABORT; \
+    }
+
+#define check_arithmetical(v1, v2) \
+    if (!data_arithmetical(v1, v2)) { \
+        ferr("Data missmatch"); \
+        session_send_status(session, SCRS_DATUM_TYPE_MISMATCH); \
         YYABORT; \
     }
 
@@ -190,6 +198,10 @@ where_line:
     ;
 
 expr:
+    value {
+        $$ = !datum_zeroed($1);
+    }
+    |
     expr OR expr {
         $$ = $1 || $3;
     }
@@ -202,7 +214,7 @@ expr:
         check_op($1, $3);
         $$ = eq_data($1, $3);
     }
-/*    |
+    |
     value NE value {
         check_op($1, $3);
         $$ = ne_data($1, $3);
@@ -227,18 +239,6 @@ expr:
         check_op($1, $3);
         $$ = ge_data($1, $3);
     }
-    |
-    value '+' value {
-        if (data_arithmetical($1, $3))
-            $$ = add_data($1, $3).value.bigint;
-        else
-            YYABORT;
-    }
-    |
-    value '-' value {
-        check_op($1, $3);
-        //$$ = $1 - $3;
-    }*/
     ;
 
 decls:
@@ -319,12 +319,13 @@ value:
     }
     |
     value '+' value {
-        if (data_arithmetical($1, $3))
-            $$ = add_data($1, $3);
-        else {
-            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
-            YYABORT;
-        }
+        check_arithmetical($1, $3);
+        $$ = add_data($1, $3);
+    }
+    |
+    value '-' value {
+        check_arithmetical($1, $3);
+        $$ = sub_data($1, $3);
     }
     ;
 

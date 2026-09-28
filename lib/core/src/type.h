@@ -9,6 +9,7 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
 #include <sys/types.h>
 
 /**
@@ -130,6 +131,13 @@ Datum to_base_type(Datum src);
  *****************************************************************************/
 
 /**
+ * brief - Answers if datum has a non-zero value (not NULL, 0, empty string)
+ * @param d datum
+ * @return true if zeroed, false otherwise
+ */
+bool datum_zeroed(Datum d);
+
+/**
  * @brief Checks if two data are arithmetical
  * @note you should use this macro before using arithmetical functions
  * @param d1 First datum
@@ -153,9 +161,9 @@ Datum to_base_type(Datum src);
  * @brief Checks comparability of two data
  * @param d1 First datum
  * @param d2 Second datum
- * @return not 0 if data comparable, 0 otherwise
+ * @return true if data comparable, false otherwise
  */
-int data_comparable(Datum d1, Datum d2);
+bool data_comparable(Datum d1, Datum d2);
 
 /************
  * Integer
