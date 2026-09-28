@@ -30,7 +30,7 @@ typedef struct Session Session;
 
 #define check_arithmetical(v1, v2) \
     if (!data_arithmetical(v1, v2)) { \
-        ferr("Data missmatch"); \
+        ferr("Data not arithmetical"); \
         session_send_status(session, SCRS_DATUM_TYPE_MISMATCH); \
         YYABORT; \
     }
@@ -74,6 +74,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %left AND
 %nonassoc '=' NE '<' LE '>' GE
 %left '+' '-'
+%left '*' '/' '%'
 
 %type <strs> strings
 %type <datum> value
@@ -326,6 +327,27 @@ value:
     value '-' value {
         check_arithmetical($1, $3);
         $$ = sub_data($1, $3);
+    }
+    |
+    value '*' value {
+        check_arithmetical($1, $3);
+        $$ = mul_data($1, $3);
+    }
+    |
+    value '/' value {
+        check_arithmetical($1, $3);
+        $$ = div_data($1, $3);
+    }
+    |
+    value '%' value {
+        if (get_type_group($1.type) != TG_INTEGER ||
+            get_type_group($3.type) != TG_INTEGER) {
+            ferr("Data not integer");
+            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+            YYABORT;
+        }
+
+        $$ = mod_data($1, $3);
     }
     ;
 

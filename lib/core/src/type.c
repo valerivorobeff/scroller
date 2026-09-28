@@ -198,7 +198,7 @@ cmp_integer(Datum d1, Datum d2) {
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum
 add_integer(Datum d1, Datum d2) {
@@ -214,7 +214,7 @@ add_integer(Datum d1, Datum d2) {
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum
 sub_integer(Datum d1, Datum d2) {
@@ -222,6 +222,54 @@ sub_integer(Datum d1, Datum d2) {
     d2 = to_base_type(d2);
 
     d1.value.bigint -= d2.value.bigint;
+
+    return d1;
+}
+
+/** @brief Multiplies two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum
+mul_integer(Datum d1, Datum d2) {
+    d1 = to_base_type(d1);
+    d2 = to_base_type(d2);
+
+    d1.value.bigint *= d2.value.bigint;
+
+    return d1;
+}
+
+/** @brief Divides two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum
+div_integer(Datum d1, Datum d2) {
+    d1 = to_base_type(d1);
+    d2 = to_base_type(d2);
+
+    d1.value.bigint /= d2.value.bigint;
+
+    return d1;
+}
+
+/** @brief Modulos two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum
+mod_integer(Datum d1, Datum d2) {
+    d1 = to_base_type(d1);
+    d2 = to_base_type(d2);
+
+    d1.value.bigint %= d2.value.bigint;
 
     return d1;
 }
@@ -274,7 +322,7 @@ cmp_data(Datum d1, Datum d2) {
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum
 add_data(Datum d1, Datum d2) {
@@ -291,7 +339,7 @@ add_data(Datum d1, Datum d2) {
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum
 sub_data(Datum d1, Datum d2) {
@@ -302,5 +350,54 @@ sub_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot substitute non comparable data");
+}
+
+/** @brief Multiplies two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mul_data(Datum d1, Datum d2) {
+    if (data_comparable(d1, d2)) {
+        switch (get_type_group(d1.type)) {
+            case TG_INTEGER: return mul_integer(d1, d2);
+            default: assert(0 && "Cannot multiply not arithmetical data"); break;
+        }
+    } else
+        assert(0 && "Cannot multiply non comparable data");
+}
+
+/** @brief Divides two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum div_data(Datum d1, Datum d2) {
+    if (data_comparable(d1, d2)) {
+        switch (get_type_group(d1.type)) {
+            case TG_INTEGER: return div_integer(d1, d2);
+            default: assert(0 && "Cannot divide not arithmetical data"); break;
+        }
+    } else
+        assert(0 && "Cannot divide non comparable data");
+}
+
+/** @brief Modulos two data
+ * @note you should check data type == TG_INTEGER for both data before using
+ *      this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mod_data(Datum d1, Datum d2) {
+    if (data_comparable(d1, d2)) {
+        switch (get_type_group(d1.type)) {
+            case TG_INTEGER: return mod_integer(d1, d2);
+            default: assert(0 && "Cannot modulo not integer data"); break;
+        }
+    } else
+        assert(0 && "Cannot modulo non comparable data");
 }
 

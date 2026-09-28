@@ -432,6 +432,15 @@ TEST(type)
 
             TEST_CHECK(add_data(make_integer(25), make_bigint(125)).value.bigint == 150);
             TEST_CHECK(sub_data(make_integer(25), make_bigint(125)).value.bigint == -100);
+
+            TEST_CHECK(mul_integer(make_integer(5), make_bigint(12)).value.bigint == 60);
+            TEST_CHECK(mul_data(make_integer(5), make_bigint(12)).value.bigint == 60);
+
+            TEST_CHECK(div_integer(make_integer(25), make_bigint(5)).value.bigint == 5);
+            TEST_CHECK(div_data(make_integer(31), make_bigint(-10)).value.bigint == -3);
+
+            TEST_CHECK(mod_integer(make_integer(15), make_bigint(5)).value.bigint == 0);
+            TEST_CHECK(mod_data(make_integer(-18), make_bigint(4)).value.bigint == -2);
         }
 
     TEST_SUITE_END()

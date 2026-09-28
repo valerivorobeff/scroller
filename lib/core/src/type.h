@@ -199,7 +199,7 @@ ssize_t cmp_integer(Datum d1, Datum d2);
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum add_integer(Datum d1, Datum d2);
 
@@ -207,9 +207,33 @@ Datum add_integer(Datum d1, Datum d2);
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum sub_integer(Datum d1, Datum d2);
+
+/** @brief Multiplies two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mul_integer(Datum d1, Datum d2);
+
+/** @brief Divides two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum div_integer(Datum d1, Datum d2);
+
+/** @brief Modulos two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mod_integer(Datum d1, Datum d2);
 
 
 /************
@@ -280,7 +304,7 @@ ssize_t cmp_data(Datum d1, Datum d2);
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum add_data(Datum d1, Datum d2);
 
@@ -288,9 +312,34 @@ Datum add_data(Datum d1, Datum d2);
  * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First integer datum
  * @param d2 Second integer datum
- * @return new datum of type T_BIGINT containing the sum
+ * @return new datum of type T_BIGINT containing the result
  */
 Datum sub_data(Datum d1, Datum d2);
+
+/** @brief Multiplies two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mul_data(Datum d1, Datum d2);
+
+/** @brief Divides two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum div_data(Datum d1, Datum d2);
+
+/** @brief Modulos two data
+ * @note you should check data type == TG_INTEGER for both data before using
+ *      this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mod_data(Datum d1, Datum d2);
 
 
 /**
