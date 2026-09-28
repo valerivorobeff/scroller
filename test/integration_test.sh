@@ -1,19 +1,25 @@
 #!/bin/bash
 # integration_test.sh
 
-set -e
+set -euo pipefail
 
-TEST_DIR="/tmp/scroller_test_$$"
+PARENT_DIR="/tmp/scroller"
+TEST_DIR="$PARENT_DIR/test_$$"
 SERVER_PORT=8081
 SERVER_PID=""
 
 cleanup() {
     echo "Cleaning up..."
-    [ -n "$SERVER_PID" ] && kill $SERVER_PID 2>/dev/null
+    if [ -n "$SERVER_PID" ]; then
+        kill "$SERVER_PID" 2>/dev/null || true
+    fi
     rm -rf "$TEST_DIR"
 }
 
 trap cleanup EXIT INT TERM
+
+# Create parent directory
+mkdir -p "$PARENT_DIR"
 
 # Setup test data
 echo "Setting up test data..."
@@ -26,7 +32,7 @@ SERVER_PID=$!
 sleep 1
 
 # Check server is running
-if ! kill -0 $SERVER_PID 2>/dev/null; then
+if ! kill -0 "$SERVER_PID" 2>/dev/null; then
     echo "ERROR: Server failed to start"
     exit 1
 fi
