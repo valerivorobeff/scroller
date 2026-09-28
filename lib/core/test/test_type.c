@@ -200,6 +200,9 @@ TEST(type)
 
             TEST_CHECK(cmp_integer(d1, d2) == 0);
             TEST_CHECK(eq_integer(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) == 0);
+            TEST_CHECK(eq_data(d1, d2));
         }
 
         TEST_CASE(cmp_integer_less) {
@@ -210,6 +213,11 @@ TEST(type)
             TEST_CHECK(lt_integer(d1, d2));
             TEST_CHECK(le_integer(d1, d2));
             TEST_CHECK(!gt_integer(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) < 0);
+            TEST_CHECK(lt_data(d1, d2));
+            TEST_CHECK(le_data(d1, d2));
+            TEST_CHECK(!gt_data(d1, d2));
         }
 
         TEST_CASE(cmp_integer_greater) {
@@ -220,6 +228,11 @@ TEST(type)
             TEST_CHECK(gt_integer(d1, d2));
             TEST_CHECK(ge_integer(d1, d2));
             TEST_CHECK(!lt_integer(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) > 0);
+            TEST_CHECK(gt_data(d1, d2));
+            TEST_CHECK(ge_data(d1, d2));
+            TEST_CHECK(!lt_data(d1, d2));
         }
 
         TEST_CASE(cmp_integer_negative) {
@@ -228,6 +241,9 @@ TEST(type)
 
             TEST_CHECK(cmp_integer(d1, d2) < 0);
             TEST_CHECK(lt_integer(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) < 0);
+            TEST_CHECK(lt_data(d1, d2));
         }
 
         TEST_CASE(cmp_integer_boundary) {
@@ -235,6 +251,8 @@ TEST(type)
             Datum d2 = make_integer(32767);
 
             TEST_CHECK(cmp_integer(d1, d2) == 0);
+
+            TEST_CHECK(cmp_data(d1, d2) == 0);
         }
 
         TEST_CASE(cmp_integer_mixed_types) {
@@ -245,6 +263,10 @@ TEST(type)
             TEST_CHECK(eq_integer(d1, d2));
             TEST_CHECK(eq_integer(d2, d3));
             TEST_CHECK(eq_integer(d1, d3));
+
+            TEST_CHECK(eq_data(d1, d2));
+            TEST_CHECK(eq_data(d2, d3));
+            TEST_CHECK(eq_data(d1, d3));
         }
 
     TEST_SUITE_END()
@@ -259,6 +281,9 @@ TEST(type)
 
             TEST_CHECK(cmp_character(d1, d2) == 0);
             TEST_CHECK(eq_character(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) == 0);
+            TEST_CHECK(eq_data(d1, d2));
         }
 
         TEST_CASE(cmp_character_char_varchar) {
@@ -270,6 +295,9 @@ TEST(type)
             /* char → varchar (trim spaces) then compare */
             TEST_CHECK(cmp_character(d1, d2) == 0);
             TEST_CHECK(eq_character(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) == 0);
+            TEST_CHECK(eq_data(d1, d2));
         }
 
         TEST_CASE(cmp_character_less) {
@@ -281,6 +309,10 @@ TEST(type)
             TEST_CHECK(cmp_character(d1, d2) < 0);
             TEST_CHECK(lt_character(d1, d2));
             TEST_CHECK(le_character(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) < 0);
+            TEST_CHECK(lt_data(d1, d2));
+            TEST_CHECK(le_data(d1, d2));
         }
 
         TEST_CASE(cmp_character_greater) {
@@ -292,6 +324,10 @@ TEST(type)
             TEST_CHECK(cmp_character(d1, d2) > 0);
             TEST_CHECK(gt_character(d1, d2));
             TEST_CHECK(ge_character(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) > 0);
+            TEST_CHECK(gt_data(d1, d2));
+            TEST_CHECK(ge_data(d1, d2));
         }
 
         TEST_CASE(cmp_character_prefix) {
@@ -303,6 +339,9 @@ TEST(type)
             /* "Hello" is prefix of "HelloWorld", so shorter is less */
             TEST_CHECK(cmp_character(d1, d2) < 0);
             TEST_CHECK(lt_character(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) < 0);
+            TEST_CHECK(lt_data(d1, d2));
         }
 
         TEST_CASE(cmp_character_empty) {
@@ -313,6 +352,9 @@ TEST(type)
 
             TEST_CHECK(cmp_character(d1, d2) < 0);
             TEST_CHECK(lt_character(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) < 0);
+            TEST_CHECK(lt_data(d1, d2));
         }
 
         TEST_CASE(cmp_character_spaces) {
@@ -324,6 +366,55 @@ TEST(type)
             /* char trims spaces before comparison */
             TEST_CHECK(cmp_character(d1, d2) == 0);
             TEST_CHECK(eq_character(d1, d2));
+
+            TEST_CHECK(cmp_data(d1, d2) == 0);
+            TEST_CHECK(eq_data(d1, d2));
+        }
+
+    TEST_SUITE_END()
+
+    TEST_SUITE(type_comparable_arithmetical_lexixal)
+
+        TEST_CASE(data_comparable) {
+            TEST_CHECK(data_comparable(make_char("Hello"), make_char("Again")));
+            TEST_CHECK(data_comparable(make_integer(12), make_bigint(125)));
+            TEST_CHECK(!data_comparable(make_char("Hello"), make_integer(25)));
+            TEST_CHECK(!data_comparable(make_bigint(25), make_varchar("Again")));
+        }
+
+        TEST_CASE(data_arithmetical) {
+            TEST_CHECK(data_arithmetical(make_smallint(12), make_smallint(25)));
+            TEST_CHECK(data_arithmetical(make_smallint(12), make_integer(25)));
+            TEST_CHECK(data_arithmetical(make_smallint(12), make_bigint(25)));
+
+            TEST_CHECK(data_arithmetical(make_integer(12), make_smallint(25)));
+            TEST_CHECK(data_arithmetical(make_integer(12), make_integer(25)));
+            TEST_CHECK(data_arithmetical(make_integer(12), make_bigint(25)));
+
+            TEST_CHECK(data_arithmetical(make_bigint(12), make_smallint(25)));
+            TEST_CHECK(data_arithmetical(make_bigint(12), make_integer(25)));
+            TEST_CHECK(data_arithmetical(make_bigint(12), make_bigint(25)));
+
+            TEST_CHECK(!data_arithmetical(make_bigint(12), make_char("Hello")));
+            TEST_CHECK(!data_arithmetical(make_char("Hello"), make_varchar("Again")));
+        }
+
+        TEST_CASE(data_lexical) {
+            TEST_CHECK(data_lexical(make_char("Hello"), make_char("Again")));
+            TEST_CHECK(data_lexical(make_char("Hello"), make_varchar("Again")));
+            TEST_CHECK(data_lexical(make_varchar("Hello"), make_char("Again")));
+            TEST_CHECK(data_lexical(make_varchar("Hello"), make_varchar("Again")));
+
+            TEST_CHECK(!data_lexical(make_char("Hello"), make_integer(25)));
+            TEST_CHECK(!data_lexical(make_varchar("Hello"), make_bigint(125)));
+        }
+
+        TEST_CASE(do_arithmetical) {
+            TEST_CHECK(add_integer(make_integer(25), make_bigint(125)).value.bigint == 150);
+            TEST_CHECK(sub_integer(make_integer(25), make_bigint(125)).value.bigint == -100);
+
+            TEST_CHECK(add_data(make_integer(25), make_bigint(125)).value.bigint == 150);
+            TEST_CHECK(sub_data(make_integer(25), make_bigint(125)).value.bigint == -100);
         }
 
     TEST_SUITE_END()

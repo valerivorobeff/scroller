@@ -172,6 +172,38 @@ cmp_integer(Datum d1, Datum d2) {
     return d1.value.bigint - d2.value.bigint;
 }
 
+/** @brief Adds two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the sum
+ */
+Datum
+add_integer(Datum d1, Datum d2) {
+    d1 = to_base_type(d1);
+    d2 = to_base_type(d2);
+
+    d1.value.bigint += d2.value.bigint;
+
+    return d1;
+}
+
+/** @brief Substitutes two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the sum
+ */
+Datum
+sub_integer(Datum d1, Datum d2) {
+    d1 = to_base_type(d1);
+    d2 = to_base_type(d2);
+
+    d1.value.bigint -= d2.value.bigint;
+
+    return d1;
+}
+
 /**
  * @brief Compare two character values
  * @param d1 First character datum
@@ -199,7 +231,7 @@ cmp_character(Datum d1, Datum d2) {
  * @param d1 First character datum
  * @param d2 Second character datum
  * note if data not comparable it asserts and returns 0, you should
- *      check data comparability before using this function by calling cmp_comparable!
+ *      check data comparability before using this function by calling data_comparable!
  * @return Negative if d1 < d2, zero if equal, positive if d1 > d2
  */
 ssize_t
@@ -214,5 +246,39 @@ cmp_data(Datum d1, Datum d2) {
     }
 
     return 0;
+}
+
+/** @brief Adds two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the sum
+ */
+Datum
+add_data(Datum d1, Datum d2) {
+    if (data_comparable(d1, d2)) {
+        switch (get_type_group(d1.type)) {
+            case TG_INTEGER: return add_integer(d1, d2);
+            default: assert(0 && "Cannot add not arithmetical data"); break;
+        }
+    } else
+        assert(0 && "Cannot add non comparable data");
+}
+
+/** @brief Substitutes two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the sum
+ */
+Datum
+sub_data(Datum d1, Datum d2) {
+    if (data_comparable(d1, d2)) {
+        switch (get_type_group(d1.type)) {
+            case TG_INTEGER: return sub_integer(d1, d2);
+            default: assert(0 && "Cannot substitute not arithmetical data"); break;
+        }
+    } else
+        assert(0 && "Cannot substitute non comparable data");
 }
 

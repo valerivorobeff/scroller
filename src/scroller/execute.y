@@ -14,6 +14,19 @@ typedef struct Session Session;
 #include "../../../../src/scroller/dml.h"
 #include "../../../../src/scroller/session.h"
 #include "../../../../src/scroller/flog.h"
+
+/* @todo I can't send error message inside check_op macro
+         as it is sent by y1parser but it sends just
+         SCRS_SERVER ERROR and I want to send:
+         session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+         I don't know how to do it
+*/
+#define check_op(v1, v2) \
+    if (!data_comparable(v1, v2)) { \
+        ferr("Data missmatch"); \
+        YYABORT; \
+    }
+
 static void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
@@ -51,7 +64,8 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %token <size> SIZE_T
 %left OR
 %left AND
-%nonassoc '='
+%nonassoc '=' NE '<' LE '>' GE
+%left '+' '-'
 
 %type <strs> strings
 %type <datum> value
@@ -176,27 +190,55 @@ where_line:
     ;
 
 expr:
-    value '=' value {
-        if (!data_comparable($1, $3)) {
-            ferr("Data missmatch");
-            /* @todo I can't send error message here as it is sent by y1parser
-                     but it sends just SCRS_SERVER ERROR and i want to send:
-                     session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
-                     I don't know how to do it
-            */
-            YYABORT;
-        }
-
-        $$ = eq_data($1, $3);
+    expr OR expr {
+        $$ = $1 || $3;
     }
     |
     expr AND expr {
         $$ = $1 && $3;
     }
     |
-    expr OR expr {
-        $$ = $1 || $3;
+    value '=' value {
+        check_op($1, $3);
+        $$ = eq_data($1, $3);
     }
+/*    |
+    value NE value {
+        check_op($1, $3);
+        $$ = ne_data($1, $3);
+    }
+    |
+    value '<' value {
+        check_op($1, $3);
+        $$ = lt_data($1, $3);
+    }
+    |
+    value LE value {
+        check_op($1, $3);
+        $$ = le_data($1, $3);
+    }
+    |
+    value '>' value {
+        check_op($1, $3);
+        $$ = gt_data($1, $3);
+    }
+    |
+    value GE value {
+        check_op($1, $3);
+        $$ = ge_data($1, $3);
+    }
+    |
+    value '+' value {
+        if (data_arithmetical($1, $3))
+            $$ = add_data($1, $3).value.bigint;
+        else
+            YYABORT;
+    }
+    |
+    value '-' value {
+        check_op($1, $3);
+        //$$ = $1 - $3;
+    }*/
     ;
 
 decls:
@@ -273,6 +315,15 @@ value:
             ferr("Unknown ID \"%s\"", $1.value.character);
 
         fin:
+        }
+    }
+    |
+    value '+' value {
+        if (data_arithmetical($1, $3))
+            $$ = add_data($1, $3);
+        else {
+            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+            YYABORT;
         }
     }
     ;

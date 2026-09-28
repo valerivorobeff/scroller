@@ -18,6 +18,11 @@ typedef struct Cmd Cmd;
 #include "../../../../src/scroller/flog.h"
 #include <sys/socket.h>
 
+#define put_op(v1, op, v2) \
+    bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = (v1) })); \
+    bc_put(&cmd->bc, ((BcNode){ .token = op })); \
+    bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = (v2) }))
+
 static int execute_cmd(Session *session, Cmd *cmd);
 static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
@@ -55,7 +60,8 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 %left OR
 %left AND
-%nonassoc '='
+%nonassoc '=' NE '<' LE '>' GE
+%left '+' '-'
 %token <integer>VINTEGER
 %type <datum> value
 
@@ -211,19 +217,45 @@ mb_where:
     ;
 
 expr:
-    value '=' value {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $1 }));
-        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $3 }));
-    }
+    expr OR {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_OR }));
+    } expr
     |
     expr AND {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_AND }));
     } expr
     |
-    expr OR {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_OR }));
-    } expr
+    value '=' value {
+        put_op($1, '=', $3);
+    }
+/*    |
+    value NE value {
+        put_op($1, BC_NE, $3);
+    }
+    |
+    value '<' value {
+        put_op($1, '<', $3);
+    }
+    |
+    value LE value {
+        put_op($1, BC_LE, $3);
+    }
+    |
+    value '>' value {
+        put_op($1, '>', $3);
+    }
+    |
+    value GE value {
+        put_op($1, BC_GE, $3);
+    }
+    |
+    value '+' value {
+        put_op($1, '-', $3);
+    }
+    |
+    value '-' value {
+        put_op($1, '-', $3);
+    }*/
     ;
 
 decls:
@@ -303,6 +335,8 @@ value:
         $$ = make_name($1);
         flog("%s", $1);
     }
+    |
+    value '+' value
     ;
 
 %%
