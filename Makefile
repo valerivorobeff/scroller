@@ -221,19 +221,78 @@ DEPS = $(CORE_OBJS:.o=.d) \
 # Do-Lib: Do-Util: Add your lib or util objs to the list above
 -include $(DEPS)
 
-clean:
-	rm -rf build/
+#####################
+#                   #
+#       Test        #
+#                   #
+#####################
 
-test: all $(TEST_BINS)
+# --- High-level test targets ---
+test: all unit-test functional-test integration-test
+	@echo ""
+	@echo "✅ All tests passed!"
+
+# --- Unit tests (C code) ---
+unit-test: $(TEST_BINS)
+	@echo "=== Unit tests ==="
 	@for t in $(TEST_BINS); do \
 		echo "Running test '$$t'"; \
 		$$t || { echo "x $$? tests failed in test $$t"; exit 1; } \
-	done; \
-	echo "✅ All tests passed!"
+	done
+	@echo "✅ Unit tests passed"
 
-integration-test: $(BIN_DIR)/scr_init $(BIN_DIR)/scroller $(BIN_DIR)/scrc
-	@echo "Running integration tests..."
-	./test/integration_test.sh
+# --- Functional tests (per utility) ---
+functional-test: all
+	@echo "=== Functional tests ==="
+	@if [ -x test/functional/run.sh ]; then \
+		./test/functional/run.sh; \
+	else \
+		echo "No functional tests yet"; \
+	fi
 
-.PHONY: all clean test integration-test
+# --- Integration tests (bash + SQL) ---
+integration-test: all smoke-test sql-test
+	@echo ""
+	@echo "✅ Integration tests passed"
+
+# --- Smoke test (client-server basic) ---
+smoke-test: $(BIN_DIR)/scr_init $(BIN_DIR)/scroller $(BIN_DIR)/scrc
+	@echo "=== Smoke test ==="
+	@./test/integration_test.sh
+
+# --- SQL tests ---
+sql-test: all
+	@echo "=== SQL tests ==="
+	@./test/run.sh
+
+# --- Update SQL expected outputs ---
+sql-update:
+	@./test/update_expected.sh --all
+
+sql-update-one:
+	@./test/update_expected.sh $(TEST)
+
+sql-list:
+	@./test/update_expected.sh --list
+
+# --- Test help ---
+help-test:
+	@echo "Test targets:"
+	@echo "  test              - Run all tests"
+	@echo "  unit-test         - Unit tests"
+	@echo "  functional-test   - Functional tests"
+	@echo "  integration-test  - Integration tests (smoke + SQL)"
+	@echo "  smoke-test        - Client-server smoke test"
+	@echo "  sql-test          - SQL tests only"
+	@echo ""
+	@echo "  sql-update        - Update all expected SQL results"
+	@echo "  sql-update-one    - Update one SQL test: make sql-update-one TEST=05_select_like"
+	@echo "  sql-list          - List available SQL tests"
+
+clean:
+	rm -rf build/
+
+.PHONY: all clean \
+        test unit-test functional-test integration-test smoke-test sql-test \
+        sql-update sql-update-one sql-list help-test
 
