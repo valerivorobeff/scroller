@@ -80,14 +80,14 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %left OR
 %left AND
 %nonassoc NOT
+%nonassoc '=' NE '<' LE '>' GE
 %nonassoc LIKE
 %nonassoc IN
 %nonassoc BETWEEN
-%nonassoc '=' NE '<' LE '>' GE
 %left '+' '-'
 %left '*' '/' '%'
 %left CONCAT
-%precedence '(' ')'
+%token '(' ')'
 
 %type <strs> strings
 %type <datum> value

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <assert.h>
 
-static bool like(const char *src, const char *pattern);
+static bool like(const char *src, size_t src_len, const char *pattern, size_t pat_len);
 /**
  * @cond INTERNAL
  * Type group descriptors
@@ -415,15 +415,13 @@ mod_data(Datum d1, Datum d2) {
 Datum
 cat_data(Datum d1, Datum d2) {
     if (data_lexical(d1, d2)) {
-        const size_t l1 = strlen(d1.value.character);
-        const size_t l2 = strlen(d2.value.character);
-        char *str = salloc(l1 + l2 + 1);
+        const size_t totalsz = d1.size + d2.size;
+        char *str = salloc(totalsz);
 
-        strcpy(str, d1.value.character);
-        strcpy(str + l1, d2.value.character);
-        str[l1 + l2] = '\0';
+        memcpy(str, d1.value.character, d1.size);
+        memcpy(str + d1.size, d2.value.character, d2.size);
 
-        return make_char(str);
+        return (Datum){ T_CHAR, totalsz, .value.character = str };
     } else
         assert(0 && "Cannot concatenate non lexical data");
 }
@@ -441,44 +439,47 @@ like_data(Datum d1, Datum d2) {
     d1 = to_base_type(d1);
     d2 = to_base_type(d2);
 
-    return like(d1.value.character, d2.value.character);
+    return like(d1.value.character, d1.size, d2.value.character, d2.size);
 }
 
+/**
+ * @brief SQL LIKE pattern matching
+ *
+ * Supports:
+ *   %  - matches any sequence of zero or more characters
+ *   _  - matches exactly one character
+ *
+ * @param src     Source string
+ * @param src_len Source string length
+ * @param pattern Pattern to match
+ * @param pat_len Pattern length
+ * @return true if src matches pattern, false otherwise
+ */
 static bool
-like(const char *src, const char *pattern) {
-    const char *s = src;
-    const char *p = pattern;
+like(const char *src, size_t src_len, const char *pattern, size_t pat_len) {
+    size_t si = 0;
+    size_t pi = 0;
+    size_t star = SIZE_MAX;
+    size_t ss = 0;
 
-    while (*p) {
-        if (*p == '%') {
-            /* Skip multiple % */
-            while (*p == '%') p++;
-
-            if (*p == '\0')
-                return true;  /* % in the end matches all */
-
-            /* Find next part (till next '%'') */
-            const char *part = p;
-            while (*p && *p != '%') p++;
-            size_t part_len = p - part;
-
-            /* Find part in src */
-            const char *found = memmem(s, strlen(s), part, part_len);
-            if (!found)
-                return false;
-
-            s = found + part_len;
-        } else if (*p == '_') {
-            if (*s == '\0') return false;
-            s++;
-            p++;
+    while (si < src_len) {
+        if (pi < pat_len && pattern[pi] == '%') {
+            star = pi++;
+            ss = si;
+        } else if (pi < pat_len && (pattern[pi] == '_' || pattern[pi] == src[si])) {
+            ++si;
+            ++pi;
+        } else if (star != SIZE_MAX) {
+            pi = star + 1;
+            si = ++ss;
         } else {
-            if (*p != *s) return false;
-            s++;
-            p++;
+            return false;
         }
     }
 
-    return *s == '\0';
+    while (pi < pat_len && pattern[pi] == '%')
+        ++pi;
+
+    return pi == pat_len;
 }
 
