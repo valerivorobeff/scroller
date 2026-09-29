@@ -54,6 +54,9 @@ dkms.conf
 # debug information files
 *.dwo
 
+# tests
+test/integration/results/
+
 #misc
 *.swp
 doc/
