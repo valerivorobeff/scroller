@@ -14,6 +14,34 @@ typedef struct Session Session;
 #include "../../../../src/scroller/dml.h"
 #include "../../../../src/scroller/session.h"
 #include "../../../../src/scroller/flog.h"
+
+/* @todo I can't send error message inside check_op macro
+         as it is sent by y1parser but it sends just
+         SCRS_SERVER ERROR and I want to send:
+         session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+         I don't know how to do it
+*/
+#define check_op(v1, v2) \
+    if (!data_comparable(v1, v2)) { \
+        ferr("Data missmatch"); \
+        session_send_status(session, SCRS_DATUM_TYPE_MISMATCH); \
+        YYABORT; \
+    }
+
+#define check_arithmetical(v1, v2) \
+    if (!data_arithmetical(v1, v2)) { \
+        ferr("Data not arithmetical"); \
+        session_send_status(session, SCRS_DATUM_TYPE_MISMATCH); \
+        YYABORT; \
+    }
+
+#define check_lexical(v1, v2) \
+    if (!data_lexical(v1, v2)) { \
+        ferr("Data not lexical"); \
+        session_send_status(session, SCRS_DATUM_TYPE_MISMATCH); \
+        YYABORT; \
+    }
+
 static void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
@@ -51,7 +79,15 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %token <size> SIZE_T
 %left OR
 %left AND
-%nonassoc '='
+%nonassoc NOT
+%nonassoc '=' NE '<' LE '>' GE
+%nonassoc LIKE
+%nonassoc IN
+%nonassoc BETWEEN
+%left '+' '-'
+%left '*' '/' '%'
+%left CONCAT
+%token '(' ')'
 
 %type <strs> strings
 %type <datum> value
@@ -176,26 +212,85 @@ where_line:
     ;
 
 expr:
-    value '=' value {
-        if (!data_comparable($1, $3)) {
-            ferr("Data missmatch");
-            /* @todo I can't send error message here as it is sent by y1parser
-                     but it sends just SCRS_SERVER ERROR and i want to send:
-                     session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
-                     I don't know how to do it
-            */
-            YYABORT;
-        }
-
-        $$ = eq_data($1, $3);
+    value {
+        $$ = !datum_zeroed($1);
+    }
+    |
+    expr OR expr {
+        $$ = $1 || $3;
     }
     |
     expr AND expr {
         $$ = $1 && $3;
     }
     |
-    expr OR expr {
-        $$ = $1 || $3;
+    NOT expr {
+        $$ = !$2;
+    }
+    |
+    value LIKE value {
+        check_lexical($1, $3);
+        $$ = like_data($1, $3);
+    }
+    |
+    value IN {
+        /* @todo it is better to make its own bump_context for cmd->current and free it
+            after each usage like array_free(cmd->current);
+        */
+        cmd->current = NULL;
+    } '(' values ')' {
+        bool found = false;
+
+        for (int i = 0, ie = array_size($5); i != ie; ++i) {
+            if (!data_comparable($1, $5[i])) {
+                ferr("Data missmatch");
+                session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+                YYABORT;
+            }
+
+            if (eq_data($1, $5[i])) {
+                found = true;
+                break;
+            }
+        }
+
+        $$ = found;
+    }
+    |
+    value BETWEEN value value {
+        check_arithmetical($1, $3);
+        check_arithmetical($1, $4);
+        $$ = ge_data($1, $3) && le_data($1, $4);
+    }
+    |
+    value '=' value {
+        check_op($1, $3);
+        $$ = eq_data($1, $3);
+    }
+    |
+    value NE value {
+        check_op($1, $3);
+        $$ = ne_data($1, $3);
+    }
+    |
+    value '<' value {
+        check_op($1, $3);
+        $$ = lt_data($1, $3);
+    }
+    |
+    value LE value {
+        check_op($1, $3);
+        $$ = le_data($1, $3);
+    }
+    |
+    value '>' value {
+        check_op($1, $3);
+        $$ = gt_data($1, $3);
+    }
+    |
+    value GE value {
+        check_op($1, $3);
+        $$ = ge_data($1, $3);
     }
     ;
 
@@ -274,6 +369,46 @@ value:
 
         fin:
         }
+    }
+    |
+    value '+' value {
+        check_arithmetical($1, $3);
+        $$ = add_data($1, $3);
+    }
+    |
+    value '-' value {
+        check_arithmetical($1, $3);
+        $$ = sub_data($1, $3);
+    }
+    |
+    value '*' value {
+        check_arithmetical($1, $3);
+        $$ = mul_data($1, $3);
+    }
+    |
+    value '/' value {
+        check_arithmetical($1, $3);
+        $$ = div_data($1, $3);
+    }
+    |
+    value '%' value {
+        if (get_type_group($1.type) != TG_INTEGER ||
+            get_type_group($3.type) != TG_INTEGER) {
+            ferr("Data not integer");
+            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+            YYABORT;
+        }
+
+        $$ = mod_data($1, $3);
+    }
+    |
+    value CONCAT value {
+        check_lexical($1, $3);
+        $$ = cat_data($1, $3);
+    }
+    |
+    '(' value ')' {
+        $$ = $2;
     }
     ;
 

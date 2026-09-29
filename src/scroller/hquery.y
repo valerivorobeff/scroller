@@ -17,7 +17,6 @@ typedef struct Cmd Cmd;
 #include "../../../../src/scroller/cmd.h"
 #include "../../../../src/scroller/flog.h"
 #include <sys/socket.h>
-
 static int execute_cmd(Session *session, Cmd *cmd);
 static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
@@ -38,7 +37,6 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %union {
     char* str;
     int64_t integer;
-    Datum datum;
 }
 
 /* Common tokens */
@@ -53,11 +51,11 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token INSERT INTO VALUES
 %token SELECT FROM WHERE
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
-%left OR
-%left AND
-%nonassoc '='
+/* We don't need operator priority or assoc here, y1parser should just put ahead
+    all the operators in the same order as it gets */
+%left OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT LIKE IN BETWEEN CONCAT
 %token <integer>VINTEGER
-%type <datum> value
+%type value
 
 %%
 
@@ -211,19 +209,58 @@ mb_where:
     ;
 
 expr:
-    value '=' value {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $1 }));
-        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $3 }));
-    }
+    value
+    |
+    expr OR {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_OR }));
+    } expr
     |
     expr AND {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_AND }));
     } expr
     |
-    expr OR {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_OR }));
+    NOT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_NOT }));
     } expr
+    |
+    value LIKE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_LIKE }));
+    } value
+    |
+    value IN '(' {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_IN }));
+        bc_put(&cmd->bc, ((BcNode){ .token = '(' }));
+    } values ')' {
+        bc_put(&cmd->bc, ((BcNode){ .token = ')' }));
+    }
+    |
+    value BETWEEN {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_BETWEEN }));
+    } value AND value
+    |
+    value '=' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
+    } value
+    |
+    value NE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_NE }));
+    } value
+    |
+    value '<' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '<' }));
+    } value
+    |
+    value LE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_LE }));
+    } value
+    |
+    value '>' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '>' }));
+    } value
+    |
+    value GE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_GE }));
+    } value
     ;
 
 decls:
@@ -279,29 +316,53 @@ ids:
     ;
 
 values:
-    value {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $1 }));
-    }
+    value
     |
-    values ',' value {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = $3 }));
-    }
+    values ',' value
     ;
 
 value:
     VINTEGER {
-        $$ = make_bigint($1);
-        flog("%l", $1);
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_bigint($1) }));
     }
     |
     STRING {
-        $$ = make_char($1);
-        flog("%s", $1);
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_char($1) }));
     }
     |
     ID {
-        $$ = make_name($1);
-        flog("%s", $1);
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_name($1) }));
+    }
+    |
+    /* @todo here and below we could check if data of proper type: data_arothmetical, data_lexical */
+    value '+' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '+' }));
+    } value
+    |
+    value '-' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '-' }));
+    } value
+    |
+    value '*' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '*' }));
+    } value
+    |
+    value '/' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '/' }));
+    } value
+    |
+    value '%' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '%' }));
+    } value
+    |
+    value CONCAT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_CONCAT }));
+    } value
+    |
+    '(' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '(' }));
+    } value ')' {
+        bc_put(&cmd->bc, ((BcNode){ .token = ')' }));
     }
     ;
 

@@ -9,6 +9,7 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
 #include <sys/types.h>
 
 /**
@@ -119,13 +120,54 @@ Datum char2varchar(Datum src);
  */
 Datum to_base_type(Datum src);
 
+/** @brief Get type group by type */
+#define get_type_group(g) g_types[g].group
+
+
+/*****************************************************************************
+ *
+ * Data calculation functions: arithmetical (numbers) and lexical (characters)
+ *
+ *****************************************************************************/
+
+/**
+ * brief - Answers if datum has a non-zero value (not NULL, 0, empty string)
+ * @param d datum
+ * @return true if zeroed, false otherwise
+ */
+bool datum_zeroed(Datum d);
+
+/**
+ * @brief Checks if two data are arithmetical
+ * @note you should use this macro before using arithmetical functions
+ * @param d1 First datum
+ * @param d2 Second datum
+ * @return not 0 if data arithmetical, 0 otherwise
+ */
+#define data_arithmetical(d1, d2) \
+    (get_type_group(d1.type) == TG_INTEGER && get_type_group(d2.type) == TG_INTEGER)
+
+/**
+ * @brief Checks if two data are lexical
+ * @note you should use this macro before using lexical functions
+ * @param d1 First datum
+ * @param d2 Second datum
+ * @return not 0 if data lexical, 0 otherwise
+ */
+#define data_lexical(d1, d2) \
+    (get_type_group(d1.type) == TG_CHARACTER && get_type_group(d2.type) == TG_CHARACTER)
+
 /**
  * @brief Checks comparability of two data
- * @param d1 First integer datum
- * @param d2 Second integer datum
- * @return not 0 if data comparable, 0 otherwise
+ * @param d1 First datum
+ * @param d2 Second datum
+ * @return true if data comparable, false otherwise
  */
-int data_comparable(Datum d1, Datum d2);
+bool data_comparable(Datum d1, Datum d2);
+
+/************
+ * Integer
+ ************/
 
 /**
  * @brief Compare two integer values
@@ -135,14 +177,100 @@ int data_comparable(Datum d1, Datum d2);
  */
 ssize_t cmp_integer(Datum d1, Datum d2);
 
+/** @brief Check if two integers are equal */
+#define eq_integer(d1, d2) (cmp_integer(d1, d2) == 0)
+
+/** @brief Check if two integers are not equal */
+#define ne_integer(d1, d2) (cmp_integer(d1, d2) != 0)
+
+/** @brief Check if first integer is less than second */
+#define lt_integer(d1, d2) (cmp_integer(d1, d2) < 0)
+
+/** @brief Check if first integer is less than or equal to second */
+#define le_integer(d1, d2) (cmp_integer(d1, d2) <= 0)
+
+/** @brief Check if first integer is greater than second */
+#define gt_integer(d1, d2) (cmp_integer(d1, d2) > 0)
+
+/** @brief Check if first integer is greater than or equal to second */
+#define ge_integer(d1, d2) (cmp_integer(d1, d2) >= 0)
+
+/** @brief Adds two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum add_integer(Datum d1, Datum d2);
+
+/** @brief Substitutes two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum sub_integer(Datum d1, Datum d2);
+
+/** @brief Multiplies two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mul_integer(Datum d1, Datum d2);
+
+/** @brief Divides two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum div_integer(Datum d1, Datum d2);
+
+/** @brief Modulos two integers
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mod_integer(Datum d1, Datum d2);
+
+
+/************
+ * Character
+ ************/
+
 /**
  * @brief Compare two character values
+ * @note you should check data_arithmetical(d1, d2) before using this function
  * @param d1 First character datum
  * @param d2 Second character datum
  * @return Negative if d1 < d2, zero if equal, positive if d1 > d2
  */
 ssize_t cmp_character(Datum d1, Datum d2);
 
+/** @brief Check if two characters are equal */
+#define eq_character(d1, d2) (cmp_character(d1, d2) == 0)
+
+/** @brief Check if two characters are not equal */
+#define ne_character(d1, d2) (cmp_character(d1, d2) != 0)
+
+/** @brief Check if first character is less than second */
+#define lt_character(d1, d2) (cmp_character(d1, d2) < 0)
+
+/** @brief Check if first character is less than or equal to second */
+#define le_character(d1, d2) (cmp_character(d1, d2) <= 0)
+
+/** @brief Check if first character is greater than second */
+#define gt_character(d1, d2) (cmp_character(d1, d2) > 0)
+
+/** @brief Check if first character is greater than or equal to second */
+#define ge_character(d1, d2) (cmp_character(d1, d2) >= 0)
+
+
+/************
+ * Data
+ ************/
 
 /**
  * @brief Compare two data values
@@ -154,48 +282,103 @@ ssize_t cmp_character(Datum d1, Datum d2);
  */
 ssize_t cmp_data(Datum d1, Datum d2);
 
-/** @brief Get type group by type */
-#define get_type_group(g) g_types[g].group
-
-/** @brief Check if two integers are equal */
-#define eq_integer(d1, d2) (cmp_integer(d1, d2) == 0)
-/** @brief Check if two integers are not equal */
-#define ne_integer(d1, d2) (cmp_integer(d1, d2) != 0)
-/** @brief Check if first integer is less than second */
-#define lt_integer(d1, d2) (cmp_integer(d1, d2) < 0)
-/** @brief Check if first integer is less than or equal to second */
-#define le_integer(d1, d2) (cmp_integer(d1, d2) <= 0)
-/** @brief Check if first integer is greater than second */
-#define gt_integer(d1, d2) (cmp_integer(d1, d2) > 0)
-/** @brief Check if first integer is greater than or equal to second */
-#define ge_integer(d1, d2) (cmp_integer(d1, d2) >= 0)
-
-/** @brief Check if two characters are equal */
-#define eq_character(d1, d2) (cmp_character(d1, d2) == 0)
-/** @brief Check if two characters are not equal */
-#define ne_character(d1, d2) (cmp_character(d1, d2) != 0)
-/** @brief Check if first character is less than second */
-#define lt_character(d1, d2) (cmp_character(d1, d2) < 0)
-/** @brief Check if first character is less than or equal to second */
-#define le_character(d1, d2) (cmp_character(d1, d2) <= 0)
-/** @brief Check if first character is greater than second */
-#define gt_character(d1, d2) (cmp_character(d1, d2) > 0)
-/** @brief Check if first character is greater than or equal to second */
-#define ge_character(d1, d2) (cmp_character(d1, d2) >= 0)
-
-/** @brief Check if two characters are equal */
+/** @brief Check if two data are equal */
 #define eq_data(d1, d2) (cmp_data(d1, d2) == 0)
+
+/** @brief Check if two data are not equal */
+#define ne_data(d1, d2) (cmp_data(d1, d2) != 0)
+
+/** @brief Check if first datum is less than second */
+#define lt_data(d1, d2) (cmp_data(d1, d2) < 0)
+
+/** @brief Check if first datum is less than or equal to second */
+#define le_data(d1, d2) (cmp_data(d1, d2) <= 0)
+
+/** @brief Check if first datum is greater than second */
+#define gt_data(d1, d2) (cmp_data(d1, d2) > 0)
+
+/** @brief Check if first datum is greater than or equal second */
+#define ge_data(d1, d2) (cmp_data(d1, d2) >= 0)
+
+/** @brief Adds two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum add_data(Datum d1, Datum d2);
+
+/** @brief Substitutes two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum sub_data(Datum d1, Datum d2);
+
+/** @brief Multiplies two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mul_data(Datum d1, Datum d2);
+
+/** @brief Divides two data
+ * @note you should check data_arithmetical(d1, d2) before using this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum div_data(Datum d1, Datum d2);
+
+/** @brief Modulos two data
+ * @note you should check data type == TG_INTEGER for both data before using
+ *      this function
+ * @param d1 First integer datum
+ * @param d2 Second integer datum
+ * @return new datum of type T_BIGINT containing the result
+ */
+Datum mod_data(Datum d1, Datum d2);
+
+/**
+ * @brief Concatenates two lexixal values
+ * @note: allocates memory for string in current memory context
+ * @param d1 datum (must be T_CHAR or T_VARCHAR)
+ * @param d2 datum (must be T_CHAR or T_VARCHAR)
+ * @return Concatenated character data
+ */
+Datum cat_data(Datum d1, Datum d2);
+
+/**
+ * @brief SQL LIKE pattern matching
+ * @param d1 Source datum (must be T_CHAR or T_VARCHAR)
+ * @param d2 Pattern datum (must be T_CHAR or T_VARCHAR)
+ * @return true if d1 matches pattern d2
+ */
+bool
+like_data(Datum d1, Datum d2);
+
+
+/**
+ * Make data
+ */
 
 /** @brief Create T_NAME datum */
 #define make_name(v) ((Datum){ T_NAME, (v) ? strlen(v) : 0, .value.character = (v) })
+
 /** @brief Create T_SMALLINT datum */
 #define make_smallint(v) ((Datum){ T_SMALLINT, g_types[T_SMALLINT].size, .value.smallint = (v) })
+
 /** @brief Create T_INTEGER datum */
 #define make_integer(v) ((Datum){ T_INTEGER, g_types[T_INTEGER].size, .value.integer = (v) })
+
 /** @brief Create T_BIGINT datum */
 #define make_bigint(v) ((Datum){ T_BIGINT, g_types[T_BIGINT].size, .value.bigint = (v) })
+
 /** @brief Create T_CHAR datum (string length is set) */
 #define make_char(v) ((Datum){ T_CHAR, (v) ? strlen(v) : 0, .value.character = (v) })
+
 /** @brief Create T_VARCHAR datum (string length is set) */
 #define make_varchar(v) ((Datum){ T_VARCHAR, (v) ? strlen(v) : 0, .value.character = (v) })
 

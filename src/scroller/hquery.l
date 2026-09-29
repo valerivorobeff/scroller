@@ -87,11 +87,27 @@ QUOTED          \'(\\.|[^\'])*\'
     "varying"           return VARYING;
     "or"                return OR;
     "and"               return AND;
+    "not"               return NOT;
+    "like"              return LIKE;
+    "in"                return IN;
+    "between"           return BETWEEN;
+    "||"                return CONCAT;
+    "<>"                return NE;
+    "!="                return NE;  /* Not in SQL standard, just an alias to "<>" */
+    "<="                return LE;
+    ">="                return GE;
+    "<"                 return '<';
+    ">"                 return '>';
     "("                 return '(';
     ")"                 return ')';
     ","                 return ',';
     "."                 return '.';
     "="                 return '=';
+    "+"                 return '+';
+    "-"                 return '-';
+    "*"                 return '*';
+    "/"                 return '/';
+    "%"                 return '%';
     {INTEGER}           yylval->integer = atoll(yytext); return VINTEGER;
                         /* @todo atoll conterts to long long, but we need conversion to int64_t,
                         we should use or develop a special function that contecrt to int64_t
