@@ -87,6 +87,7 @@ QUOTED          \'(\\.|[^\'])*\'
     "varying"           return VARYING;
     "or"                return OR;
     "and"               return AND;
+    "not"               return NOT;
     "<>"                return NE;
     "!="                return NE;  /* Not in SQL standard, just an alias to "<>" */
     "<="                return LE;

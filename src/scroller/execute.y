@@ -72,6 +72,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %token <size> SIZE_T
 %left OR
 %left AND
+%nonassoc NOT
 %nonassoc '=' NE '<' LE '>' GE
 %left '+' '-'
 %left '*' '/' '%'
@@ -210,6 +211,10 @@ expr:
     |
     expr AND expr {
         $$ = $1 && $3;
+    }
+    |
+    NOT expr {
+        $$ = !$2;
     }
     |
     value '=' value {
