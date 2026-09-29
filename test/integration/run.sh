@@ -10,8 +10,8 @@ set -euo pipefail
 
 # === Configuration ===
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-INTEGRATION_DIR="$SCRIPT_DIR/integration"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+INTEGRATION_DIR="$SCRIPT_DIR"
 SQL_DIR="$INTEGRATION_DIR/sql"
 EXPECTED_DIR="$INTEGRATION_DIR/expected"
 RESULTS_DIR="$INTEGRATION_DIR/results"

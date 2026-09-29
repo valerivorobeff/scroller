@@ -258,22 +258,25 @@ integration-test: all smoke-test sql-test
 # --- Smoke test (client-server basic) ---
 smoke-test: $(BIN_DIR)/scr_init $(BIN_DIR)/scroller $(BIN_DIR)/scrc
 	@echo "=== Smoke test ==="
-	@./test/integration_test.sh
+	@./test/integration/smoke/basic_test.sh
 
 # --- SQL tests ---
 sql-test: all
 	@echo "=== SQL tests ==="
-	@./test/run.sh
+	@./test/integration/run.sh
 
 # --- Update SQL expected outputs ---
 sql-update:
-	@./test/update_expected.sh --all
+	@./test/integration/update_expected.sh --all
 
 sql-update-one:
-	@./test/update_expected.sh $(TEST)
+	@./test/integration/update_expected.sh $(TEST)
+
+sql-update-list:
+	@./test/integration/update_expected.sh $(TESTS)
 
 sql-list:
-	@./test/update_expected.sh --list
+	@./test/integration/update_expected.sh --list
 
 # --- Test help ---
 help-test:
@@ -287,6 +290,7 @@ help-test:
 	@echo ""
 	@echo "  sql-update        - Update all expected SQL results"
 	@echo "  sql-update-one    - Update one SQL test: make sql-update-one TEST=05_select_like"
+	@echo "  sql-update-list   - Update list of SQL tests: make sql-update-list TESTS=\"05_select_like 06_select_in\""
 	@echo "  sql-list          - List available SQL tests"
 
 clean:
@@ -294,5 +298,5 @@ clean:
 
 .PHONY: all clean \
         test unit-test functional-test integration-test smoke-test sql-test \
-        sql-update sql-update-one sql-list help-test
+        sql-update sql-update-one sql-update-list sql-list help-test
 

@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INTEGRATION_DIR="$SCRIPT_DIR/integration"
+INTEGRATION_DIR="$SCRIPT_DIR"
 EXPECTED_DIR="$INTEGRATION_DIR/expected"
 RESULTS_DIR="$INTEGRATION_DIR/results"
 
