@@ -278,25 +278,36 @@ sql-update-list:
 sql-list:
 	@./test/integration/update_expected.sh --list
 
-# --- Test help ---
-help-test:
+# --- Help ---
+help:
+	@echo "scroller build system"
+	@echo ""
+	@echo "Build targets:"
+	@echo "  all               - Build all utilities (default)"
+	@echo "  clean             - Remove build directory"
+	@echo ""
 	@echo "Test targets:"
-	@echo "  test              - Run all tests"
+	@echo "  test              - Run all tests (unit + functional + integration)"
 	@echo "  unit-test         - Unit tests"
 	@echo "  functional-test   - Functional tests"
 	@echo "  integration-test  - Integration tests (smoke + SQL)"
 	@echo "  smoke-test        - Client-server smoke test"
 	@echo "  sql-test          - SQL tests only"
 	@echo ""
+	@echo "SQL utilities:"
 	@echo "  sql-update        - Update all expected SQL results"
 	@echo "  sql-update-one    - Update one SQL test: make sql-update-one TEST=05_select_like"
 	@echo "  sql-update-list   - Update list of SQL tests: make sql-update-list TESTS=\"05_select_like 06_select_in\""
 	@echo "  sql-list          - List available SQL tests"
+	@echo ""
+	@echo "Options:"
+	@echo "  BUILD=debug       - Debug build (default)"
+	@echo "  BUILD=release     - Release build"
 
 clean:
 	rm -rf build/
 
-.PHONY: all clean \
+.PHONY: all clean help \
         test unit-test functional-test integration-test smoke-test sql-test \
-        sql-update sql-update-one sql-update-list sql-list help-test
+        sql-update sql-update-one sql-update-list sql-list
 
