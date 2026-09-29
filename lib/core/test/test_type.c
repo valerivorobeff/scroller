@@ -397,6 +397,22 @@ TEST(type)
             TEST_CHECK(data_comparable(make_integer(12), make_bigint(125)));
             TEST_CHECK(!data_comparable(make_char("Hello"), make_integer(25)));
             TEST_CHECK(!data_comparable(make_bigint(25), make_varchar("Again")));
+
+            TEST_CHECK(like_data(make_char("abc"), make_char("abc")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("a%")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("%c")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("a%c")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("a_c")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("a__")));
+            TEST_CHECK(!like_data(make_char("abc"), make_char("abd")));
+            TEST_CHECK(!like_data(make_char("abc"), make_char("ab")));
+            TEST_CHECK(!like_data(make_char("ab"), make_char("abc")));
+            TEST_CHECK(like_data(make_char(""), make_char("%")));
+            TEST_CHECK(like_data(make_char(""), make_char("")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("%")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("%%")));
+            TEST_CHECK(like_data(make_char("abc"), make_char("a%%c")));
+            TEST_CHECK(like_data(make_char("vasia"), make_char("vas_a")));
         }
 
         TEST_CASE(data_arithmetical) {

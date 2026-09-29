@@ -88,6 +88,8 @@ QUOTED          \'(\\.|[^\'])*\'
     "or"                return OR;
     "and"               return AND;
     "not"               return NOT;
+    "like"              return LIKE;
+    "in"                return IN;
     "between"           return BETWEEN;
     "<>"                return NE;
     "!="                return NE;  /* Not in SQL standard, just an alias to "<>" */

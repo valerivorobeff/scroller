@@ -341,6 +341,15 @@ Datum div_data(Datum d1, Datum d2);
  */
 Datum mod_data(Datum d1, Datum d2);
 
+/**
+ * @brief SQL LIKE pattern matching
+ * @param d1 Source datum (must be T_CHAR or T_VARCHAR)
+ * @param d2 Pattern datum (must be T_CHAR or T_VARCHAR)
+ * @return true if d1 matches pattern d2
+ */
+bool
+like_data(Datum d1, Datum d2);
+
 
 /**
  * Make data

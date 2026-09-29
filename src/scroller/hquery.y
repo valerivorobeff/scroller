@@ -53,7 +53,7 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 /* We don't need operator priority or assoc here, y1parser should just put ahead
     all the operators in the same order as it gets */
-%left OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT BETWEEN
+%left OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT LIKE IN BETWEEN
 %token <integer>VINTEGER
 %type value
 
@@ -222,6 +222,17 @@ expr:
     NOT {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_NOT }));
     } expr
+    |
+    value LIKE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_LIKE }));
+    } value
+    |
+    value IN '(' {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_IN }));
+        bc_put(&cmd->bc, ((BcNode){ .token = '(' }));
+    } values ')' {
+        bc_put(&cmd->bc, ((BcNode){ .token = ')' }));
+    }
     |
     value BETWEEN {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_BETWEEN }));

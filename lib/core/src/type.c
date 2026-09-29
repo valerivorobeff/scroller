@@ -8,6 +8,7 @@
 #include <string.h>
 #include <assert.h>
 
+static bool like(const char *src, const char *pattern);
 /**
  * @cond INTERNAL
  * Type group descriptors
@@ -399,5 +400,59 @@ Datum mod_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot modulo non comparable data");
+}
+
+/**
+ * @brief SQL LIKE pattern matching
+ * @param d1 Source datum (must be T_CHAR or T_VARCHAR)
+ * @param d2 Pattern datum (must be T_CHAR or T_VARCHAR)
+ * @return true if d1 matches pattern d2
+ */
+bool
+like_data(Datum d1, Datum d2) {
+    assert(data_lexical(d1, d2));
+
+    d1 = to_base_type(d1);
+    d2 = to_base_type(d2);
+
+    return like(d1.value.character, d2.value.character);
+}
+
+static bool
+like(const char *src, const char *pattern) {
+    const char *s = src;
+    const char *p = pattern;
+
+    while (*p) {
+        if (*p == '%') {
+            /* Skip multiple % */
+            while (*p == '%') p++;
+
+            if (*p == '\0')
+                return true;  /* % in the end matches all */
+
+            /* Find next part (till next '%'') */
+            const char *part = p;
+            while (*p && *p != '%') p++;
+            size_t part_len = p - part;
+
+            /* Find part in src */
+            const char *found = memmem(s, strlen(s), part, part_len);
+            if (!found)
+                return false;
+
+            s = found + part_len;
+        } else if (*p == '_') {
+            if (*s == '\0') return false;
+            s++;
+            p++;
+        } else {
+            if (*p != *s) return false;
+            s++;
+            p++;
+        }
+    }
+
+    return *s == '\0';
 }
 

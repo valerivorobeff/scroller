@@ -35,6 +35,13 @@ typedef struct Session Session;
         YYABORT; \
     }
 
+#define check_lexical(v1, v2) \
+    if (!data_lexical(v1, v2)) { \
+        ferr("Data not lexical"); \
+        session_send_status(session, SCRS_DATUM_TYPE_MISMATCH); \
+        YYABORT; \
+    }
+
 static void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
@@ -73,6 +80,8 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %left OR
 %left AND
 %nonassoc NOT
+%nonassoc LIKE
+%nonassoc IN
 %nonassoc BETWEEN
 %nonassoc '=' NE '<' LE '>' GE
 %left '+' '-'
@@ -216,6 +225,35 @@ expr:
     |
     NOT expr {
         $$ = !$2;
+    }
+    |
+    value LIKE value {
+        check_lexical($1, $3);
+        $$ = like_data($1, $3);
+    }
+    |
+    value IN {
+        /* @todo it is better to make its own bump_context for cmd->current and free it
+            after each usage like array_free(cmd->current);
+        */
+        cmd->current = NULL;
+    } '(' values ')' {
+        bool found = false;
+
+        for (int i = 0, ie = array_size($5); i != ie; ++i) {
+            if (!data_comparable($1, $5[i])) {
+                ferr("Data missmatch");
+                session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+                YYABORT;
+            }
+
+            if (eq_data($1, $5[i])) {
+                found = true;
+                break;
+            }
+        }
+
+        $$ = found;
     }
     |
     value BETWEEN value value {
