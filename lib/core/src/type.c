@@ -359,7 +359,8 @@ sub_data(Datum d1, Datum d2) {
  * @param d2 Second integer datum
  * @return new datum of type T_BIGINT containing the result
  */
-Datum mul_data(Datum d1, Datum d2) {
+Datum
+mul_data(Datum d1, Datum d2) {
     if (data_comparable(d1, d2)) {
         switch (get_type_group(d1.type)) {
             case TG_INTEGER: return mul_integer(d1, d2);
@@ -375,7 +376,8 @@ Datum mul_data(Datum d1, Datum d2) {
  * @param d2 Second integer datum
  * @return new datum of type T_BIGINT containing the result
  */
-Datum div_data(Datum d1, Datum d2) {
+Datum
+div_data(Datum d1, Datum d2) {
     if (data_comparable(d1, d2)) {
         switch (get_type_group(d1.type)) {
             case TG_INTEGER: return div_integer(d1, d2);
@@ -392,7 +394,8 @@ Datum div_data(Datum d1, Datum d2) {
  * @param d2 Second integer datum
  * @return new datum of type T_BIGINT containing the result
  */
-Datum mod_data(Datum d1, Datum d2) {
+Datum
+mod_data(Datum d1, Datum d2) {
     if (data_comparable(d1, d2)) {
         switch (get_type_group(d1.type)) {
             case TG_INTEGER: return mod_integer(d1, d2);
@@ -400,6 +403,29 @@ Datum mod_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot modulo non comparable data");
+}
+
+/**
+ * @brief Concatenates two lexixal values
+ * @note: allocates memory for string in current memory context
+ * @param d1 datum (must be T_CHAR or T_VARCHAR)
+ * @param d2 datum (must be T_CHAR or T_VARCHAR)
+ * @return Concatenated character data
+ */
+Datum
+cat_data(Datum d1, Datum d2) {
+    if (data_lexical(d1, d2)) {
+        const size_t l1 = strlen(d1.value.character);
+        const size_t l2 = strlen(d2.value.character);
+        char *str = salloc(l1 + l2 + 1);
+
+        strcpy(str, d1.value.character);
+        strcpy(str + l1, d2.value.character);
+        str[l1 + l2] = '\0';
+
+        return make_char(str);
+    } else
+        assert(0 && "Cannot concatenate non lexical data");
 }
 
 /**

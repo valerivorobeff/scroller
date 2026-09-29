@@ -342,6 +342,15 @@ Datum div_data(Datum d1, Datum d2);
 Datum mod_data(Datum d1, Datum d2);
 
 /**
+ * @brief Concatenates two lexixal values
+ * @note: allocates memory for string in current memory context
+ * @param d1 datum (must be T_CHAR or T_VARCHAR)
+ * @param d2 datum (must be T_CHAR or T_VARCHAR)
+ * @return Concatenated character data
+ */
+Datum cat_data(Datum d1, Datum d2);
+
+/**
  * @brief SQL LIKE pattern matching
  * @param d1 Source datum (must be T_CHAR or T_VARCHAR)
  * @param d2 Pattern datum (must be T_CHAR or T_VARCHAR)

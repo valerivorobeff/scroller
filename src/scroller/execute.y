@@ -86,6 +86,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %nonassoc '=' NE '<' LE '>' GE
 %left '+' '-'
 %left '*' '/' '%'
+%left CONCAT
 %precedence '(' ')'
 
 %type <strs> strings
@@ -399,6 +400,11 @@ value:
         }
 
         $$ = mod_data($1, $3);
+    }
+    |
+    value CONCAT value {
+        check_lexical($1, $3);
+        $$ = cat_data($1, $3);
     }
     |
     '(' value ')' {

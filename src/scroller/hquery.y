@@ -53,7 +53,7 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 /* We don't need operator priority or assoc here, y1parser should just put ahead
     all the operators in the same order as it gets */
-%left OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT LIKE IN BETWEEN
+%left OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT LIKE IN BETWEEN CONCAT
 %token <integer>VINTEGER
 %type value
 
@@ -334,6 +334,7 @@ value:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_name($1) }));
     }
     |
+    /* @todo here and below we could check if data of proper type: data_arothmetical, data_lexical */
     value '+' {
         bc_put(&cmd->bc, ((BcNode){ .token = '+' }));
     } value
@@ -352,6 +353,10 @@ value:
     |
     value '%' {
         bc_put(&cmd->bc, ((BcNode){ .token = '%' }));
+    } value
+    |
+    value CONCAT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_CONCAT }));
     } value
     |
     '(' {

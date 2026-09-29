@@ -91,6 +91,7 @@ QUOTED          \'(\\.|[^\'])*\'
     "like"              return LIKE;
     "in"                return IN;
     "between"           return BETWEEN;
+    "||"                return CONCAT;
     "<>"                return NE;
     "!="                return NE;  /* Not in SQL standard, just an alias to "<>" */
     "<="                return LE;
