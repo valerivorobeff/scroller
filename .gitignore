@@ -55,6 +55,7 @@ dkms.conf
 *.dwo
 
 # tests
+test/functional/results/
 test/integration/results/
 
 #misc

@@ -241,14 +241,22 @@ unit-test: $(TEST_BINS)
 	done
 	@echo "✅ Unit tests passed"
 
-# --- Functional tests (per utility) ---
+# --- Functional tests ---
 functional-test: all
-	@echo "=== Functional tests ==="
-	@if [ -x test/functional/run.sh ]; then \
-		./test/functional/run.sh; \
-	else \
-		echo "No functional tests yet"; \
-	fi
+	@echo ""
+	@./test/functional/run.sh
+
+functional-update:
+	@./test/functional/update_expected.sh --all
+
+functional-update-one:
+	@./test/functional/update_expected.sh $(TEST)
+
+functional-update-list:
+	@./test/functional/update_expected.sh $(TESTS)
+
+functional-list:
+	@./test/functional/update_expected.sh --list
 
 # --- Integration tests (bash + SQL) ---
 integration-test: all smoke-test sql-test
@@ -300,6 +308,12 @@ help:
 	@echo "  sql-update-list   - Update list of SQL tests: make sql-update-list TESTS=\"05_select_like 06_select_in\""
 	@echo "  sql-list          - List available SQL tests"
 	@echo ""
+	@echo "Functional utilities:"
+	@echo "  functional-update      - Update all expected functional results"
+	@echo "  functional-update-one  - Update one functional test: make functional-update-one TEST=scrc_help"
+	@echo "  functional-update-list - Update list of functional tests: make functional-update-list TESTS=\"scrc_help scrc_no_args\""
+	@echo "  functional-list        - List available functional tests"
+	@echo ""
 	@echo "Options:"
 	@echo "  BUILD=debug       - Debug build (default)"
 	@echo "  BUILD=release     - Release build"
@@ -309,5 +323,5 @@ clean:
 
 .PHONY: all clean help \
         test unit-test functional-test integration-test smoke-test sql-test \
-        sql-update sql-update-one sql-update-list sql-list
-
+        sql-update sql-update-one sql-update-list sql-list \
+        functional-update functional-update-one functional-update-list functional-list
