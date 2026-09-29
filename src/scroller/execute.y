@@ -73,6 +73,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %left OR
 %left AND
 %nonassoc NOT
+%nonassoc BETWEEN
 %nonassoc '=' NE '<' LE '>' GE
 %left '+' '-'
 %left '*' '/' '%'
@@ -215,6 +216,12 @@ expr:
     |
     NOT expr {
         $$ = !$2;
+    }
+    |
+    value BETWEEN value value {
+        check_arithmetical($1, $3);
+        check_arithmetical($1, $4);
+        $$ = ge_data($1, $3) && le_data($1, $4);
     }
     |
     value '=' value {
