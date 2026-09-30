@@ -54,8 +54,15 @@ dkms.conf
 # debug information files
 *.dwo
 
+# tests
+test/functional/results/
+test/integration/results/
+
 #misc
 *.swp
 doc/
 build/
+
+# Exclude expected directories of tests
+!test/**/expected/*.out
 

@@ -221,19 +221,107 @@ DEPS = $(CORE_OBJS:.o=.d) \
 # Do-Lib: Do-Util: Add your lib or util objs to the list above
 -include $(DEPS)
 
-clean:
-	rm -rf build/
+#####################
+#                   #
+#       Test        #
+#                   #
+#####################
 
-test: all $(TEST_BINS)
+# --- High-level test targets ---
+test: all unit-test functional-test integration-test
+	@echo ""
+	@echo "✅ All tests passed!"
+
+# --- Unit tests (C code) ---
+unit-test: $(TEST_BINS)
+	@echo "=== Unit tests ==="
 	@for t in $(TEST_BINS); do \
 		echo "Running test '$$t'"; \
 		$$t || { echo "x $$? tests failed in test $$t"; exit 1; } \
-	done; \
-	echo "✅ All tests passed!"
+	done
+	@echo "✅ Unit tests passed"
 
-integration-test: $(BIN_DIR)/scr_init $(BIN_DIR)/scroller $(BIN_DIR)/scrc
-	@echo "Running integration tests..."
-	./test/integration_test.sh
+# --- Functional tests ---
+functional-test: all
+	@echo ""
+	@./test/functional/run.sh
 
-.PHONY: all clean test integration-test
+functional-update:
+	@./test/functional/update_expected.sh --all
 
+functional-update-one:
+	@./test/functional/update_expected.sh $(TEST)
+
+functional-update-list:
+	@./test/functional/update_expected.sh $(TESTS)
+
+functional-list:
+	@./test/functional/update_expected.sh --list
+
+# --- Integration tests (bash + SQL) ---
+integration-test: all smoke-test sql-test
+	@echo ""
+	@echo "✅ Integration tests passed"
+
+# --- Smoke test (client-server basic) ---
+smoke-test: $(BIN_DIR)/scr_init $(BIN_DIR)/scroller $(BIN_DIR)/scrc
+	@echo "=== Smoke test ==="
+	@./test/integration/smoke/basic_test.sh
+
+# --- SQL tests ---
+sql-test: all
+	@echo "=== SQL tests ==="
+	@./test/integration/run.sh
+
+# --- Update SQL expected outputs ---
+sql-update:
+	@./test/integration/update_expected.sh --all
+
+sql-update-one:
+	@./test/integration/update_expected.sh $(TEST)
+
+sql-update-list:
+	@./test/integration/update_expected.sh $(TESTS)
+
+sql-list:
+	@./test/integration/update_expected.sh --list
+
+# --- Help ---
+help:
+	@echo "scroller build system"
+	@echo ""
+	@echo "Build targets:"
+	@echo "  all               - Build all utilities (default)"
+	@echo "  clean             - Remove build directory"
+	@echo ""
+	@echo "Test targets:"
+	@echo "  test              - Run all tests (unit + functional + integration)"
+	@echo "  unit-test         - Unit tests"
+	@echo "  functional-test   - Functional tests"
+	@echo "  integration-test  - Integration tests (smoke + SQL)"
+	@echo "  smoke-test        - Client-server smoke test"
+	@echo "  sql-test          - SQL tests only"
+	@echo ""
+	@echo "SQL utilities:"
+	@echo "  sql-update        - Update all expected SQL results"
+	@echo "  sql-update-one    - Update one SQL test: make sql-update-one TEST=05_select_like"
+	@echo "  sql-update-list   - Update list of SQL tests: make sql-update-list TESTS=\"05_select_like 06_select_in\""
+	@echo "  sql-list          - List available SQL tests"
+	@echo ""
+	@echo "Functional utilities:"
+	@echo "  functional-update      - Update all expected functional results"
+	@echo "  functional-update-one  - Update one functional test: make functional-update-one TEST=scrc_help"
+	@echo "  functional-update-list - Update list of functional tests: make functional-update-list TESTS=\"scrc_help scrc_no_args\""
+	@echo "  functional-list        - List available functional tests"
+	@echo ""
+	@echo "Options:"
+	@echo "  BUILD=debug       - Debug build (default)"
+	@echo "  BUILD=release     - Release build"
+
+clean:
+	rm -rf build/
+
+.PHONY: all clean help \
+        test unit-test functional-test integration-test smoke-test sql-test \
+        sql-update sql-update-one sql-update-list sql-list \
+        functional-update functional-update-one functional-update-list functional-list

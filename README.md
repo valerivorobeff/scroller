@@ -8,3 +8,5 @@ SQL DB
 ## For tests
 - expect (Ubuntu install: sudo apt-get install expect)
 
+See [test/TESTS.md](test/TESTS.md) for the complete testing guide.
+
