@@ -76,6 +76,7 @@ client_run_interactive(ScrcConnection *conn) {
  */
 int
 client_run_script(ScrcConnection *conn) {
+    ScrcStatus status;
     char input[BUFFER_SIZE];
     char query[BUFFER_SIZE] = "";
     int line_num = 0;
@@ -125,11 +126,15 @@ client_run_script(ScrcConnection *conn) {
         }
 
         /* Send query */
-        if (scrc_query(conn, query) != SCRC_OK) {
+        status = scrc_query(conn, query);
+        if (status != SCRC_OK) {
             fprintf(stderr, "Error sending query at line %d: %s\n", line_num, scrc_error(conn));
-            return -1;
-        } else {
-            printf("Ok\n");
+            break;
+        } else if (conn->body) {
+            status = print_response_body(conn);
+        }
+        else {
+            puts("Ok");
         }
 
         /* Receive response */
@@ -137,7 +142,7 @@ client_run_script(ScrcConnection *conn) {
         query[0] = '\0';
     }
 
-    return 0;
+    return status;
 }
 
 /**

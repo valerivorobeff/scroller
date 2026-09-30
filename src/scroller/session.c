@@ -43,8 +43,8 @@ session_run(Session *session) {
     int ret = 0;
     const int client_fd = session->client_fd;
     FILE *fstream;
-    Context *session_context = linear_context_create(MEMORY_PAGESZ *16);
-    Context *flex_context = bump_context_create(MEMORY_PAGESZ *16);
+    Context *session_context = linear_context_create(MEMORY_PAGESZ * 256 * 256);
+    Context *flex_context = bump_context_create(MEMORY_PAGESZ * 16);
 
     yyscan_t scanner;
     Query query;

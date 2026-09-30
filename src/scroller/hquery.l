@@ -66,6 +66,7 @@ QUOTED          \'(\\.|[^\'])*\'
 }
 
 <query>{
+    "--".*              { /* eat comment */ }
     "create"            return CREATE;
     "user"              return USER;
     "catalog"           return CATALOG;

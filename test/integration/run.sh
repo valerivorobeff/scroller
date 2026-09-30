@@ -165,7 +165,9 @@ main() {
     local failed=0
     local skipped=0
 
-    # Run all SQL files in order
+    # Run all SQL files in numeric order
+    mapfile -t sql_files < <(printf '%s\n' "$SQL_DIR"/*.sql | sort -V)
+
     for sql_file in "$SQL_DIR"/*.sql; do
         if [ ! -f "$sql_file" ]; then
             continue

@@ -416,7 +416,7 @@ send_query(ScrcConnection *conn, const char *query) {
     }
 
     /* Build query with request end marker */
-    len = snprintf(buffer, sizeof(buffer), "%s$$\n", query);
+    len = snprintf(buffer, sizeof(buffer), "%s\n$$\n", query);
 
     return send_block(conn->sockfd, buffer, len);
 }
