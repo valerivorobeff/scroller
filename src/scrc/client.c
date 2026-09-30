@@ -17,25 +17,33 @@
 
 /* Forward declarations of helper functions */
 static ScrcStatus print_response_body(ScrcConnection *conn);
-static char *trim(char *str);
+static bool line_has_semicolon(const char *line, int *in_comment, int *in_string, char *quote);
+static inline bool is_exit_command(const char *line);
 
 /**
  * @brief Run interactive mode
+ *
+ * Reads input line by line, accumulates until a semicolon is found,
+ * then sends the query. Shows continuation prompt while accumulating.
  */
 int
 client_run_interactive(ScrcConnection *conn) {
-    ScrcStatus status;
-    char input[BUFFER_SIZE];
+    ScrcStatus status = SCRC_OK;
+    char line[BUFFER_SIZE];
+    char query[BUFFER_SIZE] = "";
+    size_t query_len = 0;
+    int in_comment = 0;
+    int in_string = 0;
+    char quote = 0;
 
     printf("Scroller client (type 'exit' or 'quit' to quit)\n");
 
     while (1) {
-        /* Print prompt */
-        printf(PROMPT);
+        /* Prompt: continuation or new */
+        printf("%s", query_len == 0 ? PROMPT : "     -> ");
         fflush(stdout);
 
-        /* Read input */
-        if (!fgets(input, sizeof(input), stdin)) {
+        if (!fgets(line, sizeof(line), stdin)) {
             if (feof(stdin)) {
                 printf("\n");
                 break;
@@ -43,28 +51,44 @@ client_run_interactive(ScrcConnection *conn) {
             break;
         }
 
-        /* Trim whitespace */
-        char *cmd = trim(input);
-
-        /* Check for exit */
-        if (strcmp(cmd, "exit") == 0 || strcmp(cmd, "quit") == 0) {
+        /* Check for exit only when no pending query */
+        if (query_len == 0 && is_exit_command(line))
             break;
-        }
 
-        /* Skip empty lines */
-        if (cmd[0] == '\0') {
+        size_t line_len = strlen(line);
+
+        /* Append line to query buffer as-is */
+        if (query_len + line_len >= sizeof(query)) {
+            fprintf(stderr, "Query too large\n");
+            query[0] = '\0';
+            query_len = 0;
             continue;
         }
+        memcpy(query + query_len, line, line_len);
+        query_len += line_len;
+        query[query_len] = '\0';
 
-        /* Send query */
-        status = scrc_query(conn, input);
-        if (status != SCRC_OK) {
-            fprintf(stderr, "Error sending query: %s\n", scrc_error(conn));
-        } else if (conn->body) {
-            status = print_response_body(conn);
-        }
-        else {
-            puts("Ok");
+        /* Check if this line completes a query */
+        if (line_has_semicolon(line, &in_comment, &in_string, &quote)) {
+            /* Send accumulated query */
+            status = scrc_query(conn, query);
+            if (status != SCRC_OK) {
+                fprintf(stderr, "Error: %s\n", scrc_error(conn));
+                query[0] = '\0';
+                query_len = 0;
+                continue;
+            }
+
+            /* Print response */
+            if (conn->body) {
+                status = print_response_body(conn);
+            } else {
+                puts("Ok");
+            }
+
+            /* Reset buffer */
+            query[0] = '\0';
+            query_len = 0;
         }
     }
 
@@ -73,73 +97,78 @@ client_run_interactive(ScrcConnection *conn) {
 
 /**
  * @brief Run script mode (read from stdin)
+ *
+ * Reads input line by line, accumulates until a semicolon is found
+ * (outside comments and string literals), then sends the whole
+ * accumulated query to the server.
+ *
+ * @param conn Connection
+ * @return     SCRC_OK on success, error code otherwise
  */
 int
 client_run_script(ScrcConnection *conn) {
-    ScrcStatus status;
-    char input[BUFFER_SIZE];
+    ScrcStatus status = SCRC_OK;
+    char line[BUFFER_SIZE];
     char query[BUFFER_SIZE] = "";
-    int line_num = 0;
-    int in_multiline = 0;
+    size_t query_len = 0;
+    int in_comment = 0;
+    int in_string = 0;
+    char quote = 0;
 
-    while (fgets(input, sizeof(input), stdin)) {
-        line_num++;
+    while (fgets(line, sizeof(line), stdin)) {
+        size_t line_len = strlen(line);
 
-        /* Remove trailing newline */
-        size_t len = strlen(input);
-        if (len > 0 && input[len - 1] == '\n') {
-            input[len - 1] = '\0';
-            len--;
+        /* Append line to query buffer as-is (preserve \n) */
+        if (query_len + line_len >= sizeof(query)) {
+            fprintf(stderr, "Query too large\n");
+            return SCRC_BUFFER_OVERFLOW;
         }
+        memcpy(query + query_len, line, line_len);
+        query_len += line_len;
+        query[query_len] = '\0';
 
-        char *cmd = trim(input);
-
-        /* Skip empty lines */
-        if (cmd[0] == '\0') {
-            if (in_multiline) {
-                /* Empty line in multiline - keep it */
-                strcat(query, "\n");
+        /* Check if this line completes a query */
+        if (line_has_semicolon(line, &in_comment, &in_string, &quote)) {
+            /* Send accumulated query */
+            status = scrc_query(conn, query);
+            if (status != SCRC_OK) {
+                fprintf(stderr, "Error: %s\n", scrc_error(conn));
+                return status;
             }
-            continue;
-        }
 
-        /* Check for multiline (ends with ';') */
-        if (cmd[strlen(cmd) - 1] != ';' && !in_multiline) {
-            /* Single line query without semicolon - add it */
-            strcpy(query, cmd);
-            in_multiline = 0;
-        } else if (cmd[strlen(cmd) - 1] != ';' && in_multiline) {
-            /* Continue multiline */
-            strcat(query, "\n");
-            strcat(query, cmd);
-            continue;
-        } else {
-            /* Query ends with ';' */
-            if (in_multiline) {
-                strcat(query, "\n");
-                strcat(query, cmd);
-                in_multiline = 0;
+            /* Print response */
+            if (conn->body) {
+                status = print_response_body(conn);
             } else {
-                strcpy(query, cmd);
-                in_multiline = 0;
+                puts("Ok");
+            }
+
+            /* Reset buffer */
+            query[0] = '\0';
+            query_len = 0;
+        }
+    }
+
+    /* Send remaining buffer if not empty */
+    if (query_len > 0) {
+        /* Trim whitespace to check if anything is left */
+        const char *p = query;
+        while (*p && isspace((unsigned char)*p))
+            p++;
+
+        if (*p) {
+            status = scrc_query(conn, query);
+            if (status != SCRC_OK) {
+                fprintf(stderr, "Error: %s\n", scrc_error(conn));
+                return status;
+            }
+
+            if (conn->body) {
+                status = print_response_body(conn);
+            } else {
+                puts("Ok");
             }
         }
-
-        /* Send query */
-        status = scrc_query(conn, query);
-        if (status != SCRC_OK) {
-            fprintf(stderr, "Error sending query at line %d: %s\n", line_num, scrc_error(conn));
-            break;
-        } else if (conn->body) {
-            status = print_response_body(conn);
-        }
-        else {
-            puts("Ok");
-        }
-
-        /* Receive response */
-
-        query[0] = '\0';
     }
 
     return status;
@@ -360,30 +389,66 @@ print_response_body(ScrcConnection *conn) {
 }
 
 /**
- * @brief Trim whitespace from string
+ * @brief Check if line contains a semicolon outside comments/strings
+ *
+ * @param line       Line to check
+ * @param in_comment Pointer to comment state (carried between lines)
+ * @param in_string  Pointer to string state (carried between lines)
+ * @param quote      Pointer to string quote char (carried between lines)
+ * @return true if line contains terminating semicolon
  */
-static char *
-trim(char *str) {
-    char *end;
+static bool
+line_has_semicolon(const char *line, int *in_comment, int *in_string, char *quote) {
+    for (const char *p = line; *p; p++) {
+        char c = *p;
 
-    /* Trim leading space */
-    while (isspace((unsigned char)*str)) {
-        str++;
+        if (*in_comment) {
+            if (c == '\n') {
+                *in_comment = 0;
+            }
+            continue;
+        }
+
+        if (*in_string) {
+            if (c == '\\' && *(p + 1)) {
+                p++;  /* Skip escaped char */
+                continue;
+            }
+            if (c == *quote) {
+                *in_string = 0;
+            }
+            continue;
+        }
+
+        /* Not in comment or string */
+        if (c == '\'') {
+            *in_string = 1;
+            *quote = '\'';
+        } else if (c == '"') {
+            *in_string = 1;
+            *quote = '"';
+        } else if (c == '-' && *(p + 1) == '-') {
+            *in_comment = 1;
+            p++;  /* Skip second '-' */
+        } else if (c == ';') {
+            return true;
+        }
     }
 
-    if (*str == 0) {
-        return str;
-    }
+    return false;
+}
 
-    /* Trim trailing space */
-    end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char)*end)) {
-        end--;
-    }
+/*
+ * @brief Checks if line id an exit command not modifying line
+ * @param line to check
+ * @return true if line is exit command
+ */
+static inline bool
+is_exit_command(const char *line) {
+    while (isspace(*line))
+        ++line;
 
-    /* Write new null terminator */
-    *(end + 1) = '\0';
-
-    return str;
+    return (memcmp(line, "exit", 4) == 0 || memcmp(line, "quit", 4) == 0) &&
+        (line[4] == '\n' || line[4] == '\0');
 }
 
