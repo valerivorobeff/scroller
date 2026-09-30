@@ -1,0 +1,14 @@
+Usage: /home/vorobeff/Projects/scroller/build/debug/bin/scrc [options]
+
+Options:
+  -h <host>      Server hostname or IP (default: localhost)
+  -p <port>      Server port (default: 8080)
+  -u <user>      Username (required)
+  -c <catalog>   Catalog name
+  -f <file>      Read queries from file instead of stdin
+  --help         Show this help
+
+If no file is specified, runs in interactive mode.
+In interactive mode, type 'exit' or 'quit' to quit.
+Queries can be multiline, end with ';'.
+exit: 0

@@ -63,3 +63,6 @@ test/integration/results/
 doc/
 build/
 
+# Exclude expected directories of tests
+!test/**/expected/*.out
+
