@@ -70,6 +70,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %token CREATE USER CATALOG SCHEMA TABLE
 %token INSERT SELECT
 %token WHERE
+/* @todo I think I could use '(', ')' or '[]', ']' token pairs instead of the below */
 %token <integer> LOOP_BEGIN LOOP_END /* Used inside bc only */
 %token ARRAY_BEGIN ARRAY_END
 %token <integer> INTEGER
@@ -77,22 +78,13 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 %token <datum> DATUM
 %token <type> TYPE
 %token <size> SIZE_T
-%left OR
-%left AND
-%nonassoc NOT
-%nonassoc '=' NE '<' LE '>' GE
-%nonassoc LIKE
-%nonassoc IN
-%nonassoc BETWEEN
-%left '+' '-'
-%left '*' '/' '%'
-%left CONCAT
-%token '(' ')'
 
+%token OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT LIKE IN BETWEEN NOT_LIKE NOT_IN NOT_BETWEEN CONCAT
 %type <strs> strings
 %type <datum> value
 %type <datuma> values
-%type <integer> expr
+%type <integer> expr or_expr and_expr not_expr cmp_expr
+%type <datum> additive_expr multiplicative_expr atom
 
 %%
 
@@ -212,33 +204,34 @@ where_line:
     ;
 
 expr:
-    value {
-        $$ = !datum_zeroed($1);
-    }
-    |
-    expr OR expr {
-        $$ = $1 || $3;
-    }
-    |
-    expr AND expr {
-        $$ = $1 && $3;
-    }
-    |
-    NOT expr {
-        $$ = !$2;
-    }
-    |
-    value LIKE value {
-        check_lexical($1, $3);
-        $$ = like_data($1, $3);
-    }
-    |
-    value IN {
-        /* @todo it is better to make its own bump_context for cmd->current and free it
-            after each usage like array_free(cmd->current);
-        */
-        cmd->current = NULL;
-    } '(' values ')' {
+    or_expr
+    ;
+
+or_expr:
+    and_expr { $$ = $1; }
+    | or_expr OR and_expr { $$ = $1 || $3; }
+    ;
+
+and_expr:
+    not_expr { $$ = $1; }
+    | and_expr AND not_expr { $$ = $1 && $3; }
+    ;
+
+not_expr:
+    cmp_expr { $$ = $1; }
+    | NOT not_expr { $$ = !$2; }
+    ;
+
+cmp_expr:
+    additive_expr { $$ = !datum_zeroed($1); }
+    | additive_expr '=' additive_expr { check_op($1, $3); $$ = eq_data($1, $3); }
+    | additive_expr NE additive_expr { check_op($1, $3); $$ = ne_data($1, $3); }
+    | additive_expr '<' additive_expr { check_op($1, $3); $$ = lt_data($1, $3); }
+    | additive_expr LE additive_expr { check_op($1, $3); $$ = le_data($1, $3); }
+    | additive_expr '>' additive_expr { check_op($1, $3); $$ = gt_data($1, $3); }
+    | additive_expr GE additive_expr { check_op($1, $3); $$ = ge_data($1, $3); }
+    | additive_expr LIKE additive_expr { check_lexical($1, $3); $$ = like_data($1, $3); }
+    | additive_expr IN '(' { cmd->current = NULL; } values ')' {
         bool found = false;
 
         for (int i = 0, ie = array_size($5); i != ie; ++i) {
@@ -256,42 +249,63 @@ expr:
 
         $$ = found;
     }
-    |
-    value BETWEEN value value {
+    | additive_expr BETWEEN additive_expr additive_expr {
         check_arithmetical($1, $3);
         check_arithmetical($1, $4);
         $$ = ge_data($1, $3) && le_data($1, $4);
     }
-    |
-    value '=' value {
-        check_op($1, $3);
-        $$ = eq_data($1, $3);
+    | additive_expr NOT_LIKE additive_expr { check_lexical($1, $3); $$ = !like_data($1, $3); }
+    | additive_expr NOT_IN '(' { cmd->current = NULL; } values ')' {
+        bool found = false;
+
+        for (int i = 0, ie = array_size($5); i != ie; ++i) {
+            if (!data_comparable($1, $5[i])) {
+                ferr("Data missmatch");
+                session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+                YYABORT;
+            }
+
+            if (eq_data($1, $5[i])) {
+                found = true;
+                break;
+            }
+        }
+
+        $$ = !found;
     }
-    |
-    value NE value {
-        check_op($1, $3);
-        $$ = ne_data($1, $3);
+    | additive_expr NOT_BETWEEN additive_expr additive_expr {
+        check_arithmetical($1, $3);
+        check_arithmetical($1, $4);
+        $$ = ge_data($1, $3) && le_data($1, $4);
     }
-    |
-    value '<' value {
-        check_op($1, $3);
-        $$ = lt_data($1, $3);
+    ;
+
+additive_expr:
+    multiplicative_expr { $$ = $1; }
+    | additive_expr '+' multiplicative_expr { check_arithmetical($1, $3); $$ = add_data($1, $3); }
+    | additive_expr '-' multiplicative_expr { check_arithmetical($1, $3); $$ = sub_data($1, $3); }
+    | additive_expr CONCAT multiplicative_expr { check_lexical($1, $3); $$ = cat_data($1, $3); }
+    ;
+
+multiplicative_expr:
+    atom { $$ = $1; }
+    | multiplicative_expr '*' atom { check_arithmetical($1, $3); $$ = mul_data($1, $3); }
+    | multiplicative_expr '/' atom { check_arithmetical($1, $3); $$ = div_data($1, $3); }
+    | multiplicative_expr '%' atom {
+        if (get_type_group($1.type) != TG_INTEGER ||
+            get_type_group($3.type) != TG_INTEGER) {
+            ferr("Data not integer");
+            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
+            YYABORT;
+        }
+
+        $$ = mod_data($1, $3);
     }
-    |
-    value LE value {
-        check_op($1, $3);
-        $$ = le_data($1, $3);
-    }
-    |
-    value '>' value {
-        check_op($1, $3);
-        $$ = gt_data($1, $3);
-    }
-    |
-    value GE value {
-        check_op($1, $3);
-        $$ = ge_data($1, $3);
-    }
+    ;
+
+atom:
+    value { $$ = $1; }
+    | '(' expr ')' { $$ = make_bigint($2); }  /* integer → Datum */
     ;
 
 decls:
@@ -369,46 +383,6 @@ value:
 
         fin:
         }
-    }
-    |
-    value '+' value {
-        check_arithmetical($1, $3);
-        $$ = add_data($1, $3);
-    }
-    |
-    value '-' value {
-        check_arithmetical($1, $3);
-        $$ = sub_data($1, $3);
-    }
-    |
-    value '*' value {
-        check_arithmetical($1, $3);
-        $$ = mul_data($1, $3);
-    }
-    |
-    value '/' value {
-        check_arithmetical($1, $3);
-        $$ = div_data($1, $3);
-    }
-    |
-    value '%' value {
-        if (get_type_group($1.type) != TG_INTEGER ||
-            get_type_group($3.type) != TG_INTEGER) {
-            ferr("Data not integer");
-            session_send_status(session, SCRS_DATUM_TYPE_MISMATCH);
-            YYABORT;
-        }
-
-        $$ = mod_data($1, $3);
-    }
-    |
-    value CONCAT value {
-        check_lexical($1, $3);
-        $$ = cat_data($1, $3);
-    }
-    |
-    '(' value ')' {
-        $$ = $2;
     }
     ;
 

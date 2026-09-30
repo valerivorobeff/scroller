@@ -53,7 +53,7 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 /* We don't need operator priority or assoc here, y1parser should just put ahead
     all the operators in the same order as it gets */
-%left OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT LIKE IN BETWEEN CONCAT
+%token OR AND '=' NE '<' LE '>' GE '+' '-' '*' '/' '%' '(' ')' NOT LIKE IN BETWEEN CONCAT
 %token <integer>VINTEGER
 %type value
 
@@ -209,58 +209,128 @@ mb_where:
     ;
 
 expr:
-    value
-    |
-    expr OR {
+    or_expr
+    ;
+
+or_expr:
+    and_expr
+    | or_expr OR {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_OR }));
-    } expr
-    |
-    expr AND {
+    } and_expr
+    ;
+
+and_expr:
+    not_expr
+    | and_expr AND {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_AND }));
-    } expr
-    |
-    NOT {
+    } not_expr
+    ;
+
+not_expr:
+    cmp_expr
+    | NOT {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_NOT }));
-    } expr
-    |
-    value LIKE {
+    } not_expr
+    ;
+
+cmp_expr:
+    additive_expr
+    | additive_expr '=' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
+    } additive_expr
+    | additive_expr NE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_NE }));
+    } additive_expr
+    | additive_expr '<' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '<' }));
+    } additive_expr
+    | additive_expr LE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_LE }));
+    } additive_expr
+    | additive_expr '>' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '>' }));
+    } additive_expr
+    | additive_expr GE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_GE }));
+    } additive_expr
+    | additive_expr LIKE {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_LIKE }));
-    } value
-    |
-    value IN '(' {
+    } additive_expr
+    | additive_expr IN '(' {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_IN }));
         bc_put(&cmd->bc, ((BcNode){ .token = '(' }));
     } values ')' {
         bc_put(&cmd->bc, ((BcNode){ .token = ')' }));
     }
-    |
-    value BETWEEN {
+    | additive_expr BETWEEN {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_BETWEEN }));
-    } value AND value
+    } additive_expr AND additive_expr
+    | additive_expr NOT IN '(' {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_NOT_IN }));
+        bc_put(&cmd->bc, ((BcNode){ .token = '(' }));
+    } values ')' {
+        bc_put(&cmd->bc, ((BcNode){ .token = ')' }));
+    }
+    | additive_expr NOT LIKE {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_NOT_LIKE }));
+    } additive_expr
+    | additive_expr NOT BETWEEN {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_NOT_BETWEEN }));
+    } additive_expr AND additive_expr
+    ;
+
+additive_expr:
+    multiplicative_expr
+    | additive_expr '+' {
+    /* @todo here and below we could check if data of proper type: data_arothmetical, data_lexical */
+        bc_put(&cmd->bc, ((BcNode){ .token = '+' }));
+    } multiplicative_expr
+    | additive_expr '-' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '-' }));
+    } multiplicative_expr
+    | additive_expr CONCAT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_CONCAT }));
+    } multiplicative_expr
+    ;
+
+multiplicative_expr:
+    primary_expr
+    | multiplicative_expr '*' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '*' }));
+    } primary_expr
+    | multiplicative_expr '/' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '/' }));
+    } primary_expr
+    | multiplicative_expr '%' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '%' }));
+    } primary_expr
+    ;
+
+primary_expr:
+    value
+    | '(' {
+        bc_put(&cmd->bc, ((BcNode){ .token = '(' }));
+    } expr ')' {
+        bc_put(&cmd->bc, ((BcNode){ .token = ')' }));
+    }
+    ;
+
+values:
+    value
     |
-    value '=' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '=' }));
-    } value
-    |
-    value NE {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_NE }));
-    } value
-    |
-    value '<' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '<' }));
-    } value
-    |
-    value LE {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_LE }));
-    } value
-    |
-    value '>' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '>' }));
-    } value
-    |
-    value GE {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_GE }));
-    } value
+    values ',' value
+    ;
+
+value:
+    VINTEGER {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_bigint($1) }));
+    }
+    | STRING {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_char($1) }));
+    }
+    | ID {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_name($1) }));
+    }
     ;
 
 decls:
@@ -312,57 +382,6 @@ ids:
     ids ',' ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
         flog("%s", $3);
-    }
-    ;
-
-values:
-    value
-    |
-    values ',' value
-    ;
-
-value:
-    VINTEGER {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_bigint($1) }));
-    }
-    |
-    STRING {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_char($1) }));
-    }
-    |
-    ID {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_DATUM, .value.datum = make_name($1) }));
-    }
-    |
-    /* @todo here and below we could check if data of proper type: data_arothmetical, data_lexical */
-    value '+' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '+' }));
-    } value
-    |
-    value '-' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '-' }));
-    } value
-    |
-    value '*' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '*' }));
-    } value
-    |
-    value '/' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '/' }));
-    } value
-    |
-    value '%' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '%' }));
-    } value
-    |
-    value CONCAT {
-        bc_put(&cmd->bc, ((BcNode){ .token = BC_CONCAT }));
-    } value
-    |
-    '(' {
-        bc_put(&cmd->bc, ((BcNode){ .token = '(' }));
-    } value ')' {
-        bc_put(&cmd->bc, ((BcNode){ .token = ')' }));
     }
     ;
 
