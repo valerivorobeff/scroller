@@ -9,7 +9,10 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <string.h>
 #include <errno.h>
+
+static void set_process_name(char *argv0, const char *title);
 
 int tcp_init(void);
 int tcp_run(void);
@@ -118,6 +121,7 @@ tcp_run(void) {
 
         if (pid == 0) {
             /* Worker process */
+            set_process_name(g_server.argv[0], "scrw");
             close(g_server.server_fd);  /* Close a copy of server socket */
             g_server.server_fd = -1;    /* Undefine server_fd */
             result = session_run(&session);
@@ -125,6 +129,7 @@ tcp_run(void) {
             break;                      /* Return to server_run function */
         } else {
             /* Main process */
+            set_process_name(g_server.argv[0], "scrs");
             close(session.client_fd);   /* Close client socket */
             session.client_fd = -1;     /* Undefine client_fd */
             flog("[Parent] Forked child PID: %d\n", pid);
@@ -142,5 +147,27 @@ tcp_drop(void) {
     }
 
     return 0;
+}
+
+static void
+set_process_name(char *argv0, const char *title) {
+    size_t avail;
+    size_t len = strlen(title);
+    char *fname = strrchr(argv0, '/');
+
+    /* Set fname to the beginning of file name (not path) */
+    if (fname)
+        ++fname;
+    else
+        fname = argv0;
+
+    avail = strlen(fname);
+
+    if (len > avail)
+        len = avail;
+
+    memcpy(fname, title, len);
+    if (len < avail)
+        memset(fname + len, 0, avail - len);
 }
 

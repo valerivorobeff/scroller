@@ -18,7 +18,7 @@
 #include <sys/wait.h>
 #include <assert.h>
 
-int server_init(const char *path);
+int server_init(int argc, char *argv[]);
 int server_run(void);
 int server_drop(void);
 
@@ -32,27 +32,37 @@ PageCache *g_pagecache = NULL;
 Server g_server;
 
 int
-server_init(const char *path) {
+server_init(int argc, char *argv[]) {
     Grid *hcluster;
     Grid *cluster;
     uint16_t name_idx;
     uint16_t string_idx;
     uint16_t header_idx;
     uint16_t data_idx;
+    const char *path;
     struct sigaction sa;    /* sigaction struct to clear zombies */
 
     memory_init_default();
 
     flog_init_default();
 
+    if (argc != 2)
+        ffatal(EXIT_FAILURE, "usage: scroller <PATH_TO_CLUSTER_HOME_DIR>");
+
+    path = argv[1];
+
     if (!directory_exists(path))
-        ffatal(1, "Directory '%s' doesn't exist", path);
+        ffatal(EXIT_FAILURE, "Directory '%s' doesn't exist", path);
 
     chdir(path);
 
     PAGESZ = get_block_size(path);
 
     memset(&g_server, 0, sizeof(Server));
+
+    /* Set arguments */
+    g_server.argc = argc;
+    g_server.argv = argv;
 
     /* Load default values */
     g_server.backlog = DEFAULT_BACKLOG;
@@ -73,7 +83,7 @@ server_init(const char *path) {
     flog("block size: %lu\n", PAGESZ);
 
     if (caches_create()) /* Create caches with default sizes */
-        ffatal(1, "Cannot create caches");
+        ffatal(EXIT_FAILURE, "Cannot create caches");
 
     /*
      * Init main cluster header
@@ -81,19 +91,19 @@ server_init(const char *path) {
     hcluster = pagecache_put_page(g_pagecache, g_server.system.cluster.header.full);
     name_idx = htable_get_column_idx(hcluster, "name");
     if (!grid_idx_is_valid(name_idx))
-        ffatal(1, "Column 'name' not found in cluster table");
+        ffatal(EXIT_FAILURE, "Column 'name' not found in cluster table");
 
     string_idx = htable_get_column_idx(hcluster, "string");
     if (!grid_idx_is_valid(string_idx))
-        ffatal(1, "Column 'string' not found in cluster table");
+        ffatal(EXIT_FAILURE, "Column 'string' not found in cluster table");
 
     header_idx = htable_get_column_idx(hcluster, "header");
     if (!grid_idx_is_valid(header_idx))
-        ffatal(1, "Column 'header' not found in cluster table");
+        ffatal(EXIT_FAILURE, "Column 'header' not found in cluster table");
 
     data_idx = htable_get_column_idx(hcluster, "data");
     if (!grid_idx_is_valid(data_idx))
-        ffatal(1, "Column 'data' not found in cluster table");
+        ffatal(EXIT_FAILURE, "Column 'data' not found in cluster table");
 
     /*
      * Init main cluster table
@@ -159,7 +169,7 @@ server_init(const char *path) {
             ferr("Cannot free caches, continue with memory leak");
 
         if (caches_create()) /* Now that we have read the cache sizes from the cluster table we can remake them */
-            ffatal(1, "Cannot create caches");
+            ffatal(EXIT_FAILURE, "Cannot create caches");
     }
 
     /* Initialize tcp */
@@ -217,7 +227,7 @@ caches_create(void) {
 
     /* @todo: handle errno */
     if (g_pages == MAP_FAILED)
-        ffatal(1, "Cannot allocate memory for pages");
+        ffatal(EXIT_FAILURE, "Cannot allocate memory for pages");
 
     /* Create and initialize g_pagecache */
     g_pagecache = mmap(NULL,
