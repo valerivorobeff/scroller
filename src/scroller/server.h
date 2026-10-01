@@ -36,6 +36,8 @@ extern PageCache *g_pagecache;
  * @brief Server struct
  */
 typedef struct Server {
+    int argc;                   /**< Argument number - got from main() function */
+    char **argv;                /**< Arguments (r/w) - got from main() function */
     int server_fd;              /**< Server socket descriptor */
     int backlog;                /**< Server backlog */
     in_port_t port;             /**< Server port */
@@ -61,9 +63,11 @@ extern Server g_server;
  * @brief Initializes server
  * @note it uses g_server struct to store server information
  * @param path Path to cluster data
+ * @param argc Argument number - got from main() function
+   *param argv Arguments (r/w) - got from main() function
  * @return 0 - if succeed, error code otherwise
  */
-int server_init(const char *path);
+int server_init(int argc, char *argv[]);
 
 /**
  * @brief Runs server
