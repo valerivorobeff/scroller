@@ -2,7 +2,7 @@
 #include "sequence.h"
 #include "cell.h"
 #include "table.h"
-#include "../scroller/server.h"
+#include "../scrs/server.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -354,7 +354,7 @@ main(const int argc, const char *argv[]) {
     int result;
 
     if (argc != 2) {
-        fprintf(stderr, "usage: scr_init <PATH_TO_CLUSTER_HOME_DIR>\n");
+        fprintf(stderr, "usage: scri <PATH_TO_CLUSTER_HOME_DIR>\n");
         return EXIT_FAILURE;
     }
 

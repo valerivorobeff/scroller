@@ -23,11 +23,11 @@ mkdir -p "$PARENT_DIR"
 
 # Setup test data
 echo "Setting up test data..."
-./build/debug/bin/scr_init "$TEST_DIR"
+./build/debug/bin/scri "$TEST_DIR"
 
 # Start server
 echo "Starting server..."
-./build/debug/bin/scroller "$TEST_DIR" &
+./build/debug/bin/scrs "$TEST_DIR" &
 SERVER_PID=$!
 sleep 1
 

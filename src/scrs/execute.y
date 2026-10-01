@@ -8,12 +8,12 @@ typedef struct Session Session;
 
 %code {
 #include "array.h"
-#include "../../../../src/scroller/cmd.h"
-#include "../../../../src/scroller/bc.h"
-#include "../../../../src/scroller/ddl.h"
-#include "../../../../src/scroller/dml.h"
-#include "../../../../src/scroller/session.h"
-#include "../../../../src/scroller/flog.h"
+#include "../../../../src/scrs/cmd.h"
+#include "../../../../src/scrs/bc.h"
+#include "../../../../src/scrs/ddl.h"
+#include "../../../../src/scrs/dml.h"
+#include "../../../../src/scrs/session.h"
+#include "../../../../src/scrs/flog.h"
 
 /* @todo I can't send error message inside check_op macro
          as it is sent by y1parser but it sends just

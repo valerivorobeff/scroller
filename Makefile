@@ -58,7 +58,7 @@ CORE_LIB	= build/$(BUILD)/obj/core/libcore.a
 # Utils
 #
 
-UTILS			= scr_init scroller scrc
+UTILS			= scri scrs scrc
 # Do-Util: Add your new utility's name to the list above
 UTIL_LEX		= $(foreach util,$(UTILS), $(wildcard src/$(util)/*.l))
 UTIL_LEX_SRCS	= $(patsubst src/%.l, build/$(BUILD)/gen/%.l.c, $(UTIL_LEX))
@@ -71,9 +71,9 @@ UTIL_OBJS		= $(patsubst src/%.c, build/$(BUILD)/obj/%.o, $(UTIL_SRCS))
 UTIL_BINS		= $(addprefix $(BIN_DIR)/, $(UTILS))
 
 # Object files for each utilty
-UTIL_OBJS_scr_init  = $(filter build/$(BUILD)/obj/scr_init/%, $(UTIL_OBJS))
-UTIL_OBJS_scroller  = $(filter build/$(BUILD)/obj/scroller/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS) $(UTIL_YACC_OBJS))
-UTIL_OBJS_scrc		 = $(filter build/$(BUILD)/obj/scrc/%, $(UTIL_OBJS))
+UTIL_OBJS_scri	= $(filter build/$(BUILD)/obj/scri/%, $(UTIL_OBJS))
+UTIL_OBJS_scrs  = $(filter build/$(BUILD)/obj/scrs/%, $(UTIL_OBJS) $(UTIL_LEX_OBJS) $(UTIL_YACC_OBJS))
+UTIL_OBJS_scrc	= $(filter build/$(BUILD)/obj/scrc/%, $(UTIL_OBJS))
 # Do-Util: Add your new utility's object files to the list above
 
 #
@@ -161,13 +161,13 @@ $(CORE_OBJS): build/$(BUILD)/obj/core/%.o: lib/core/src/%.c
 # Util rules
 #
 
-# scr_init linkage
-$(BIN_DIR)/scr_init: $(UTIL_OBJS_scr_init) $(CORE_LIB)
+# scri linkage
+$(BIN_DIR)/scri: $(UTIL_OBJS_scri) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
-# scroller linkage
-$(BIN_DIR)/scroller: $(UTIL_OBJS_scroller) $(CORE_LIB)
+# scrs linkage
+$(BIN_DIR)/scrs: $(UTIL_OBJS_scrs) $(CORE_LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
@@ -264,7 +264,7 @@ integration-test: all smoke-test sql-test
 	@echo "✅ Integration tests passed"
 
 # --- Smoke test (client-server basic) ---
-smoke-test: $(BIN_DIR)/scr_init $(BIN_DIR)/scroller $(BIN_DIR)/scrc
+smoke-test: $(BIN_DIR)/scri $(BIN_DIR)/scrs $(BIN_DIR)/scrc
 	@echo "=== Smoke test ==="
 	@./test/integration/smoke/basic_test.sh
 
