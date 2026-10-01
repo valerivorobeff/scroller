@@ -190,7 +190,7 @@ hgrid_add_column(Grid *grid, const char *name, Type type, size_t size) {
     hc = grid_get_row(grid, column_idx);
 
     if (hc) {
-        size_t cursz;
+        size_t cursz = 0;
 
         /* @todo: now the maximum copied bytes are NAMESZ - 1
          * which means that the latest byte should always be 0

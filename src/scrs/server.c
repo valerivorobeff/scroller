@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <assert.h>
+#include <errno.h>
 
 int server_init(int argc, char *argv[]);
 int server_run(void);
@@ -54,7 +55,8 @@ server_init(int argc, char *argv[]) {
     if (!directory_exists(path))
         ffatal(EXIT_FAILURE, "Directory '%s' doesn't exist", path);
 
-    chdir(path);
+    if (chdir(path))
+        ffatal(errno, strerror(errno));
 
     PAGESZ = get_block_size(path);
 
