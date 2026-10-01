@@ -37,7 +37,7 @@ create_test_dir() {
     }
 
     if (ret == 0)
-        chdir(dir);
+        ret = chdir(dir);
 
     free(dir);
 
@@ -232,6 +232,7 @@ TEST(fdcache)
             int fd1;
             int fd2;
             int fd3;
+            gid_hex_t filename;
 
             /* Insert first entry */
             entry1 = fdcache_put(cache, gids[0].full);
@@ -258,10 +259,13 @@ TEST(fdcache)
             TEST_CHECK(is_fd_valid(fd2));
 
             fdcache_free(cache);
-            for (int i = 1; i <= 3; i++) {
-                gid_hex_t filename = gid2hex(gids[i]);
+            for (int i = 1; i < 2; i++) {
+                filename = gid2hex(gids[i]);
                 delete_test_file(filename.value);
             }
+
+            filename = gid2hex(gid3);
+            delete_test_file(filename.value);
         }
 
         TEST_CASE(file_close_on_clear) {

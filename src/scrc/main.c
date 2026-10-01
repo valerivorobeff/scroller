@@ -178,8 +178,8 @@ client_run_script(ScrcConnection *conn) {
  * @brief Print usage help
  */
 void
-print_usage(const char *program) {
-    printf("Usage: %s [options]\n\n", program);
+print_usage(void) {
+    printf("Usage: scrc [options]\n\n");
     printf("Options:\n");
     printf("  -h <host>      Server hostname or IP (default: localhost)\n");
     printf("  -p <port>      Server port (default: 8080)\n");
@@ -218,11 +218,11 @@ main(int argc, char **argv) {
         } else if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
             file = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0) {
-            print_usage(argv[0]);
+            print_usage();
             return 0;
         } else {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
-            print_usage(argv[0]);
+            print_usage();
             return 1;
         }
     }
@@ -230,7 +230,7 @@ main(int argc, char **argv) {
     /* Validate required arguments */
     if (!user) {
         fprintf(stderr, "Error: Username (-u) is required\n\n");
-        print_usage(argv[0]);
+        print_usage();
         return 1;
     }
 
