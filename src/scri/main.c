@@ -66,7 +66,10 @@ init_cluster(const char *path) {
 
         Titor row;
 
-        chdir(path);
+        if (chdir(path)) {
+            printf("%s\n", strerror(errno));
+            return errno;
+        }
 
         /**********************************************************************
          *

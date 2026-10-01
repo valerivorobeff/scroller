@@ -591,7 +591,7 @@ recv_header_line(ScrcConnection *conn, HeaderLine *hl) {
  */
 static ScrcStatus
 recv_row(ScrcConnection *conn, ScrcRow *row) {
-    ScrcCmd cmd;
+    ScrcCmd cmd = {};
     size_t size;
     char *p;
     ScrcStatus ret = recv_cmd(conn, &cmd);

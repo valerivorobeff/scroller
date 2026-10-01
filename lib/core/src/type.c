@@ -334,6 +334,8 @@ add_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot add non comparable data");
+
+    return d1;  /* This line shouldn't be reached */
 }
 
 /** @brief Substitutes two data
@@ -351,6 +353,8 @@ sub_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot substitute non comparable data");
+
+    return d1;  /* This line shouldn't be reached */
 }
 
 /** @brief Multiplies two data
@@ -368,6 +372,8 @@ mul_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot multiply non comparable data");
+
+    return d1;  /* This line shouldn't be reached */
 }
 
 /** @brief Divides two data
@@ -385,6 +391,8 @@ div_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot divide non comparable data");
+
+    return d1;  /* This line shouldn't be reached */
 }
 
 /** @brief Modulos two data
@@ -403,6 +411,8 @@ mod_data(Datum d1, Datum d2) {
         }
     } else
         assert(0 && "Cannot modulo non comparable data");
+
+    return d1;  /* This line shouldn't be reached */
 }
 
 /**
@@ -424,6 +434,8 @@ cat_data(Datum d1, Datum d2) {
         return (Datum){ T_CHAR, totalsz, .value.character = str };
     } else
         assert(0 && "Cannot concatenate non lexical data");
+
+    return d1;  /* This line shouldn't be reached */
 }
 
 /**
