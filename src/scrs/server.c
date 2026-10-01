@@ -47,7 +47,7 @@ server_init(int argc, char *argv[]) {
     flog_init_default();
 
     if (argc != 2)
-        ffatal(EXIT_FAILURE, "usage: scroller <PATH_TO_CLUSTER_HOME_DIR>");
+        ffatal(EXIT_FAILURE, "usage: scrs <PATH_TO_CLUSTER_HOME_DIR>");
 
     path = argv[1];
 

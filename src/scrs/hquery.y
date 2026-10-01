@@ -2,7 +2,7 @@
 typedef struct Session Session;
 typedef struct Query Query;
 typedef struct Cmd Cmd;
-#include "../../../../src/scroller/bc.h"
+#include "../../../../src/scrs/bc.h"
 #include <stdint.h>
 }
 
@@ -12,10 +12,10 @@ typedef struct Cmd Cmd;
 #include "array.h"
 #include "memory.h"
 #include "type.h"
-#include "../../../../src/scroller/session.h"
-#include "../../../../src/scroller/query.h"
-#include "../../../../src/scroller/cmd.h"
-#include "../../../../src/scroller/flog.h"
+#include "../../../../src/scrs/session.h"
+#include "../../../../src/scrs/query.h"
+#include "../../../../src/scrs/cmd.h"
+#include "../../../../src/scrs/flog.h"
 #include <sys/socket.h>
 static int execute_cmd(Session *session, Cmd *cmd);
 static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);

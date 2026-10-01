@@ -22,8 +22,8 @@ TEST_DIR="$TEST_BASE/sql_test_$$"
 
 # Binaries
 BIN_BASE="$PROJECT_ROOT/build/debug/bin"
-SCR_INIT="$BIN_BASE/scr_init"
-SCROLLER="$BIN_BASE/scroller"
+SCR_INIT="$BIN_BASE/scri"
+SCROLLER="$BIN_BASE/scrs"
 SCRC="$BIN_BASE/scrc"
 
 # Server

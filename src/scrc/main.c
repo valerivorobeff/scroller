@@ -1,12 +1,12 @@
 /**
- * @file client.c
+ * @file main.c
  * @brief Scroller console client implementation
  */
 
 #include "scrc.h"
 #include "grid.h"
 #include "cell.h"
-#include "../scroller/server.h"
+#include "../scrs/server.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
