@@ -129,7 +129,6 @@ tcp_run(void) {
             break;                      /* Return to server_run function */
         } else {
             /* Main process */
-            set_process_name(g_server.argv[0], "scrs");
             close(session.client_fd);   /* Close client socket */
             session.client_fd = -1;     /* Undefine client_fd */
             flog("[Parent] Forked child PID: %d\n", pid);
