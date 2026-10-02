@@ -61,6 +61,7 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
     memcpy(g->magic, magic, sizeof(magic));
     g->size = pagesz;
     g->type = type;
+    g->next.full = GID_UNDEF;
     g->rowsz = rowsz;
     g->rown = (pagesz - sizeof(Grid)) / rowsz;
 

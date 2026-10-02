@@ -1,6 +1,7 @@
 #include "mesh.h"
 #include "pagecache.h"
 #include "sequence.h"
+#include <assert.h>
 
 extern PageCache *g_pagecache;
 
@@ -14,7 +15,11 @@ mesh_alloc_row(GidPair *tail) {
     Grid *data = pagecache_put_page(g_pagecache, tail->data.full);
     uint16_t row = grid_alloc_row(data);
 
+    assert(data->next.full == GID_UNDEF); /* Ensure this is really the tail gid */
+
     if (row == GRID_INVALID_IDX) {
+        Grid *old_data = data;
+
         if (tail->data.parts.page < GID_MAXPAGE) {
             ++tail->data.parts.page;
         } else {
@@ -32,6 +37,8 @@ mesh_alloc_row(GidPair *tail) {
 
         data = pagecache_put_page(g_pagecache, tail->data.full);
         data = dgrid_init(data, PAGESZ, GT_FIXED, header);
+
+        old_data->next = tail->data;
 
         row = grid_alloc_row(data);
     }
