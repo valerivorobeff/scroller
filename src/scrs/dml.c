@@ -15,18 +15,17 @@
  * @param session current session
  * @param schema schema name
  * @param relation relation name
+ * @param return_tail returns tail git instead of data gid of relation. It is suitable for insert
  * @param create_if_data_undef if true creates data grid for relation if it is set to GID_UNDEF
  *        in system relation table (typical for new tables without data)
  * @return GidPair of relation, if relation not found returns grid with header.full = GID_UNDEF and data.full = GID_UNDEF
  */
-static GidPair find_relation(Session *session, const char *schema, const char *relation, bool create_if_data_undef);
+static GidPair find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef);
 
 ScrcStatus
 insert(Session *session, const char *schema, const char *table, const char **names, const Datum *values) {
-    ScrcStatus ret = SCRS_OK;
-    GidPair gp_relation = find_relation(session, schema, table, true);
+    GidPair gp_relation = find_relation(session, schema, table, true, true);
     Grid *header;
-    Grid *data;
     Titor row;
     uint16_t *indices = NULL;
 
@@ -40,10 +39,12 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 
     assert(gp_relation.data.full != GID_UNDEF);
 
+    /* Load table header */
     header = pagecache_put_page(g_pagecache, gp_relation.header.full);
 
     assert(header);
 
+    /* Get indices of all the queried columns */
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
         uint16_t column_idx = htable_get_column_idx(header, names[i]);
 
@@ -58,28 +59,24 @@ insert(Session *session, const char *schema, const char *table, const char **nam
         }
     }
 
-    /* Load table data */
-    data = pagecache_put_page(g_pagecache, gp_relation.data.full);
-
-    row = table_alloc_row(header, data);
+    /* Allocate a new row in the table, note that table_alloc_row can update gp_relation.data */
+    row = table_alloc_row(&gp_relation);
     if (!titor_is_valid(row))
-        return SCRS_BAD_ALLOC;
+        return SCRS_SEQUENCE_OVERFLOW;
 
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
-        ret |= titor_put_datum(row, indices[i], values[i]);
+        if (titor_put_datum(row, indices[i], values[i]) != 0)
+            return SCRS_DATUM_TYPE_MISMATCH;
     }
 
-    if (ret)
-        return SCRS_DATUM_TYPE_MISMATCH;
-    else
-        pagecache_flush(g_pagecache, gp_relation.data.full);
+    pagecache_flush(g_pagecache, gp_relation.data.full);
 
-    return ret;
+    return SCRS_OK;
 }
 
 ScrcStatus
 dml_select(Session *session, const char *schema, const char *table, const char **names, Titor *out) {
-    GidPair gp_relation = find_relation(session, schema, table, false);
+    GidPair gp_relation = find_relation(session, schema, table, false, false);
     Grid *header;
     Grid *data;
     uint16_t *indices = NULL;
@@ -90,10 +87,12 @@ dml_select(Session *session, const char *schema, const char *table, const char *
         return SCRS_UNKNOWN_RELATION;
     }
 
+    /* Load table header */
     header = pagecache_put_page(g_pagecache, gp_relation.header.full);
 
     assert(header);
 
+    /* Check presence of all the queried columns */
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
         uint16_t column_idx = htable_get_column_idx(header, names[i]);
 
@@ -123,7 +122,7 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 }
 
 GidPair
-find_relation(Session *session, const char *schema, const char *relation, bool create_if_data_undef) {
+find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef) {
     Grid *hrelation = pagecache_put_page(g_pagecache, g_server.system.relation.header.full);
     Grid *drelation = pagecache_put_page(g_pagecache, g_server.system.relation.data.full);
     uint16_t catalog_idx = htable_get_column_idx(hrelation, "catalog");
@@ -131,13 +130,15 @@ find_relation(Session *session, const char *schema, const char *relation, bool c
     uint16_t relation_idx = htable_get_column_idx(hrelation, "relation");
     uint16_t header_gid_idx = htable_get_column_idx(hrelation, "header_gid");
     uint16_t data_gid_idx = htable_get_column_idx(hrelation, "data_gid");
+    uint16_t tail_gid_idx = htable_get_column_idx(hrelation, "tail_gid");
 
     assert(hrelation && drelation &&
             grid_idx_is_valid(catalog_idx) &&
             grid_idx_is_valid(schema_idx) &&
             grid_idx_is_valid(relation_idx) &&
             grid_idx_is_valid(header_gid_idx) &&
-            grid_idx_is_valid(data_gid_idx));
+            grid_idx_is_valid(data_gid_idx) &&
+            grid_idx_is_valid(tail_gid_idx));
 
     for (Titor i = titor_init(hrelation, drelation); titor_is_valid(i); titor_next(&i)) {
         const Datum dcatalog = titor_get_datum(i, catalog_idx);
@@ -150,6 +151,7 @@ find_relation(Session *session, const char *schema, const char *relation, bool c
             ) {
             const Datum header = titor_get_datum(i, header_gid_idx);
             Datum data = titor_get_datum(i, data_gid_idx);
+            Datum tail = titor_get_datum(i, tail_gid_idx);
 
             assert(header.value.bigint != GID_UNDEF);
 
@@ -164,18 +166,21 @@ find_relation(Session *session, const char *schema, const char *relation, bool c
                 sequence_nextval(hsequence, sequence, &data.value.bigint); /* Increment sequence */
                 pagecache_flush(g_pagecache, g_server.system.sequence.data.full);
 
+                tail = data;
+
                 dtable = pagecache_put_page(g_pagecache, data.value.bigint); /* Init data table */
                 assert(dtable);
                 dtable = dtable_init(dtable, PAGESZ, GT_FIXED, htable);
                 pagecache_flush(g_pagecache, data.value.bigint);
 
                 titor_put_datum(i, data_gid_idx, data);                      /* Save new data gid to system relation table */
+                titor_put_datum(i, tail_gid_idx, data);                      /* Save new tail gid to system relation table */
                 pagecache_flush(g_pagecache, g_server.system.relation.data.full);
             }
 
             return (GidPair){
                 .header.full = header.value.bigint,
-                .data.full = data.value.bigint
+                .data.full = return_tail ? tail.value.bigint : data.value.bigint
             };
         }
     }

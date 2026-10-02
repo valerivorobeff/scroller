@@ -16,6 +16,8 @@ ssize_t get_block_size(const char *fname);
 
 PageCache *g_pagecache = NULL;
 
+GidPair gp_cluster;
+
 int
 init_cluster(const char *path) {
     int result;
@@ -38,7 +40,7 @@ init_cluster(const char *path) {
             .data = { .full = SEQUENCE_DATA_GID }
         };
 
-        GidPair gp_cluster = {
+        gp_cluster = (GidPair){
             .header = { .full = CLUSTER_HEADER_GID },
             .data = { .full = CLUSTER_DATA_GID }
         };
@@ -123,7 +125,7 @@ init_cluster(const char *path) {
         cluster = pagecache_put_page(g_pagecache, gp_cluster.data.full);
         cluster = dtable_init(cluster, PAGESZ, GT_FIXED, hcluster);
 
-        row = table_alloc_row(hcluster, cluster);
+        row = table_alloc_row(&gp_cluster);
 
         result |= titor_put_datum(row, name_idx, make_char("encoding"));
         result |= titor_put_datum(row, string_idx, make_char("UTF-8"));
@@ -186,7 +188,7 @@ init_cluster(const char *path) {
         user = pagecache_put_page(g_pagecache, currval);
         user = dtable_init(user, PAGESZ, GT_FIXED, huser);
 
-        row = table_alloc_row(huser, user);
+        row = table_alloc_row(&gp_user);
         result |= titor_put_datum(row, name_idx, make_char("scroller"));
 
         pagecache_flush(g_pagecache, currval);
@@ -278,6 +280,7 @@ init_cluster(const char *path) {
         htable_add_column(hrelation, "relation", T_CHAR, 32);
         htable_add_column(hrelation, "header_gid", T_BIGINT, 0);
         htable_add_column(hrelation, "data_gid", T_BIGINT, 0);
+        htable_add_column(hrelation, "tail_gid", T_BIGINT, 0);
 
         pagecache_flush(g_pagecache, currval);
 
@@ -297,7 +300,7 @@ init_cluster(const char *path) {
 
         /**********************************************************************
          *
-         * Flush cluster an sequence
+         * Flush cluster and sequence
          *
          *********************************************************************/
 
@@ -321,7 +324,7 @@ add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp) {
     uint16_t header_idx = htable_get_column_idx(hcluster, "header");
     uint16_t data_idx = htable_get_column_idx(hcluster, "data");
 
-    Titor row = table_alloc_row(hcluster, cluster);
+    Titor row = table_alloc_row(&gp_cluster);
 
     assert(grid_idx_is_valid(name_idx));
     assert(grid_idx_is_valid(header_idx));
