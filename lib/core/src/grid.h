@@ -22,6 +22,7 @@
 #ifndef _GRID_H_
 #define _GRID_H_
 
+#include "gid.h"
 #include "cell.h"
 #include "type.h"
 #include "align.h"
@@ -64,15 +65,16 @@ typedef enum GridType : uint16_t {
  *       and contains the actual row storage.
  */
 typedef struct Grid {
-    char        magic[4];    /** Magic number for validation (typically "scr ") */
-    uint16_t    size;        /** Total size of the grid structure in bytes */
-    GridType    type;        /** Type of grid (fixed, variable, etc.) */
-    uint16_t    rowsz;       /** Size of each individual row in bytes */
-    uint16_t    rown;        /** Maximum number of rows that can be stored */
-    uint16_t    occupied;    /** Number of currently occupied rows */
-    uint16_t    datasz;      /** For hgrid shows data row size without alignment,
+    char        magic[4];    /**< Magic number for validation (typically "scr ") */
+    uint16_t    size;        /**< Total size of the grid structure in bytes */
+    GridType    type;        /**< Type of grid (fixed, variable, etc.) */
+    Gid         next;        /**< gid of next grid */
+    uint16_t    rowsz;       /**< Size of each individual row in bytes */
+    uint16_t    rown;        /**< Maximum number of rows that can be stored */
+    uint16_t    occupied;    /**< Number of currently occupied rows */
+    uint16_t    datasz;      /**< For hgrid shows data row size without alignment,
                                      for dgrid is not used and must be zero */
-    char        datum[];     /** Flexible array member containing row data */
+    char        datum[];     /**< Flexible array member containing row data */
 } Grid;
 
 /**
@@ -174,7 +176,7 @@ int grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum
  * Finds the first unused row slot and marks it as occupied.
  *
  * @param grid      Pointer to the grid structure
- * @return          Index of the newly allocated row, or GRID_INVALID_IDXif grid is full
+ * @return          Index of the newly allocated row, or GRID_INVALID_IDX if grid is full
  *
  * @note The returned row's memory is zero-initialized.
  * @see grid_get_row()

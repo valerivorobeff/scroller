@@ -57,7 +57,7 @@ void mitor_next(Mitor *mitor);
  * @note The returned row's memory is zero-initialized.
  * @see grid_get_row()
  */
-Mitor mesh_alloc_row(Grid *header, Grid *data);
+Mitor mesh_alloc_row(GidPair gp);
 
 /**
  * @brief Adds a new column definition to a header grid.
