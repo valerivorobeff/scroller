@@ -17,6 +17,8 @@
 
 #define GID_OCTETBITS   8
 
+#define GID_MAXPAGE     0xFFFFFF /* It must be 2 ^ GID_PAGEBITS - 1 */
+
 /**
  * @brief Union to store gid.
  */

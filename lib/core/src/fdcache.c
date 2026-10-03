@@ -115,7 +115,7 @@ fdcache_touch_fn(icache *cache, ssize_t key) {
  */
 int
 fdcache_open(ssize_t key) {
-    const Gid gid = { .full = (uint64_t)key };
+    const Gid gid = { .parts = { .file_id = (uint64_t)key, .page = 0 } };
     const gid_hex_t hex = gid2hex(gid);
 
 #ifdef O_DIRECT

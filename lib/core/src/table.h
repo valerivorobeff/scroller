@@ -29,18 +29,14 @@ typedef Mitor Titor;
 #define table_init(page, pagesz, type, rowsz) \
     mesh_init(page, pagesz, type, rowsz)
 
-/**
- * @brief Allocates a new row in the grid.
+ /* @brief Allocates a new row in the Mesh.
  *
- * Finds the first unused row slot and marks it as occupied.
- *
- * @param grid      Pointer to the grid structure
- * @return          Index of the newly allocated row, or GRID_INVALID_IDXif grid is full
- *
- * @note The returned row's memory is zero-initialized.
- * @see grid_get_row()
+ * @param tail      pointer to tail gid of the Mesh. If row is allocated in
+ *                  a new grid, tail data gid is changed to the new grid's
+ *                  gid.
+ * @return          Mitor of the new allocated row
  */
-Titor table_alloc_row(Grid *header, Grid *data);
+Titor table_alloc_row(GidPair *tail);
 
 /**
  * @brief Adds a new column definition to a header grid.
