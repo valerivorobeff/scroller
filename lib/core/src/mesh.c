@@ -4,6 +4,7 @@
 #include <assert.h>
 
 extern PageCache *g_pagecache;
+extern GidPair g_sequence;
 
 Mitor mesh_alloc_row(GidPair *tail);
 Column *hmesh_add_column(Grid *grid, const char *name, Type type, size_t size);
@@ -23,11 +24,11 @@ mesh_alloc_row(GidPair *tail) {
         if (tail->data.parts.page < GID_MAXPAGE) {
             ++tail->data.parts.page;
         } else {
-            /* @todo */
+            /* File size is maximum allowed, get a new gid from sequence */
             /* Increment sequence */
             int64_t currval;
-            Grid *hsequence = NULL;//pagecache_put_page(g_pagecache, g_server.system.sequence.header.full);
-            Grid *sequence = NULL;//pagecache_put_page(g_pagecache, g_server.system.sequence.data.full);
+            Grid *hsequence = pagecache_put_page(g_pagecache, g_sequence.header.full);
+            Grid *sequence = pagecache_put_page(g_pagecache, g_sequence.data.full);
 
             if (sequence_nextval(hsequence, sequence, &currval))
                 return (Mitor) { NULL, NULL, GRID_INVALID_IDX }; /* SCRS_SEQUENCE_OVERFLOW */
@@ -35,6 +36,7 @@ mesh_alloc_row(GidPair *tail) {
             tail->data = (Gid) { .parts = { .file_id = currval, .page = 0 } };
         }
 
+        /* Allocate a new grid in pagecache */
         data = pagecache_put_page(g_pagecache, tail->data.full);
         data = dgrid_init(data, PAGESZ, GT_FIXED, header);
 

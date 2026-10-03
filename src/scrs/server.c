@@ -31,6 +31,7 @@ static size_t get_block_size(const char *fname);
 
 PageCache *g_pagecache = NULL;
 Server g_server;
+GidPair g_sequence; /* Global sequence is used by Mesh */
 
 int
 server_init(int argc, char *argv[]) {

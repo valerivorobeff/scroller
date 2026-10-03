@@ -117,12 +117,13 @@ ssize_t
 pagecache_flush(PageCache *cache, ssize_t key) {
     const FdCache *e = fdcache_put(g_fdcache, key);
     const size_t *idx = icache_get_member_ptr(cache, key, page_idx);
+    const Gid gid = (Gid){ .full = key };
     ssize_t written_bytes;
 
     assert(e != NULL);
     assert(idx != NULL);
 
-    written_bytes = pwrite(e->fd, g_pages + *idx * PAGESZ, PAGESZ, 0);
+    written_bytes = pwrite(e->fd, g_pages + *idx * PAGESZ, PAGESZ, gid.parts.page * PAGESZ);
 
     return written_bytes != (ssize_t)PAGESZ ? written_bytes : 0;
 }
@@ -132,12 +133,13 @@ pagecache_read(icache *cache, ssize_t key) {
     const pagecache_idx_t *page_idx_stack = icache_get_extra(cache);
     const pagecache_idx_t cur_idx = ilist2_pop_back(page_idx_stack);
     const FdCache *e = fdcache_put(g_fdcache, key);
+    const Gid gid = (Gid){ .full = key };
     ssize_t read_bytes;
 
     assert(cur_idx != ILIST2_UNDEF);
     assert(e != NULL);
 
-    read_bytes = pread(e->fd, g_pages + cur_idx * PAGESZ, PAGESZ, 0);
+    read_bytes = pread(e->fd, g_pages + cur_idx * PAGESZ, PAGESZ, gid.parts.page * PAGESZ);
     if (read_bytes == -1) {
         /* @todo */
         return PAGECACHE_UNDEF;
@@ -155,12 +157,13 @@ pagecache_write(icache *cache, ssize_t key) {
     pagecache_idx_t cur_idx;
     const FdCache *e = fdcache_put(g_fdcache, key);
     const size_t *idx = icache_get_member_ptr((PageCache *)cache, key, page_idx);
+    const Gid gid = (Gid){ .full = key };
     ssize_t written_bytes;
 
     assert(e != NULL);
     assert(idx != NULL);
 
-    written_bytes = pwrite(e->fd, g_pages + *idx * PAGESZ, PAGESZ, 0);
+    written_bytes = pwrite(e->fd, g_pages + *idx * PAGESZ, PAGESZ, gid.parts.page * PAGESZ);
     if (written_bytes == -1) {
         /* @todo */
         return PAGECACHE_UNDEF;

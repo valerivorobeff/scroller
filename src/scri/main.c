@@ -10,13 +10,14 @@
 #include <errno.h>
 #include <assert.h>
 
-static int add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp);
+static int add_gid_pair(Grid *hcluster, const char *name, GidPair gidp);
 static int64_t calculate_sequence_start(void);
 ssize_t get_block_size(const char *fname);
 
 PageCache *g_pagecache = NULL;
 
 GidPair gp_cluster;
+GidPair g_sequence; /* Global sequence is used by Mesh */
 
 int
 init_cluster(const char *path) {
@@ -72,6 +73,8 @@ init_cluster(const char *path) {
             printf("%s\n", strerror(errno));
             return errno;
         }
+
+        g_sequence = gp_sequence;
 
         /**********************************************************************
          *
@@ -131,30 +134,30 @@ init_cluster(const char *path) {
         result |= titor_put_datum(row, string_idx, make_char("UTF-8"));
 
         /* Add server backlog */
-        add_gid_pair(hcluster, cluster, "backlog",
+        add_gid_pair(hcluster, "backlog",
             (GidPair){ .header.full = 0, .data.full = DEFAULT_BACKLOG }
         );
 
         /* Add server backlog */
-        add_gid_pair(hcluster, cluster, "port",
+        add_gid_pair(hcluster, "port",
             (GidPair){ .header.full = 0, .data.full = DEFAULT_PORT }
         );
 
         /* Add pagecache_size cluster table */
-        add_gid_pair(hcluster, cluster, "pagecache_size",
+        add_gid_pair(hcluster, "pagecache_size",
             (GidPair){ .header.full = DEFAULT_PAGECACHESZ0, .data.full =  DEFAULT_PAGECACHESZ1 }
         );
 
         /* Add fdcache_size cluster table */
-        add_gid_pair(hcluster, cluster, "fdcache_size",
+        add_gid_pair(hcluster, "fdcache_size",
             (GidPair){ .header.full = DEFAULT_FDCACHESZ0, .data.full = DEFAULT_FDCACHESZ1 }
         );
 
         /* Add main sequence GidPair to cluster table */
-        add_gid_pair(hcluster, cluster, "sequence", gp_sequence);
+        add_gid_pair(hcluster, "sequence", gp_sequence);
 
         /* Add cluster table GidPair to cluster table */
-        add_gid_pair(hcluster, cluster, "cluster", gp_cluster);
+        add_gid_pair(hcluster, "cluster", gp_cluster);
 
         /* Flush cluster table not now but in the end of initialization */
 
@@ -194,7 +197,7 @@ init_cluster(const char *path) {
         pagecache_flush(g_pagecache, currval);
 
         /* Add user table GidPair to cluster table */
-        add_gid_pair(hcluster, cluster, "user", gp_user);
+        add_gid_pair(hcluster, "user", gp_user);
 
         /**********************************************************************
          *
@@ -226,7 +229,7 @@ init_cluster(const char *path) {
         pagecache_flush(g_pagecache, currval);
 
         /* Add catalog table GidPair to cluster table */
-        add_gid_pair(hcluster, cluster, "catalog", gp_catalog);
+        add_gid_pair(hcluster, "catalog", gp_catalog);
 
         /**********************************************************************
          *
@@ -259,7 +262,7 @@ init_cluster(const char *path) {
         pagecache_flush(g_pagecache, currval);
 
         /* Add schema table GidPair to cluster table */
-        add_gid_pair(hcluster, cluster, "schema", gp_schema);
+        add_gid_pair(hcluster, "schema", gp_schema);
 
         /**********************************************************************
          *
@@ -296,7 +299,7 @@ init_cluster(const char *path) {
         pagecache_flush(g_pagecache, currval);
 
         /* Add relation table GidPair to cluster table */
-        add_gid_pair(hcluster, cluster, "relation", gp_relation);
+        add_gid_pair(hcluster, "relation", gp_relation);
 
         /**********************************************************************
          *
@@ -318,7 +321,7 @@ init_cluster(const char *path) {
 
 /** Add table GidPair to cluster table */
 int
-add_gid_pair(Grid *hcluster, Grid *cluster, const char *name, GidPair gidp) {
+add_gid_pair(Grid *hcluster, const char *name, GidPair gidp) {
     int ret;
     uint16_t name_idx = htable_get_column_idx(hcluster, "name");
     uint16_t header_idx = htable_get_column_idx(hcluster, "header");
