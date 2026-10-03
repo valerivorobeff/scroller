@@ -17,7 +17,7 @@ ScrcStatus
 create_user(const char *user) {
     int ret;
     GidPair gp_user = g_server.system.user;
-    Grid *header = pagecache_put_page(g_pagecache, gp_user.header.full);
+    Grid *header = pagecache_put_page(g_pagecache, gp_user.header);
     uint16_t name_idx = htable_get_column_idx(header, "name");
     Titor row;
 
@@ -33,7 +33,7 @@ create_user(const char *user) {
     if (ret)
         return SCRS_DATUM_TYPE_MISMATCH;
     else
-        pagecache_flush(g_pagecache, gp_user.data.full);
+        pagecache_flush(g_pagecache, gp_user.data);
 
     return SCRS_OK;
 }
@@ -42,7 +42,7 @@ ScrcStatus
 create_catalog(const char *catalog) {
     int ret;
     GidPair gp_catalog = g_server.system.catalog;
-    Grid *header = pagecache_put_page(g_pagecache, gp_catalog.header.full);
+    Grid *header = pagecache_put_page(g_pagecache, gp_catalog.header);
     uint16_t name_idx = htable_get_column_idx(header, "name");
     Titor row;
 
@@ -58,7 +58,7 @@ create_catalog(const char *catalog) {
     if (ret)
         return SCRS_DATUM_TYPE_MISMATCH;
     else
-        pagecache_flush(g_pagecache, gp_catalog.data.full);
+        pagecache_flush(g_pagecache, gp_catalog.data);
 
     return SCRS_OK;
 }
@@ -67,7 +67,7 @@ ScrcStatus
 create_schema(Session *session, const char *schema) {
     int ret;
     GidPair gp_schema = g_server.system.schema;
-    Grid *header = pagecache_put_page(g_pagecache, gp_schema.header.full);
+    Grid *header = pagecache_put_page(g_pagecache, gp_schema.header);
     uint16_t catalog_idx = htable_get_column_idx(header, "catalog");
     uint16_t schema_idx = htable_get_column_idx(header, "schema");
     Titor row;
@@ -91,7 +91,7 @@ create_schema(Session *session, const char *schema) {
     if (ret)
         return SCRS_DATUM_TYPE_MISMATCH;
     else
-        pagecache_flush(g_pagecache, gp_schema.data.full);
+        pagecache_flush(g_pagecache, gp_schema.data);
 
     return SCRS_OK;
 }
@@ -100,12 +100,13 @@ ScrcStatus
 create_table(Session *session, const char *schema, const char *tname, const Decl *decls) {
     int ret;
     int64_t currval;
+    Gid new_gid;        /* Gid of the new table header */
     Grid *table;
-    Grid *hsequence = pagecache_put_page(g_pagecache, g_server.system.sequence.header.full);
-    Grid *sequence = pagecache_put_page(g_pagecache, g_server.system.sequence.data.full);
+    Grid *hsequence = pagecache_put_page(g_pagecache, g_server.system.sequence.header);
+    Grid *sequence = pagecache_put_page(g_pagecache, g_server.system.sequence.data);
 
     GidPair gp_relation = g_server.system.relation;
-    Grid *header = pagecache_put_page(g_pagecache, gp_relation.header.full);
+    Grid *header = pagecache_put_page(g_pagecache, gp_relation.header);
     uint16_t catalog_idx = htable_get_column_idx(header, "catalog");
     uint16_t schema_idx = htable_get_column_idx(header, "schema");
     uint16_t relation_idx = htable_get_column_idx(header, "relation");
@@ -126,7 +127,9 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     if (sequence_nextval(hsequence, sequence, &currval))
         return SCRS_SEQUENCE_OVERFLOW;
 
-    table = pagecache_put_page(g_pagecache, currval); /* Init header table */
+    new_gid = (Gid) { .parts = { .file_id = currval, .page = 0 } };
+
+    table = pagecache_put_page(g_pagecache, new_gid); /* Init header table */
     table = htable_init(table, PAGESZ, GT_FIXED);
 
     /* Add columns */
@@ -152,9 +155,9 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     if (ret)
         return SCRS_DATUM_TYPE_MISMATCH;
 
-    pagecache_flush(g_pagecache, g_server.system.sequence.data.full);
-    pagecache_flush(g_pagecache, gp_relation.data.full);
-    pagecache_flush(g_pagecache, currval);
+    pagecache_flush(g_pagecache, g_server.system.sequence.data);
+    pagecache_flush(g_pagecache, gp_relation.data);
+    pagecache_flush(g_pagecache, new_gid);
 
     return SCRS_OK;
 }

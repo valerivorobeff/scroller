@@ -85,18 +85,18 @@ init_cluster(const char *path) {
         /*
          * Init sequence header
          */
-        hsequence = pagecache_put_page(g_pagecache, gp_sequence.header.full);
+        hsequence = pagecache_put_page(g_pagecache, gp_sequence.header);
         if (hsequence_init(hsequence)) {
             printf("Error initializing main sequence header");
             return 1;
         }
 
-        pagecache_flush(g_pagecache, gp_sequence.header.full);
+        pagecache_flush(g_pagecache, gp_sequence.header);
 
         /*
          * Init main sequence
          */
-        sequence = pagecache_put_page(g_pagecache, gp_sequence.data.full);
+        sequence = pagecache_put_page(g_pagecache, gp_sequence.data);
         sequence_init(hsequence, sequence, 0, INT64_MAX, sequence_start, 1, 0);
 
         /**********************************************************************
@@ -108,7 +108,7 @@ init_cluster(const char *path) {
         /*
          * Init main cluster header
          */
-        hcluster = pagecache_put_page(g_pagecache, gp_cluster.header.full);
+        hcluster = pagecache_put_page(g_pagecache, gp_cluster.header);
         hcluster = htable_init(hcluster, PAGESZ, GT_FIXED);
         htable_add_column(hcluster, "name", T_CHAR, 32);
         htable_add_column(hcluster, "string", T_CHAR, 32);
@@ -120,12 +120,12 @@ init_cluster(const char *path) {
         string_idx = htable_get_column_idx(hcluster, "string");
         assert(grid_idx_is_valid(string_idx));
 
-        pagecache_flush(g_pagecache, gp_cluster.header.full);
+        pagecache_flush(g_pagecache, gp_cluster.header);
 
         /*
          * Init main cluster table
          */
-        cluster = pagecache_put_page(g_pagecache, gp_cluster.data.full);
+        cluster = pagecache_put_page(g_pagecache, gp_cluster.data);
         cluster = dtable_init(cluster, PAGESZ, GT_FIXED, hcluster);
 
         row = table_alloc_row(&gp_cluster);
@@ -173,14 +173,14 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_user.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        huser = pagecache_put_page(g_pagecache, currval);
+        huser = pagecache_put_page(g_pagecache, gp_user.header);
         huser = htable_init(huser, PAGESZ, GT_FIXED);
         htable_add_column(huser, "name", T_CHAR, 32);
 
         name_idx = htable_get_column_idx(huser, "name");
         assert(grid_idx_is_valid(name_idx));
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_user.header);
 
         /*
          * Init user table
@@ -188,13 +188,13 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_user.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        user = pagecache_put_page(g_pagecache, currval);
+        user = pagecache_put_page(g_pagecache, gp_user.data);
         user = dtable_init(user, PAGESZ, GT_FIXED, huser);
 
         row = table_alloc_row(&gp_user);
         result |= titor_put_datum(row, name_idx, make_char("scroller"));
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_user.data);
 
         /* Add user table GidPair to cluster table */
         add_gid_pair(hcluster, "user", gp_user);
@@ -211,11 +211,11 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_catalog.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        hcatalog = pagecache_put_page(g_pagecache, currval);
+        hcatalog = pagecache_put_page(g_pagecache, gp_catalog.header);
         hcatalog = htable_init(hcatalog, PAGESZ, GT_FIXED);
         htable_add_column(hcatalog, "name", T_CHAR, 32);
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_catalog.header);
 
         /*
          * Init catalog table
@@ -223,10 +223,10 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_catalog.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        catalog = pagecache_put_page(g_pagecache, currval);
+        catalog = pagecache_put_page(g_pagecache, gp_catalog.data);
         catalog = dtable_init(catalog, PAGESZ, GT_FIXED, hcatalog);
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_catalog.data);
 
         /* Add catalog table GidPair to cluster table */
         add_gid_pair(hcluster, "catalog", gp_catalog);
@@ -243,12 +243,12 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_schema.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        hschema = pagecache_put_page(g_pagecache, currval);
+        hschema = pagecache_put_page(g_pagecache, gp_schema.header);
         hschema = htable_init(hschema, PAGESZ, GT_FIXED);
         htable_add_column(hschema, "catalog", T_CHAR, 32);
         htable_add_column(hschema, "schema", T_CHAR, 32);
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_schema.header);
 
         /*
          * Init schema table
@@ -256,10 +256,10 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_schema.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        schema = pagecache_put_page(g_pagecache, currval);
+        schema = pagecache_put_page(g_pagecache, gp_schema.data);
         schema = dtable_init(schema, PAGESZ, GT_FIXED, hschema);
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_schema.data);
 
         /* Add schema table GidPair to cluster table */
         add_gid_pair(hcluster, "schema", gp_schema);
@@ -276,7 +276,7 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_relation.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        hrelation = pagecache_put_page(g_pagecache, currval);
+        hrelation = pagecache_put_page(g_pagecache, gp_relation.header);
         hrelation = htable_init(hrelation, PAGESZ, GT_FIXED);
         htable_add_column(hrelation, "catalog", T_CHAR, 32);
         htable_add_column(hrelation, "schema", T_CHAR, 32);
@@ -285,7 +285,7 @@ init_cluster(const char *path) {
         htable_add_column(hrelation, "data_gid", T_BIGINT, 0);
         htable_add_column(hrelation, "tail_gid", T_BIGINT, 0);
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_relation.header);
 
         /*
          * Init relation table
@@ -293,10 +293,10 @@ init_cluster(const char *path) {
         sequence_nextval(hsequence, sequence, &currval);
         gp_relation.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
-        relation = pagecache_put_page(g_pagecache, currval);
+        relation = pagecache_put_page(g_pagecache, gp_relation.data);
         relation = dtable_init(relation, PAGESZ, GT_FIXED, hrelation);
 
-        pagecache_flush(g_pagecache, currval);
+        pagecache_flush(g_pagecache, gp_relation.data);
 
         /* Add relation table GidPair to cluster table */
         add_gid_pair(hcluster, "relation", gp_relation);
@@ -307,8 +307,8 @@ init_cluster(const char *path) {
          *
          *********************************************************************/
 
-        pagecache_flush(g_pagecache, gp_cluster.data.full); /* Flush cluster table */
-        pagecache_flush(g_pagecache, gp_sequence.data.full); /* Flush main sequence */
+        pagecache_flush(g_pagecache, gp_cluster.data);  /* Flush cluster table */
+        pagecache_flush(g_pagecache, gp_sequence.data); /* Flush main sequence */
 
         if (result)
             printf("Error creating cluster\n");

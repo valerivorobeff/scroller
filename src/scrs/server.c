@@ -91,7 +91,7 @@ server_init(int argc, char *argv[]) {
     /*
      * Init main cluster header
      */
-    hcluster = pagecache_put_page(g_pagecache, g_server.system.cluster.header.full);
+    hcluster = pagecache_put_page(g_pagecache, g_server.system.cluster.header);
     name_idx = htable_get_column_idx(hcluster, "name");
     if (!grid_idx_is_valid(name_idx))
         ffatal(EXIT_FAILURE, "Column 'name' not found in cluster table");
@@ -111,7 +111,7 @@ server_init(int argc, char *argv[]) {
     /*
      * Init main cluster table
      */
-    cluster = pagecache_put_page(g_pagecache, g_server.system.cluster.data.full);
+    cluster = pagecache_put_page(g_pagecache, g_server.system.cluster.data);
 
     for (Titor i = titor_init(hcluster, cluster); titor_is_valid(i); titor_next(&i)) {
         const Datum name = titor_get_datum(i, name_idx);

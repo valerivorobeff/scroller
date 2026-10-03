@@ -61,8 +61,8 @@ typedef struct PageCache {
 PageCache *pagecache_create_fn(size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn);
 PageCache *pagecache_init_fn(void *p, size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn);
 void pagecache_clear(void *p, ihash_hash_fn hash_fn);
-void *pagecache_touch_fn(icache *cache, ssize_t key);
-ssize_t pagecache_flush(PageCache *cache, ssize_t key);
+void *pagecache_touch_fn(icache *cache, Gid key);
+ssize_t pagecache_flush(PageCache *cache, Gid key);
 
 #endif /* _PAGECACHE_H_ */
 

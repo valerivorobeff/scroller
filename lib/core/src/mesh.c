@@ -12,8 +12,8 @@ void mitor_next(Mitor *mitor);
 
 Mitor
 mesh_alloc_row(GidPair *tail) {
-    Grid *header = pagecache_put_page(g_pagecache, tail->header.full);
-    Grid *data = pagecache_put_page(g_pagecache, tail->data.full);
+    Grid *header = pagecache_put_page(g_pagecache, tail->header);
+    Grid *data = pagecache_put_page(g_pagecache, tail->data);
     uint16_t row = grid_alloc_row(data);
 
     assert(data->next.full == GID_UNDEF); /* Ensure this is really the tail gid */
@@ -27,8 +27,8 @@ mesh_alloc_row(GidPair *tail) {
             /* File size is maximum allowed, get a new gid from sequence */
             /* Increment sequence */
             int64_t currval;
-            Grid *hsequence = pagecache_put_page(g_pagecache, g_sequence.header.full);
-            Grid *sequence = pagecache_put_page(g_pagecache, g_sequence.data.full);
+            Grid *hsequence = pagecache_put_page(g_pagecache, g_sequence.header);
+            Grid *sequence = pagecache_put_page(g_pagecache, g_sequence.data);
 
             if (sequence_nextval(hsequence, sequence, &currval))
                 return (Mitor) { NULL, NULL, GRID_INVALID_IDX }; /* SCRS_SEQUENCE_OVERFLOW */
@@ -37,7 +37,7 @@ mesh_alloc_row(GidPair *tail) {
         }
 
         /* Allocate a new grid in pagecache */
-        data = pagecache_put_page(g_pagecache, tail->data.full);
+        data = pagecache_put_page(g_pagecache, tail->data);
         data = dgrid_init(data, PAGESZ, GT_FIXED, header);
 
         old_data->next = tail->data;
@@ -59,7 +59,7 @@ mitor_next(Mitor *mitor) {
         ++mitor->row;
         if (!mitor_is_valid(*mitor)) {
             if (mitor->data->next.full != GID_UNDEF) {
-                mitor->data = pagecache_put_page(g_pagecache, mitor->data->next.full);
+                mitor->data = pagecache_put_page(g_pagecache, mitor->data->next);
                 mitor->row = 0;
             }
         }
