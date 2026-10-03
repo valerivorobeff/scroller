@@ -15,11 +15,11 @@
 #include <errno.h>
 #include <assert.h>
 
-static const char *TEST_DIR = "/tmp/scroller/test/";
+static const char *TEST_DIR = "/tmp/scroller/test/fdcache/";
 
 /* Helper function: create temporary test directory */
 static int
-create_test_dir() {
+create_test_dir(void) {
     int ret = 0;
     char *dir = strdup(TEST_DIR);
     char *prev = dir + 1;               /* Ignore first '/' */
@@ -32,6 +32,7 @@ create_test_dir() {
         if (ret == 0 || errno == EEXIST) {
             *c = '/';
             prev = c + 1;
+            ret = 0;
         } else
             break;
     }
@@ -46,7 +47,7 @@ create_test_dir() {
 
 /* Helper function: delete temporary test directory */
 static int
-remove_test_dir() {
+remove_test_dir(void) {
     return rmdir(TEST_DIR);
 }
 
