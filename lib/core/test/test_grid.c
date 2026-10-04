@@ -46,7 +46,7 @@ TEST(grid)
         TEST_CASE(test_1) {
             /* Allocate memory pages for header grid and data grid */
             Page *hp = malloc(8096), *p = malloc(8096);
-            Grid *hg = hgrid_init(hp, 8096, GT_FIXED), *g;
+            Grid *hg = hgrid_init(hp, 8096, GL_FIXED, GC_PURE), *g;
             Column *hc;
             uint16_t row;
 
@@ -81,7 +81,7 @@ TEST(grid)
             /* ===== Data Manipulation (DML Operations) ===== */
 
             /* CREATE TABLE DATA - Initialize data grid with schema from header */
-            g = dgrid_init(p, 8096, GT_FIXED, hg);
+            g = dgrid_init(p, 8096, GL_FIXED, GC_PURE, hg);
 
             /* INSERT ROW INTO TABLE - Add a new row and populate it */
             row = dgrid_alloc_row(g);    /* Allocate a new row slot */

@@ -19,15 +19,16 @@ typedef Mitor Titor;
  *
  * @param page      Pointer to the memory page where the grid will reside
  * @param pagesz    Size of the memory page in bytes
- * @param type      Type of grid to initialize (e.g., GT_FIXED)
+ * @param layout    Layout grid to initialize (e.g., GL_FIXED)
+ * @param content   Content grid to initialize (e.g., GC_PURE)
  * @param rowsz     Size of each individual row in bytes
  * @return          Pointer to the initialized Grid structure, or NULL on error
  *
  * @note The page must provide at least pagesz bytes of contiguous memory.
  * @note The grid will be placed at the beginning of the page.
  */
-#define table_init(page, pagesz, type, rowsz) \
-    mesh_init(page, pagesz, type, rowsz)
+#define table_init(page, pagesz, layout, content, rowsz) \
+    mesh_init(page, pagesz, layout, content, rowsz)
 
  /* @brief Allocates a new row in the Mesh.
  *
@@ -64,9 +65,9 @@ Column *htable_add_column(Grid *grid, const char *name, Type type, size_t size);
 
 #define htable_get_column_idx(grid, name) hmesh_get_column_idx(grid, name)
 
-#define htable_init(page, pagesz, type) hmesh_init(page, pagesz, type)
+#define htable_init(page, pagesz, layout, content) hmesh_init(page, pagesz, layout, content)
 
-#define dtable_init(page, pagesz, type, hgrid) dmesh_init(page, pagesz, type, hgrid)
+#define dtable_init(page, pagesz, layout, content, hgrid) dmesh_init(page, pagesz, layout, content, hgrid)
 
 #define table_get_cell(itor, column) mesh_get_cell(itor, column)
 

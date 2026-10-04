@@ -28,7 +28,7 @@ int sequence_set_cycle(Grid *hsequence, Grid *sequence, bool val);
  */
 int
 hsequence_init(Page page) {
-    Grid *hsequence = hgrid_init(page, PAGESZ, GT_FIXED);
+    Grid *hsequence = hgrid_init(page, PAGESZ, GL_FIXED, GC_PURE);
 
     hgrid_add_column(hsequence, "min_val", T_BIGINT, sizeof(int64_t));
     hgrid_add_column(hsequence, "max_val", T_BIGINT, sizeof(int64_t));
@@ -73,7 +73,7 @@ sequence_init(Grid *hsequence, Page p, int64_t minval, int64_t maxval,
         return 1;
     }
 
-    sequence = dgrid_init(p, PAGESZ, GT_FIXED, hsequence);
+    sequence = dgrid_init(p, PAGESZ, GL_FIXED, GC_PURE, hsequence);
     dgrid_alloc_row(sequence);
     c = dgrid_get_cell(hsequence, sequence, 0, 0);
     put_bigint(c, minval);

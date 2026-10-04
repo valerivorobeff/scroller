@@ -36,7 +36,7 @@ size_t PAGESZ = 4096;
  * Forward declarations of public functions (implementation details)
  * @endcond
  */
-Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
+Grid *grid_init(Page page, uint16_t pagesz, GridLayout layout, GridContent content, uint16_t rowsz);
 Row grid_get_row(Grid *grid, uint16_t n);
 Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 Datum grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
@@ -48,7 +48,7 @@ uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
 
 
 Grid *
-grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
+grid_init(Page page, uint16_t pagesz, GridLayout layout, GridContent content, uint16_t rowsz) {
     static const char magic[] = { 's', 'c', 'r', ' ' };
     Grid *g = (Grid *)page;
 
@@ -60,7 +60,8 @@ grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz) {
     memset(page, 0, pagesz); /* We must zero the page due to security reasons */
     memcpy(g->magic, magic, sizeof(magic));
     g->size = pagesz;
-    g->type = type;
+    g->layout = layout;
+    g->content = content;
     g->next.full = GID_UNDEF;
     g->rowsz = rowsz;
     g->rown = (pagesz - sizeof(Grid)) / rowsz;

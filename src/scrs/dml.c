@@ -175,7 +175,7 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
 
                 dtable = pagecache_put_page(g_pagecache, new_gid); /* Init data table */
                 assert(dtable);
-                dtable = dtable_init(dtable, PAGESZ, GT_FIXED, htable);
+                dtable = dtable_init(dtable, PAGESZ, GL_FIXED, GC_MVCC, htable);
                 pagecache_flush(g_pagecache, new_gid);
 
                 titor_put_datum(i, data_gid_idx, data);                      /* Save new data gid to system relation table */
