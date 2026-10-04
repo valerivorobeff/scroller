@@ -36,15 +36,16 @@ void mitor_next(Mitor *mitor);
  *
  * @param page      Pointer to the memory page where the grid will reside
  * @param pagesz    Size of the memory page in bytes
- * @param type      Type of grid to initialize (e.g., GT_FIXED)
+ * @param layout    Layout grid to initialize (e.g., GL_FIXED)
+ * @param content   Content grid to initialize (e.g., GC_PURE)
  * @param rowsz     Size of each individual row in bytes
  * @return          Pointer to the initialized Grid structure, or NULL on error
  *
  * @note The page must provide at least pagesz bytes of contiguous memory.
  * @note The grid will be placed at the beginning of the page.
  */
-#define mesh_init(page, pagesz, type, rowsz) \
-    grid_init(page, pagesz, type, rowsz)
+#define mesh_init(page, pagesz, layout, content, rowsz) \
+    grid_init(page, pagesz, layout, content, rowsz)
 
 /**
  * @brief Allocates a new row in the Mesh.
@@ -83,9 +84,9 @@ Column *hmesh_add_column(Grid *grid, const char *name, Type type, size_t size);
 
 #define hmesh_get_column_idx(grid, name) hgrid_get_column_idx(grid, name)
 
-#define hmesh_init(page, pagesz, type) hgrid_init(page, pagesz, type)
+#define hmesh_init(page, pagesz, layout, content) hgrid_init(page, pagesz, layout, content)
 
-#define dmesh_init(page, pagesz, type, hgrid) dgrid_init(page, pagesz, type, hgrid)
+#define dmesh_init(page, pagesz, layout, content, hgrid) dgrid_init(page, pagesz, layout, content, hgrid)
 
 #define mesh_get_cell(itor, column) \
     grid_get_cell(itor.header, itor.data, itor.row, column)

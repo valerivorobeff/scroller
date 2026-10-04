@@ -37,8 +37,10 @@ mesh_alloc_row(GidPair *tail) {
         }
 
         /* Allocate a new grid in pagecache */
+        /* @todo I should lock old table somehow, otherwise it can be removed from cache before I change its
+         * content via old_data */
         data = pagecache_put_page(g_pagecache, tail->data);
-        data = dgrid_init(data, PAGESZ, GT_FIXED, header);
+        data = dgrid_init(data, PAGESZ, old_data->layout, old_data->content, header);
 
         old_data->next = tail->data;
 

@@ -131,12 +131,12 @@ TEST(mesh)
             pagecache_flush(g_pagecache, gp.data);
 
             /* Init mesh header with 1 column of 1024 bytes */
-            hmesh_init(header, PAGESZ, GT_FIXED);
+            hmesh_init(header, PAGESZ, GL_FIXED, GC_PURE);
             hmesh_add_column(header, "column", T_CHAR, 1024);
             pagecache_flush(g_pagecache, gp.header);
 
             /* Init mesh data */
-            dmesh_init(data, PAGESZ, GT_FIXED, header);
+            dmesh_init(data, PAGESZ, GL_FIXED, GC_PURE, header);
 
             /* Insert rows */
             size_t expected = 1;   /* Expected number of pages in mesh */

@@ -49,11 +49,19 @@ typedef void *Page;
 typedef void *Row;
 
 /**
- * @brief Grid type enumeration.
+ * @brief Grid layout enumeration.
  */
-typedef enum GridType : uint16_t {
-    GT_FIXED = 1  /** Fixed-size grid with predetermined row size */
-} GridType;
+typedef enum GridLayout : uint8_t {
+    GL_FIXED = 1    /** Fixed-size grid with predetermined row size */
+} GridLayout;
+
+/**
+ * @brief Grid content enumeration.
+ */
+typedef enum GridContent : uint8_t {
+    GC_PURE = 1,    /** Pure grid without any additional content */
+    GC_MVCC         /** Mvcc grid with special mvcc columns in each row */
+} GridContent;
 
 /**
  * @brief Main grid header structure.
@@ -67,7 +75,8 @@ typedef enum GridType : uint16_t {
 typedef struct Grid {
     char        magic[4];    /**< Magic number for validation (typically "scr ") */
     uint16_t    size;        /**< Total size of the grid structure in bytes */
-    GridType    type;        /**< Type of grid (fixed, variable, etc.) */
+    GridLayout  layout;      /**< Layout of grid (fixed, variable, etc.) */
+    GridContent content;     /**< Content of grid (pure, mvcc, etc.) */
     Gid         next;        /**< gid of next grid */
     uint16_t    rowsz;       /**< Size of each individual row in bytes */
     uint16_t    rown;        /**< Maximum number of rows that can be stored */
@@ -107,14 +116,15 @@ typedef struct Column {
  *
  * @param page      Pointer to the memory page where the grid will reside
  * @param pagesz    Size of the memory page in bytes
- * @param type      Type of grid to initialize (e.g., GT_FIXED)
+ * @param layout    Layout grid to initialize (e.g., GL_FIXED)
+ * @param content   Content grid to initialize (e.g., GC_PURE)
  * @param rowsz     Size of each individual row in bytes
  * @return          Pointer to the initialized Grid structure, or NULL on error
  *
  * @note The page must provide at least pagesz bytes of contiguous memory.
  * @note The grid will be placed at the beginning of the page.
  */
-Grid *grid_init(Page page, uint16_t pagesz, GridType type, uint16_t rowsz);
+Grid *grid_init(Page page, uint16_t pagesz, GridLayout layout, GridContent content, uint16_t rowsz);
 
 /**
  * @brief Retrieves a pointer to a specific row in the grid.
@@ -225,14 +235,15 @@ uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
  *
  * @param page      Pointer to the memory page for the header grid
  * @param pagesz    Size of the memory page in bytes
- * @param type      Grid type (typically GT_FIXED)
+ * @param layout    Layout grid to initialize (e.g., GL_FIXED)
+ * @param content   Content grid to initialize (e.g., GC_PURE)
  * @return          Pointer to the initialized Grid structure
  *
  * @note This macro automatically sets the row size to sizeof(Column).
  * @see grid_init()
  */
-#define hgrid_init(page, pagesz, type) \
-    grid_init(page, pagesz, type, sizeof(Column))
+#define hgrid_init(page, pagesz, layout, content) \
+    grid_init(page, pagesz, layout, content, sizeof(Column))
 
 /**
  * @brief Retrieves a column definition from a header grid.
@@ -253,7 +264,8 @@ uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
  *
  * @param page      Pointer to the memory page for the data grid
  * @param pagesz    Size of the memory page in bytes
- * @param type      Grid type (typically GT_FIXED)
+ * @param layout    Layout grid to initialize (e.g., GL_FIXED)
+ * @param content   Content grid to initialize (e.g., GC_PURE)
  * @param hgrid     Header grid defining the column schema
  * @return          Pointer to the initialized Grid structure
  *
@@ -261,8 +273,8 @@ uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
  * @see grid_init()
  * @see hgrid_get_row_size()
  */
-#define dgrid_init(page, pagesz, type, hgrid) \
-    grid_init(page, pagesz, type, hgrid_get_row_size(hgrid))
+#define dgrid_init(page, pagesz, layout, content, hgrid) \
+    grid_init(page, pagesz, layout, content, hgrid_get_row_size(hgrid))
 
 /**
  * @brief Allocates a new row in a data grid.

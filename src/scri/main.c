@@ -109,7 +109,7 @@ init_cluster(const char *path) {
          * Init main cluster header
          */
         hcluster = pagecache_put_page(g_pagecache, gp_cluster.header);
-        hcluster = htable_init(hcluster, PAGESZ, GT_FIXED);
+        hcluster = htable_init(hcluster, PAGESZ, GL_FIXED, GC_PURE);
         htable_add_column(hcluster, "name", T_CHAR, 32);
         htable_add_column(hcluster, "string", T_CHAR, 32);
         htable_add_column(hcluster, "header", T_BIGINT, 0);
@@ -126,7 +126,7 @@ init_cluster(const char *path) {
          * Init main cluster table
          */
         cluster = pagecache_put_page(g_pagecache, gp_cluster.data);
-        cluster = dtable_init(cluster, PAGESZ, GT_FIXED, hcluster);
+        cluster = dtable_init(cluster, PAGESZ, GL_FIXED, GC_PURE, hcluster);
 
         row = table_alloc_row(&gp_cluster);
 
@@ -174,7 +174,7 @@ init_cluster(const char *path) {
         gp_user.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         huser = pagecache_put_page(g_pagecache, gp_user.header);
-        huser = htable_init(huser, PAGESZ, GT_FIXED);
+        huser = htable_init(huser, PAGESZ, GL_FIXED, GC_PURE);
         htable_add_column(huser, "name", T_CHAR, 32);
 
         name_idx = htable_get_column_idx(huser, "name");
@@ -189,7 +189,7 @@ init_cluster(const char *path) {
         gp_user.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         user = pagecache_put_page(g_pagecache, gp_user.data);
-        user = dtable_init(user, PAGESZ, GT_FIXED, huser);
+        user = dtable_init(user, PAGESZ, GL_FIXED, GC_PURE, huser);
 
         row = table_alloc_row(&gp_user);
         result |= titor_put_datum(row, name_idx, make_char("scroller"));
@@ -212,7 +212,7 @@ init_cluster(const char *path) {
         gp_catalog.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         hcatalog = pagecache_put_page(g_pagecache, gp_catalog.header);
-        hcatalog = htable_init(hcatalog, PAGESZ, GT_FIXED);
+        hcatalog = htable_init(hcatalog, PAGESZ, GL_FIXED, GC_PURE);
         htable_add_column(hcatalog, "name", T_CHAR, 32);
 
         pagecache_flush(g_pagecache, gp_catalog.header);
@@ -224,7 +224,7 @@ init_cluster(const char *path) {
         gp_catalog.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         catalog = pagecache_put_page(g_pagecache, gp_catalog.data);
-        catalog = dtable_init(catalog, PAGESZ, GT_FIXED, hcatalog);
+        catalog = dtable_init(catalog, PAGESZ, GL_FIXED, GC_PURE, hcatalog);
 
         pagecache_flush(g_pagecache, gp_catalog.data);
 
@@ -244,7 +244,7 @@ init_cluster(const char *path) {
         gp_schema.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         hschema = pagecache_put_page(g_pagecache, gp_schema.header);
-        hschema = htable_init(hschema, PAGESZ, GT_FIXED);
+        hschema = htable_init(hschema, PAGESZ, GL_FIXED, GC_PURE);
         htable_add_column(hschema, "catalog", T_CHAR, 32);
         htable_add_column(hschema, "schema", T_CHAR, 32);
 
@@ -257,7 +257,7 @@ init_cluster(const char *path) {
         gp_schema.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         schema = pagecache_put_page(g_pagecache, gp_schema.data);
-        schema = dtable_init(schema, PAGESZ, GT_FIXED, hschema);
+        schema = dtable_init(schema, PAGESZ, GL_FIXED, GC_PURE, hschema);
 
         pagecache_flush(g_pagecache, gp_schema.data);
 
@@ -277,7 +277,7 @@ init_cluster(const char *path) {
         gp_relation.header = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         hrelation = pagecache_put_page(g_pagecache, gp_relation.header);
-        hrelation = htable_init(hrelation, PAGESZ, GT_FIXED);
+        hrelation = htable_init(hrelation, PAGESZ, GL_FIXED, GC_PURE);
         htable_add_column(hrelation, "catalog", T_CHAR, 32);
         htable_add_column(hrelation, "schema", T_CHAR, 32);
         htable_add_column(hrelation, "relation", T_CHAR, 32);
@@ -294,7 +294,7 @@ init_cluster(const char *path) {
         gp_relation.data = (Gid){ .parts = { .file_id = currval, .page = 0 }};
 
         relation = pagecache_put_page(g_pagecache, gp_relation.data);
-        relation = dtable_init(relation, PAGESZ, GT_FIXED, hrelation);
+        relation = dtable_init(relation, PAGESZ, GL_FIXED, GC_PURE, hrelation);
 
         pagecache_flush(g_pagecache, gp_relation.data);
 
