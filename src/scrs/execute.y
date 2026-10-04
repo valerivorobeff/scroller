@@ -129,8 +129,13 @@ cmd:
 
             for (size_t i = 0; ; ++i) {
                 Column *c = htable_get_column(row.header, i);
+
                 if (c == NULL)
                     break;
+
+                /* Skip columns beginning with '*' (system columns) */
+                if (c->name[0] == '*')
+                    continue;
 
                 session_send(session, &scrc_cmd, sizeof(scrc_cmd)); /* Column start */
                 sz = sizeof(Column);

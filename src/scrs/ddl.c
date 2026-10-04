@@ -130,7 +130,7 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     new_gid = (Gid) { .parts = { .file_id = currval, .page = 0 } };
 
     table = pagecache_put_page(g_pagecache, new_gid); /* Init header table */
-    table = htable_init(table, PAGESZ, GL_FIXED, GC_PURE);
+    table = htable_init(table, PAGESZ, GL_FIXED, GC_MVCC);
 
     /* Add columns */
     for (int i = 0, ie = array_size(decls); i != ie; ++i) {

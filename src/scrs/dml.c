@@ -23,7 +23,7 @@
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef);
 
 ScrcStatus
-insert(Session *session, const char *schema, const char *table, const char **names, const Datum *values) {
+insert(Session *session, const char *schema, const char *table, const char **names, Datum *values) {
     GidPair gp_relation = find_relation(session, schema, table, true, true);
     Grid *header;
     Titor row;
@@ -43,6 +43,15 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     header = pagecache_put_page(g_pagecache, gp_relation.header);
 
     assert(header);
+
+    /* Put mvcc columns */
+    if (header->content == GC_MVCC) {
+        array_put(names, "*tmin");
+        array_put(values, make_bigint(0));  /* Transaction id */
+
+        array_put(names, "*tmax");
+        array_put(values, make_bigint(0));  /* Should be 0 */
+    }
 
     /* Get indices of all the queried columns */
     for (size_t i = 0, ie = array_size(names); i != ie; ++i) {
