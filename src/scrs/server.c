@@ -6,6 +6,7 @@
 #include "server.h"
 #include "tcp.h"
 #include "pagecache.h"
+#include "tran.h"
 #include "sequence.h"
 #include "cell.h"
 #include "table.h"
@@ -29,9 +30,10 @@ static void sigchld_handler(int sig);
 static bool directory_exists(const char *path);
 static size_t get_block_size(const char *fname);
 
-PageCache *g_pagecache = NULL;
-Server g_server;
-GidPair g_sequence; /* Global sequence is used by Mesh */
+PageCache *g_pagecache = NULL;  /* Page cache */
+Tran *g_tran = NULL;            /* Transaction cache */
+Server g_server;                /* Global server */
+GidPair g_sequence;             /* Global sequence is used by Mesh */
 
 int
 server_init(int argc, char *argv[]) {
@@ -82,6 +84,9 @@ server_init(int argc, char *argv[]) {
 
     g_server.system.fdcachesz[0] = DEFAULT_FDCACHESZ0;
     g_server.system.fdcachesz[1] = DEFAULT_FDCACHESZ1;
+
+    g_server.system.transz[0] = DEFAULT_TRANSZ0;
+    g_server.system.transz[1] = DEFAULT_TRANSZ1;
 
     flog("block size: %lu\n", PAGESZ);
 
@@ -139,6 +144,9 @@ server_init(int argc, char *argv[]) {
         } else if (eq_character(name, make_char("fdcache_size"))) {
             g_server.system.fdcachesz[0] = header.value.bigint;
             g_server.system.fdcachesz[1] = data.value.bigint;
+        } else if (eq_character(name, make_char("tran_size"))) {
+            g_server.system.transz[0] = header.value.bigint;
+            g_server.system.transz[1] = data.value.bigint;
         } else if (eq_character(name, make_char("sequence"))) {
             g_server.system.sequence.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
             g_server.system.sequence.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
@@ -223,7 +231,10 @@ server_drop(void) {
 
 int
 caches_create(void) {
-    /* Create and initialize g_pages */
+
+    /*
+     * Create and initialize g_pages
+     */
     g_pages = mmap(NULL,
         (g_server.system.pagecachesz[0] + g_server.system.pagecachesz[1]) * PAGESZ,
         PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -232,7 +243,9 @@ caches_create(void) {
     if (g_pages == MAP_FAILED)
         ffatal(EXIT_FAILURE, "Cannot allocate memory for pages");
 
-    /* Create and initialize g_pagecache */
+    /*
+     * Create and initialize g_pagecache
+     */
     g_pagecache = mmap(NULL,
         pagecache_get_required_memory_size(
             g_server.system.pagecachesz[0], g_server.system.pagecachesz[1]),
@@ -251,7 +264,9 @@ caches_create(void) {
         goto err_g_fdcache;
     }
 
-    /* Create and initialize g_fdcache */
+    /*
+     * Create and initialize g_fdcache
+     */
     g_fdcache = mmap(NULL,
         fdcache_get_required_memory_size(
             g_server.system.fdcachesz[0], g_server.system.fdcachesz[1]),
@@ -269,19 +284,44 @@ caches_create(void) {
         goto err_g_pages;
     }
 
+    /*
+     * Create and initialize g_tran
+     */
+    g_tran = mmap(NULL,
+        ihash_get_required_memory_size(
+            g_server.system.transz[0], g_server.system.transz[1], sizeof(Tran)),
+        PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    /* @todo: handle errno */
+    if (g_tran == MAP_FAILED) {
+        ferr("Cannot allocate memory for transaction cache cache");
+        goto err_g_pages;
+    }
+
+    g_tran = ihash_init(g_tran,
+        g_server.system.fdcachesz[0], g_server.system.fdcachesz[1], NULL);
+    if (g_tran == NULL) {
+        ferr("Cannot create transaction cache");
+        goto err_g_tran;
+    }
+
     return 0;
 
     /*
      * Error handlers
      */
-err_g_fdcache:
-    munmap(g_fdcache,
-        fdcache_get_required_memory_size(
-            g_server.system.fdcachesz[0], g_server.system.fdcachesz[1]));
+err_g_tran:
+    munmap(g_tran,
+        ihash_get_required_memory_size(
+            g_server.system.transz[0], g_server.system.transz[1], sizeof(Tran)));
 
 err_g_pages:
     munmap(g_pages,
         (g_server.system.pagecachesz[0] + g_server.system.pagecachesz[1]) * PAGESZ);
+
+err_g_fdcache:
+    munmap(g_fdcache,
+        fdcache_get_required_memory_size(
+            g_server.system.fdcachesz[0], g_server.system.fdcachesz[1]));
 
     return 1;
 }
@@ -289,6 +329,12 @@ err_g_pages:
 int
 caches_free(void) {
     int ret = 0;
+
+    if (g_tran && g_tran != MAP_FAILED) {
+        ret |= munmap(g_tran,
+            ihash_get_required_memory_size(
+                g_server.system.transz[0], g_server.system.transz[1], sizeof(Tran)));
+    }
 
     if (g_fdcache && g_fdcache != MAP_FAILED) {
         ret |= munmap(g_fdcache,

@@ -28,6 +28,7 @@ session_init(Session *session) {
     session->client_fd = -1;
     session->user = NULL;
     session->catalog = NULL;
+    session->tran = NULL;   /* We don't set transaction id here */
     session->send_buf_idx = 0;
 
     return session;

@@ -227,6 +227,8 @@ scrc_error(ScrcConnection *conn) {
         case SCRS_BYTECODE_STACK_OVERFLOW:  return "Bytecode stack overflow";
         case SCRS_BYTECODE_UNBALANCED_STACK:return "Bytecode unbalanced stack";
         case SCRS_BYTECODE_UNKNOWN_ERROR:   return "Bytecode unknown error";
+        case SCRS_TRANSACTION_CACHE_OVERFLOW: return "Transaction cache overflow";
+        case SCRS_UNKNOWN_SERVER_ERROR:     return "Unknown server error";
     }
 
     return "Unknown error";

@@ -11,6 +11,8 @@
 
 #define SENDBUFSZ  4096    /* size of send buffer */
 
+typedef struct Tran Tran;
+
 /**
  * @brief Session struct
  */
@@ -19,6 +21,7 @@ typedef struct Session {
     const char *user;           /**< Client user name */
     const char *catalog;        /**< Catalog name, can be NULL for some commands,
                                     e.g. create catalog */
+    Tran *tran;                 /**< Transaction struct */
     char send_buf[SENDBUFSZ];   /**< Send buffer (data buffer for client) */
     size_t send_buf_idx;        /**< Send buffer index */
 } Session;
