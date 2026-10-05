@@ -16,12 +16,13 @@
  * @param session current session
  * @param schema schema name
  * @param relation relation name
- * @param return_tail returns tail git instead of data gid of relation. It is suitable for insert
+ * @param return_tail returns tail gid instead of data gid of relation. It is suitable for insert
  * @param create_if_data_undef if true creates data grid for relation if it is set to GID_UNDEF
  *        in system relation table (typical for new tables without data)
  * @return GidPair of relation, if relation not found returns grid with header.full = GID_UNDEF and data.full = GID_UNDEF
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef);
+ScrcStatus tran_put(Session *session, Tran **out);
 
 ScrcStatus
 insert(Session *session, const char *schema, const char *table, const char **names, Datum *values) {
@@ -47,10 +48,6 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 
     /* Put mvcc columns */
     if (header->content == GC_MVCC) {
-        /* Create transaction id if there is no
-         * @note Because we actually need transaction id if only we update data
-         * (INSERT, UPDATE, DELETE) in mvcc tables, to save catalog transaction
-         * sequence from overflow  we assign transaction ids if only we update data */
         if (session->tran == NULL) {
             Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
             Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);
@@ -66,7 +63,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
                     grid_idx_is_valid(tran_sequence_idx));
 
             /* Find catalog transaction sequence gid */
-            for (Titor i = titor_init(hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
+            for (Titor i = titor_init(g_server.system.catalog, hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
                 const Datum dcatalog = titor_get_datum(i, name_idx);
 
                 if (eq_character(dcatalog, make_char((char *)session->catalog))) {
@@ -115,7 +112,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
         }
     }
 
-    /* Allocate a new row in the table, note that table_alloc_row can update gp_relation.data */
+    /* Allocate a new row in the table, note that table_alloc_row can update gp_relation */
     row = table_alloc_row(&gp_relation);
     if (!titor_is_valid(row))
         return SCRS_SEQUENCE_OVERFLOW;
@@ -149,14 +146,21 @@ dml_delete(Session *session, const char *schema, const char *table, Titor *out) 
 
     /* Check if table is empty */
     if (gp_relation.data.full == GID_UNDEF) {
-        *out = titor_init(header, NULL);
+        *out = titor_init(gp_relation, header, NULL);
         return SCRS_OK;
+    }
+
+    /* Put mvcc columns */
+    if (header->content == GC_MVCC && session->tran == NULL) {
+        ScrcStatus ret = tran_put(session, &session->tran);
+        if (ret != SCRS_OK)
+            return ret;
     }
 
     /* Load table data */
     data = pagecache_put_page(g_pagecache, gp_relation.data);
 
-    *out = titor_init(header, data);
+    *out = titor_init(gp_relation, header, data);
 
     return SCRS_OK;
 }
@@ -170,12 +174,19 @@ dml_delete_row(Session *session, Titor row) {
         case GC_MVCC:
             int tpd_ret;
             const uint16_t tmax_idx = htable_get_column_idx(row.header, "*tmax");
+
             assert(grid_idx_is_valid(tmax_idx));
 
             tpd_ret = titor_put_datum(row, tmax_idx, make_bigint(session->tran->key));
             assert(tpd_ret == 0);
 
-            //pagecache_flush(g_pagecache, catalog_sequence_gid);
+            /* @todo We put GidPair gp into Mitor struct only because we need GidPair here
+             * in this function to flush deleted row back with updated *tmax. As a disadventage
+             * Mitor size insreased by 16 bytes.
+             * It is worth to find out another way how to find this Gid rather than store it
+             * in Mitor
+             */
+            pagecache_flush(g_pagecache, row.gp.data);
             break;
     }
 
@@ -217,14 +228,14 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
     /* Check if table is empty */
     if (gp_relation.data.full == GID_UNDEF) {
-        *out = titor_init(header, NULL);
+        *out = titor_init(gp_relation, header, NULL);
         return SCRS_OK;
     }
 
     /* Load table data */
     data = pagecache_put_page(g_pagecache, gp_relation.data);
 
-    *out = titor_init(header, data);
+    *out = titor_init(gp_relation, header, data);
 
     return SCRS_OK;
 }
@@ -248,7 +259,7 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
             grid_idx_is_valid(data_gid_idx) &&
             grid_idx_is_valid(tail_gid_idx));
 
-    for (Titor i = titor_init(hrelation, drelation); titor_is_valid(i); titor_next(&i)) {
+    for (Titor i = titor_init(g_server.system.relation, hrelation, drelation); titor_is_valid(i); titor_next(&i)) {
         const Datum dcatalog = titor_get_datum(i, catalog_idx);
         const Datum dschema = titor_get_datum(i, schema_idx);
         const Datum drelation = titor_get_datum(i, relation_idx);
@@ -302,5 +313,54 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
         .header.full = GID_UNDEF,
         .data.full = GID_UNDEF
     };
+}
+
+/* @todo it is better to move this function to tran.h and tran.c files */
+ScrcStatus
+tran_put(Session *session, Tran **out) {
+    Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
+    Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);
+    const uint16_t name_idx = htable_get_column_idx(hcatalog, "name");
+    const uint16_t tran_sequence_idx = htable_get_column_idx(hcatalog, "tran_sequence");
+    ssize_t tranid;
+    Gid catalog_sequence_gid = { .full = GID_UNDEF };
+    Grid *hsequence;
+    Grid *catalog_sequence;
+    Tran *ttmp;
+
+    assert(hcatalog && catalog &&
+            grid_idx_is_valid(name_idx) &&
+            grid_idx_is_valid(tran_sequence_idx));
+
+    /* Find catalog transaction sequence gid */
+    /* @todo maybe it is better to load catalog transaction sequence gid during initialization */
+    for (Titor i = titor_init(g_server.system.catalog, hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
+        const Datum dcatalog = titor_get_datum(i, name_idx);
+
+        if (eq_character(dcatalog, make_char((char *)session->catalog))) {
+            const Datum dsequence = titor_get_datum(i, tran_sequence_idx);
+            catalog_sequence_gid = (Gid) { .full = dsequence.value.bigint };
+
+            break;
+        }
+    }
+
+    assert(catalog_sequence_gid.full != GID_UNDEF);
+
+    hsequence = pagecache_put_page(g_pagecache, g_server.system.sequence.header);
+    catalog_sequence = pagecache_put_page(g_pagecache, catalog_sequence_gid);
+
+    if (sequence_nextval(hsequence, catalog_sequence, &tranid)) /* Increment catalog transaction sequence */
+        return SCRS_SEQUENCE_OVERFLOW;
+
+    ttmp = ihash_put_key(g_tran, tranid);  /* Put transaction into cache */
+    if (ttmp == NULL)
+        return SCRS_TRANSACTION_CACHE_OVERFLOW;
+
+    *out = ttmp;
+
+    pagecache_flush(g_pagecache, catalog_sequence_gid);
+
+    return SCRC_OK;
 }
 

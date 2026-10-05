@@ -17,13 +17,21 @@
 #include "grid.h"
 
 typedef struct Mitor {
+    GidPair gp;
     Grid *header;
     Grid *data;
     uint16_t row;
 } Mitor;
 
-#define mitor_init(h, d) (Mitor){ .header = h, .data = d, .row = 0 }
-#define mitor_is_valid(mitor) ((mitor).data && (mitor).row < (mitor).data->occupied)
+#define mitor_init(g, h, d) (Mitor){ .gp = g, .header = h, .data = d, .row = 0 }
+#define mitor_init_invalid() (Mitor){ .gp = { .header.full = GID_UNDEF, .data.full = GID_UNDEF }, \
+    .header = NULL, .data = NULL, .row = 0 }
+
+#define mitor_is_valid(mitor) \
+    ((mitor).gp.header.full != GID_UNDEF && \
+    (mitor).gp.data.full != GID_UNDEF && \
+    (mitor).data && (mitor).row < (mitor).data->occupied)
+
 void mitor_next(Mitor *mitor);
 #define mitor_get_row(m) grid_get_row(m.data, m.row)
 #define mitor_get_row_size(m) hgrid_get_row_size(m.header)

@@ -114,6 +114,11 @@ cmd:
         ScrcStatus res = dml_delete(session, $2, $3, &row);
 
         if (res == SCRS_OK) {
+            /* Response header */
+            session_send_header_int(session, "Status", SCRC_OK);
+            session_finish_header(session);
+            flog("Delete response header sent");
+
             cmd->titor = row;
             cmd->bc.titor = row;
         } else
@@ -122,7 +127,6 @@ cmd:
 
     } delete_mb_where {
         session_send_status(session, SCRS_OK);
-        session_flush(session);
     }
     |
     SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
@@ -139,7 +143,7 @@ cmd:
             session_finish_header(session);
             flog("Select response header sent");
 
-            /* Table geader */
+            /* Table header */
             session_send(session, &scrc_cmd, sizeof(scrc_cmd));     /* Table header start */
 
             scrc_cmd = SCRC_CMD_ROW;
@@ -187,17 +191,17 @@ cmd:
 delete_mb_where:
     %empty {
         Titor row = cmd->titor;
-        const ScrcCmd scrc_cmd = SCRC_CMD_ROW;
 
         if (titor_is_valid(row)) {
-            const size_t sz = titor_get_row_size(row);
-
-            for (; titor_is_valid(row); titor_next(&row)) {
-                session_send(session, &scrc_cmd, sizeof(scrc_cmd)); /* Row start */
-                session_send(session, &sz, sizeof(sz));             /* Row size */
-                session_send(session, titor_get_row(row), sz);      /* Row */
+            ScrcStatus status = dml_delete_row(session, cmd->titor);
+            if (status != SCRS_OK) {
+                session_send_status(session, status);
+                YYABORT;
             }
         }
+
+        titor_next(&row);
+        cmd->titor = row;
     }
     |
     WHERE delete_where
@@ -215,7 +219,11 @@ delete_where_line:
 
         if (titor_is_valid(row)) {
             if ($1) {
-                dml_delete_row(session, cmd->titor);
+                ScrcStatus status = dml_delete_row(session, cmd->titor);
+                if (status != SCRS_OK) {
+                    session_send_status(session, status);
+                    YYABORT;
+                }
             }
 
             titor_next(&row);

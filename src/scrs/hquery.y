@@ -185,11 +185,11 @@ cmd:
         flog_flush();
     }
     |
-    DELETE FROM ID '.' ID mb_where {
+    DELETE FROM ID '.' ID {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_DELETE }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
         bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $5 }));
-    }
+    } mb_where
     |
     SELECT {
         bc_put(&cmd->bc, ((BcNode){ .token = BC_SELECT }));
