@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include <arpa/inet.h>
 
-/* @todo: Move it to common information for scroller and scr_init */
+/* @todo: Move it to common information for scrs and scri */
 #define SEQUENCE_HEADER_GID     0
 #define SEQUENCE_DATA_GID       1
 #define CLUSTER_HEADER_GID      2
@@ -25,12 +25,22 @@
 #define DEFAULT_FDCACHESZ0      4
 #define DEFAULT_FDCACHESZ1      4
 
-typedef struct PageCache PageCache;
+#define DEFAULT_TRANSZ0         128
+#define DEFAULT_TRANSZ1         128
 
 /**
- * @brief Global page cache
+ * @brief Global interprocess shared page cache
  */
+typedef struct PageCache PageCache;
+
 extern PageCache *g_pagecache;
+
+/**
+ * @brief Global interprocess shared transaction cache
+ */
+typedef struct Tran Tran;
+
+extern Tran *g_tran;
 
 /**
  * @brief Server struct
@@ -51,11 +61,12 @@ typedef struct Server {
         const char *encoding;   /**< Encoding */
         size_t pagecachesz[2];  /**< PageCache size - [0]: buckets, [1]: chains */
         size_t fdcachesz[2];    /**< File descriptor cache size - [0]: buckets, [1]: chains */
+        size_t transz[2];       /**< Transaction cache size - [0]: buckets, [1]: chains */
     } system;
 } Server;
 
 /**
- * @brief Global server struct
+ * @brief Global server struct (not integprocess shared, just forked)
  */
 extern Server g_server;
 

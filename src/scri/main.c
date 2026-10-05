@@ -143,14 +143,19 @@ init_cluster(const char *path) {
             (GidPair){ .header.full = 0, .data.full = DEFAULT_PORT }
         );
 
-        /* Add pagecache_size cluster table */
+        /* Add pagecache_size */
         add_gid_pair(hcluster, "pagecache_size",
             (GidPair){ .header.full = DEFAULT_PAGECACHESZ0, .data.full =  DEFAULT_PAGECACHESZ1 }
         );
 
-        /* Add fdcache_size cluster table */
+        /* Add fdcache_size */
         add_gid_pair(hcluster, "fdcache_size",
             (GidPair){ .header.full = DEFAULT_FDCACHESZ0, .data.full = DEFAULT_FDCACHESZ1 }
+        );
+
+        /* Add tran_size */
+        add_gid_pair(hcluster, "tran_size",
+            (GidPair){ .header.full = DEFAULT_TRANSZ0, .data.full = DEFAULT_TRANSZ1 }
         );
 
         /* Add main sequence GidPair to cluster table */
@@ -214,6 +219,7 @@ init_cluster(const char *path) {
         hcatalog = pagecache_put_page(g_pagecache, gp_catalog.header);
         hcatalog = htable_init(hcatalog, PAGESZ, GL_FIXED, GC_PURE);
         htable_add_column(hcatalog, "name", T_CHAR, 32);
+        htable_add_column(hcatalog, "tran_sequence", T_BIGINT, 0);
 
         pagecache_flush(g_pagecache, gp_catalog.header);
 

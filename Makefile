@@ -31,6 +31,8 @@ else
     CFLAGS += -O2 -DNDEBUG
 endif
 
+CFLAGS += $(EXTRA_CFLAGS)
+
 BIN_DIR = build/$(BUILD)/bin
 
 #####################

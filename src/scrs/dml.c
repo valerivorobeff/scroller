@@ -5,6 +5,7 @@
 #include "type.h"
 #include "pagecache.h"
 #include "sequence.h"
+#include "tran.h"
 #include "array.h"
 #include "flog.h"
 #include <stdbool.h>
@@ -46,8 +47,54 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 
     /* Put mvcc columns */
     if (header->content == GC_MVCC) {
+        /* Create transaction id if there is no
+         * @note Because we actually need transaction id if only we update data
+         * (INSERT, UPDATE, DELETE) in mvcc tables, to save catalog transaction
+         * sequence from overflow  we assign transaction ids if only we update data */
+        if (session->tran == NULL) {
+            Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
+            Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);
+            const uint16_t name_idx = htable_get_column_idx(hcatalog, "name");
+            const uint16_t tran_sequence_idx = htable_get_column_idx(hcatalog, "tran_sequence");
+            ssize_t tranid;
+            Gid catalog_sequence_gid = { . full = GID_UNDEF };
+            Grid *hsequence;
+            Grid *catalog_sequence;
+
+            assert(hcatalog && catalog &&
+                    grid_idx_is_valid(name_idx) &&
+                    grid_idx_is_valid(tran_sequence_idx));
+
+            /* Find catalog transaction sequence gid */
+            for (Titor i = titor_init(hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
+                const Datum dcatalog = titor_get_datum(i, name_idx);
+
+                if (eq_character(dcatalog, make_char((char *)session->catalog))) {
+                    const Datum dsequence = titor_get_datum(i, tran_sequence_idx);
+                    catalog_sequence_gid = (Gid) { .full = dsequence.value.bigint };
+
+                    break;
+                }
+            }
+
+            assert(catalog_sequence_gid.full != GID_UNDEF);
+
+            hsequence = pagecache_put_page(g_pagecache, g_server.system.sequence.header);
+            catalog_sequence = pagecache_put_page(g_pagecache, catalog_sequence_gid);
+
+            if (sequence_nextval(hsequence, catalog_sequence, &tranid)) /* Increment catalog transaction sequence */
+                return SCRS_SEQUENCE_OVERFLOW;
+
+            session->tran = ihash_put_key(g_tran, tranid);  /* Put transaction into cache */
+            if (session->tran == 0)
+                return SCRS_TRANSACTION_CACHE_OVERFLOW;
+
+            pagecache_flush(g_pagecache, catalog_sequence_gid);
+        }
+
+        /* Put mvcc columns */
         array_put(names, "*tmin");
-        array_put(values, make_bigint(0));  /* Transaction id */
+        array_put(values, make_bigint(session->tran->key));  /* Transaction id */
 
         array_put(names, "*tmax");
         array_put(values, make_bigint(0));  /* Should be 0 */
