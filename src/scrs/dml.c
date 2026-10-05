@@ -131,6 +131,58 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 }
 
 ScrcStatus
+dml_delete(Session *session, const char *schema, const char *table, Titor *out) {
+    GidPair gp_relation = find_relation(session, schema, table, false, false);
+    Grid *header;
+    Grid *data;
+
+    /* Exit if table header not found */
+    if (gp_relation.header.full == GID_UNDEF) {
+        ferr("Unknown relation '%s'", table);
+        return SCRS_UNKNOWN_RELATION;
+    }
+
+    /* Load table header */
+    header = pagecache_put_page(g_pagecache, gp_relation.header);
+
+    assert(header);
+
+    /* Check if table is empty */
+    if (gp_relation.data.full == GID_UNDEF) {
+        *out = titor_init(header, NULL);
+        return SCRS_OK;
+    }
+
+    /* Load table data */
+    data = pagecache_put_page(g_pagecache, gp_relation.data);
+
+    *out = titor_init(header, data);
+
+    return SCRS_OK;
+}
+
+ScrcStatus
+dml_delete_row(Session *session, Titor row) {
+    ScrcStatus ret = SCRS_OK;
+
+    switch (row.data->content) {
+        case GC_PURE: break;
+        case GC_MVCC:
+            int tpd_ret;
+            const uint16_t tmax_idx = htable_get_column_idx(row.header, "*tmax");
+            assert(grid_idx_is_valid(tmax_idx));
+
+            tpd_ret = titor_put_datum(row, tmax_idx, make_bigint(session->tran->key));
+            assert(tpd_ret == 0);
+
+            //pagecache_flush(g_pagecache, catalog_sequence_gid);
+            break;
+    }
+
+    return ret;
+}
+
+ScrcStatus
 dml_select(Session *session, const char *schema, const char *table, const char **names, Titor *out) {
     GidPair gp_relation = find_relation(session, schema, table, false, false);
     Grid *header;

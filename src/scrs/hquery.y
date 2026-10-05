@@ -49,6 +49,7 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token CREATE
 %token SCHEMA TABLE
 %token INSERT INTO VALUES
+%token DELETE
 %token SELECT FROM WHERE
 %token SMALLINT INTEGER BIGINT CHARACTER CHAR VARCHAR VARYING
 /* We don't need operator priority or assoc here, y1parser should just put ahead
@@ -182,6 +183,12 @@ cmd:
         bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
         flog("INSERT INTO %s", $3);
         flog_flush();
+    }
+    |
+    DELETE FROM ID '.' ID mb_where {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_DELETE }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $3 }));
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_STRING, .value.str = $5 }));
     }
     |
     SELECT {
