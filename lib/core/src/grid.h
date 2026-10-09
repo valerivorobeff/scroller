@@ -194,6 +194,18 @@ int grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum
 uint16_t grid_alloc_row(Grid *grid);
 
 /**
+ * @brief Deletes a row in the grid.
+ *
+ *
+ * @param grid      Pointer to the grid structure
+ * @param           Row number
+ * @return          Number of occupied rows or GRID_INVALID_IDX if row is incorrect
+ *
+ * @note The rows laying after the row are shofted up.
+ */
+uint16_t grid_delete_row(Grid *grid, uint16_t row);
+
+/**
  * @brief Adds a new column definition to a header grid.
  *
  * @param grid      Pointer to the header grid (must contain Column entries)

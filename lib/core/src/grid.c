@@ -42,6 +42,7 @@ Cell grid_get_cell(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 Datum grid_get_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column);
 int grid_put_datum(Grid *hgrid, Grid *grid, uint16_t row, uint16_t column, Datum datum);
 uint16_t grid_alloc_row(Grid *grid);
+uint16_t grid_delete_row(Grid *grid, uint16_t row);
 
 Column *hgrid_add_column(Grid *grid, const char *name, Type type, size_t size);
 uint16_t hgrid_get_column_idx(Grid *grid, const char *name);
@@ -178,6 +179,19 @@ grid_alloc_row(Grid *grid) {
     if (grid->occupied < grid->rown)
         return grid->occupied++;
     else
+        return GRID_INVALID_IDX;
+}
+
+uint16_t
+grid_delete_row(Grid *grid, uint16_t row) {
+    if (row < grid->occupied) {
+        Cell dest = grid_get_row(grid, row);
+        const Cell src = grid_get_row(grid, row + 1);
+        const size_t sz = (grid->occupied - row - 1) * grid->rowsz;
+        memmove(dest, src, sz);
+
+        return --grid->occupied;
+    } else
         return GRID_INVALID_IDX;
 }
 

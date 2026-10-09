@@ -114,6 +114,59 @@ TEST(grid)
             free(p);
         }
 
+        TEST_CASE(test_delete) {
+            Page *hp = malloc(8096), *p = malloc(8096);
+            Grid *hg = hgrid_init(hp, 8096, GL_FIXED, GC_PURE), *g;
+            uint16_t row;
+            Datum d;
+
+            /* ALTER TABLE ADD COLUMN - Add first column to schema */
+            if (!hgrid_add_column(hg, "id_user", T_INTEGER, 0)) {
+                TEST_FAIL();  /* Column addition failed - critical error */
+            }
+
+            if (!hgrid_add_column(hg, "name", T_CHAR, 16)) {
+                TEST_FAIL();  /* Column addition failed - critical error */
+            }
+
+            /* Verify that both columns are now present */
+            TEST_CHECK(hg->occupied == 2);
+
+            /* CREATE TABLE DATA - Initialize data grid with schema from header */
+            g = dgrid_init(p, 8096, GL_FIXED, GC_PURE, hg);
+
+            /* INSERT ROW INTO TABLE - Add rows and populate them */
+            row = dgrid_alloc_row(g);    /* Allocate a new row slot */
+            grid_put_datum(hg, g, row, 0, make_integer(5));
+            grid_put_datum(hg, g, row, 1, make_char("Vasia"));
+
+            row = dgrid_alloc_row(g);    /* Allocate a new row slot */
+            grid_put_datum(hg, g, row, 0, make_integer(15));
+            grid_put_datum(hg, g, row, 1, make_char("Petya"));
+
+            row = dgrid_alloc_row(g);    /* Allocate a new row slot */
+            grid_put_datum(hg, g, row, 0, make_integer(25));
+            grid_put_datum(hg, g, row, 1, make_char("Kalya"));
+
+            TEST_CHECK(g->occupied = 3);
+
+            TEST_CHECK(grid_delete_row(g, 5) == GRID_INVALID_IDX);
+            TEST_CHECK(g->occupied = 3);
+
+            d = grid_get_datum(hg, g, 1, 0);
+            TEST_CHECK(d.type == T_INTEGER && d.value.integer == 15);
+
+            TEST_CHECK(grid_delete_row(g, 1) == 2);
+            TEST_CHECK(g->occupied = 2);
+            d = grid_get_datum(hg, g, 1, 0);
+            printf("int: %i\n", d.value.integer);
+            TEST_CHECK(d.type == T_INTEGER && d.value.integer == 25);
+
+            /* Clean up allocated memory */
+            free(hp);
+            free(p);
+        }
+
     TEST_SUITE_END()  /* End of grid test suite */
 
 TEST_END()  /* End of grid test unit */
