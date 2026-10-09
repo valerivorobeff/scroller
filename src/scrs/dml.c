@@ -135,12 +135,16 @@ dml_delete_row(Session *session, Titor row) {
     ScrcStatus ret = SCRS_OK;
 
     switch (row.data->content) {
-        case GC_PURE: break;
+        case GC_PURE:
+            mitor_delete(&row);
+            break;
+
         case GC_MVCC:
             int tpd_ret;
             const uint16_t tmax_idx = htable_get_column_idx(row.header, "*tmax");
 
             assert(grid_idx_is_valid(tmax_idx));
+            assert(session->tran->key);
 
             tpd_ret = titor_put_datum(row, tmax_idx, make_bigint(session->tran->key));
             assert(tpd_ret == 0);

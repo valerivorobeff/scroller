@@ -9,6 +9,7 @@ extern GidPair g_sequence;
 Mitor mesh_alloc_row(GidPair *tail);
 Column *hmesh_add_column(Grid *grid, const char *name, Type type, size_t size);
 void mitor_next(Mitor *mitor);
+void mitor_delete(Mitor *mitor);
 
 Mitor
 mesh_alloc_row(GidPair *tail) {
@@ -67,5 +68,11 @@ mitor_next(Mitor *mitor) {
             }
         }
     }
+}
+
+void
+mitor_delete(Mitor *mitor) {
+    uint16_t ret = grid_delete_row(mitor->data, mitor->row);
+    assert(ret != GRID_INVALID_IDX);
 }
 
