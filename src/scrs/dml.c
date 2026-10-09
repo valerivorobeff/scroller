@@ -46,47 +46,12 @@ insert(Session *session, const char *schema, const char *table, const char **nam
 
     assert(header);
 
-    /* Put mvcc columns */
+    /* Create transaction id if not present */
     if (header->content == GC_MVCC) {
         if (session->tran == NULL) {
-            Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
-            Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);
-            const uint16_t name_idx = htable_get_column_idx(hcatalog, "name");
-            const uint16_t tran_sequence_idx = htable_get_column_idx(hcatalog, "tran_sequence");
-            ssize_t tranid;
-            Gid catalog_sequence_gid = { . full = GID_UNDEF };
-            Grid *hsequence;
-            Grid *catalog_sequence;
-
-            assert(hcatalog && catalog &&
-                    grid_idx_is_valid(name_idx) &&
-                    grid_idx_is_valid(tran_sequence_idx));
-
-            /* Find catalog transaction sequence gid */
-            for (Titor i = titor_init(g_server.system.catalog, hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
-                const Datum dcatalog = titor_get_datum(i, name_idx);
-
-                if (eq_character(dcatalog, make_char((char *)session->catalog))) {
-                    const Datum dsequence = titor_get_datum(i, tran_sequence_idx);
-                    catalog_sequence_gid = (Gid) { .full = dsequence.value.bigint };
-
-                    break;
-                }
-            }
-
-            assert(catalog_sequence_gid.full != GID_UNDEF);
-
-            hsequence = pagecache_put_page(g_pagecache, g_server.system.sequence.header);
-            catalog_sequence = pagecache_put_page(g_pagecache, catalog_sequence_gid);
-
-            if (sequence_nextval(hsequence, catalog_sequence, &tranid)) /* Increment catalog transaction sequence */
-                return SCRS_SEQUENCE_OVERFLOW;
-
-            session->tran = ihash_put_key(g_tran, tranid);  /* Put transaction into cache */
-            if (session->tran == 0)
-                return SCRS_TRANSACTION_CACHE_OVERFLOW;
-
-            pagecache_flush(g_pagecache, catalog_sequence_gid);
+            ScrcStatus ret = tran_put(session, &session->tran);
+            if (ret != SCRS_OK)
+                return ret;
         }
 
         /* Put mvcc columns */
@@ -150,7 +115,7 @@ dml_delete(Session *session, const char *schema, const char *table, Titor *out) 
         return SCRS_OK;
     }
 
-    /* Put mvcc columns */
+    /* Create transaction id if not present */
     if (header->content == GC_MVCC && session->tran == NULL) {
         ScrcStatus ret = tran_put(session, &session->tran);
         if (ret != SCRS_OK)
@@ -230,6 +195,13 @@ dml_select(Session *session, const char *schema, const char *table, const char *
     if (gp_relation.data.full == GID_UNDEF) {
         *out = titor_init(gp_relation, header, NULL);
         return SCRS_OK;
+    }
+
+    /* Create transaction id if not present */
+    if (header->content == GC_MVCC && session->tran == NULL) {
+        ScrcStatus ret = tran_put(session, &session->tran);
+        if (ret != SCRS_OK)
+            return ret;
     }
 
     /* Load table data */
