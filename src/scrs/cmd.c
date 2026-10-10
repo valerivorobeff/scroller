@@ -25,7 +25,7 @@ cmd_init(Cmd *cmd) {
     prev = context_switch(cmd->bc_cont);    /* switch to bytecode context */
     bc_init(&cmd->bc);                      /* Initialize bytecode */
 
-    cmd->titor = titor_init(NULL, NULL);    /* Initialize titor */
+    cmd->titor = titor_init_invalid();      /* Initialize titor */
 
     cmd->current = NULL;
 
@@ -44,7 +44,7 @@ void cmd_reset(Cmd *cmd) {
     context_reset(cmd->bc_cont);
     context_reset(cmd->str_cont);
     bc_clear(&cmd->bc);
-    cmd->titor = titor_init(NULL, NULL); /* This line is not necessary as titor is reset inside y2 parser */
+    cmd->titor = titor_init_invalid();  /* This line is not necessary as titor is reset inside y2 parser */
     cmd->current = NULL;
 }
 

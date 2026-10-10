@@ -118,7 +118,7 @@ server_init(int argc, char *argv[]) {
      */
     cluster = pagecache_put_page(g_pagecache, g_server.system.cluster.data);
 
-    for (Titor i = titor_init(hcluster, cluster); titor_is_valid(i); titor_next(&i)) {
+    for (Titor i = titor_init(g_server.system.cluster, hcluster, cluster); titor_is_valid(i); titor_next(&i)) {
         const Datum name = titor_get_datum(i, name_idx);
         const Datum string = titor_get_datum(i, string_idx);
         const Datum header = titor_get_datum(i, header_idx);

@@ -68,7 +68,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
-%token INSERT SELECT
+%token INSERT DELETE SELECT
 %token WHERE
 /* @todo I think I could use '(', ')' or '[]', ']' token pairs instead of the below */
 %token <integer> LOOP_BEGIN LOOP_END /* Used inside bc only */
@@ -108,7 +108,28 @@ cmd:
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { cmd->current = NULL; } ARRAY_BEGIN values ARRAY_END {
         session_send_status(session, insert(session, $2, $3, (const char **)$5, $9));
     }
-    | SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
+    |
+    DELETE STRING STRING {
+        Titor row;
+        ScrcStatus res = dml_delete(session, $2, $3, &row);
+
+        if (res == SCRS_OK) {
+            /* Response header */
+            session_send_header_int(session, "Status", SCRC_OK);
+            session_finish_header(session);
+            flog("Delete response header sent");
+
+            cmd->titor = row;
+            cmd->bc.titor = row;
+        } else
+            session_send_status(session, res);
+            /* @todo Raise error */
+
+    } delete_mb_where {
+        session_send_status(session, SCRS_OK);
+    }
+    |
+    SELECT ARRAY_BEGIN strings ARRAY_END STRING STRING {
         Titor row;
         ScrcStatus res = dml_select(session, $5, $6, (const char **)$3, &row);
 
@@ -122,7 +143,7 @@ cmd:
             session_finish_header(session);
             flog("Select response header sent");
 
-            /* Table geader */
+            /* Table header */
             session_send(session, &scrc_cmd, sizeof(scrc_cmd));     /* Table header start */
 
             scrc_cmd = SCRC_CMD_ROW;
@@ -156,14 +177,66 @@ cmd:
             session_send_status(session, res);
             /* @todo Raise error */
         }
-    } mb_where {
+    } select_mb_where {
         ScrcCmd scrc_cmd = SCRC_CMD_END;
         session_send(session, &scrc_cmd, sizeof(scrc_cmd));          /* Table data finish */
         session_flush(session);
     }
     ;
 
-mb_where:
+/**
+ * maybe WHERE part for DELETE
+ */
+
+delete_mb_where:
+    %empty {
+        Titor row = cmd->titor;
+
+        if (titor_is_valid(row)) {
+            ScrcStatus status = dml_delete_row(session, cmd->titor);
+            if (status != SCRS_OK) {
+                session_send_status(session, status);
+                YYABORT;
+            }
+        }
+
+        titor_next(&row);
+        cmd->titor = row;
+    }
+    |
+    WHERE delete_where
+    ;
+
+delete_where:
+    delete_where_line
+    |
+    delete_where delete_where_line
+    ;
+
+delete_where_line:
+    expr {
+        Titor row = cmd->titor;
+
+        if (titor_is_valid(row)) {
+            if ($1) {
+                ScrcStatus status = dml_delete_row(session, cmd->titor);
+                if (status != SCRS_OK) {
+                    session_send_status(session, status);
+                    YYABORT;
+                }
+            }
+
+            titor_next(&row);
+            cmd->titor = row;
+        }
+    }
+    ;
+
+/**
+ * maybe WHERE part for SELECT
+ */
+
+select_mb_where:
     %empty {
         Titor row = cmd->titor;
         const ScrcCmd scrc_cmd = SCRC_CMD_ROW;
@@ -179,16 +252,16 @@ mb_where:
         }
     }
     |
-    WHERE where
+    WHERE select_where
     ;
 
-where:
-    where_line
+select_where:
+    select_where_line
     |
-    where where_line
+    select_where select_where_line
     ;
 
-where_line:
+select_where_line:
     expr {
         Titor row = cmd->titor;
 

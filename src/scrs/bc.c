@@ -13,7 +13,7 @@ int y2lex(Y2STYPE *yylval, Cmd *cmd);
 Bc *
 bc_init(Bc *bc) {
     bc->itor = 0;
-    bc->titor = titor_init(NULL, NULL);
+    bc->titor = titor_init_invalid();
     bc->tokens = NULL;
 
     return bc;
@@ -22,21 +22,21 @@ bc_init(Bc *bc) {
 void
 bc_drop(Bc *bc) {
     bc->itor = 0;
-    bc->titor = titor_init(NULL, NULL);
+    bc->titor = titor_init_invalid();
     array_free(bc->tokens);
 }
 
 void
 bc_clear(Bc *bc) {
     bc->itor = 0;
-    bc->titor = titor_init(NULL, NULL);
+    bc->titor = titor_init_invalid();
     array_clear(bc->tokens);
 }
 
 void
 bc_reset(Bc *bc) {
     bc->itor = 0;
-    bc->titor = titor_init(NULL, NULL);
+    bc->titor = titor_init_invalid();
 }
 
 void

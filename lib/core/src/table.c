@@ -40,4 +40,3 @@ htable_add_column(Grid *grid, const char *name, Type type, size_t size) {
     return hmesh_add_column(grid, name, type, size);
 }
 
-

@@ -28,7 +28,12 @@ session_init(Session *session) {
     session->client_fd = -1;
     session->user = NULL;
     session->catalog = NULL;
-    session->tran = NULL;   /* We don't set transaction id here */
+
+    /* @note We don't set transaction id here and create it later when necessary.
+     * Because we actually need transaction id if only we update data
+     * (INSERT, UPDATE, DELETE) in mvcc tables, to save catalog transaction
+     * sequence from overflow we assign transaction ids if only we update data */
+    session->tran = NULL;
     session->send_buf_idx = 0;
 
     return session;

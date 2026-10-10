@@ -5,7 +5,8 @@
 
 typedef Mitor Titor;
 
-#define titor_init(h, d) mitor_init(h, d)
+#define titor_init(g, h, d) mitor_init(g, h, d)
+#define titor_init_invalid() mitor_init_invalid()
 #define titor_is_valid(titor) mitor_is_valid(titor)
 #define titor_next(titor) mitor_next(titor)
 #define titor_get_row(m) mitor_get_row(m)

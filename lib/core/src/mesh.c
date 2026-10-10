@@ -9,6 +9,7 @@ extern GidPair g_sequence;
 Mitor mesh_alloc_row(GidPair *tail);
 Column *hmesh_add_column(Grid *grid, const char *name, Type type, size_t size);
 void mitor_next(Mitor *mitor);
+void mitor_delete(Mitor *mitor);
 
 Mitor
 mesh_alloc_row(GidPair *tail) {
@@ -31,7 +32,7 @@ mesh_alloc_row(GidPair *tail) {
             Grid *sequence = pagecache_put_page(g_pagecache, g_sequence.data);
 
             if (sequence_nextval(hsequence, sequence, &currval))
-                return (Mitor) { NULL, NULL, GRID_INVALID_IDX }; /* SCRS_SEQUENCE_OVERFLOW */
+                return mitor_init_invalid(); /* SCRS_SEQUENCE_OVERFLOW */
 
             tail->data = (Gid) { .parts = { .file_id = currval, .page = 0 } };
         }
@@ -47,7 +48,7 @@ mesh_alloc_row(GidPair *tail) {
         row = grid_alloc_row(data);
     }
 
-    return (Mitor) { header, data, row };
+    return (Mitor) { *tail, header, data, row };
 }
 
 Column *
@@ -61,10 +62,17 @@ mitor_next(Mitor *mitor) {
         ++mitor->row;
         if (!mitor_is_valid(*mitor)) {
             if (mitor->data->next.full != GID_UNDEF) {
+                mitor->gp.data = mitor->data->next;
                 mitor->data = pagecache_put_page(g_pagecache, mitor->data->next);
                 mitor->row = 0;
             }
         }
     }
+}
+
+void
+mitor_delete(Mitor *mitor) {
+    uint16_t ret = grid_delete_row(mitor->data, mitor->row);
+    assert(ret != GRID_INVALID_IDX);
 }
 
