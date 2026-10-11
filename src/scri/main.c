@@ -15,6 +15,7 @@ static int64_t calculate_sequence_start(void);
 ssize_t get_block_size(const char *fname);
 
 PageCache *g_pagecache = NULL;
+Tran *g_tran = NULL;
 
 GidPair gp_cluster;
 GidPair g_sequence; /* Global sequence is used by Mesh */
@@ -128,7 +129,7 @@ init_cluster(const char *path) {
         cluster = pagecache_put_page(g_pagecache, gp_cluster.data);
         cluster = dtable_init(cluster, PAGESZ, GL_FIXED, GC_PURE, hcluster);
 
-        row = table_alloc_row(&gp_cluster);
+        table_alloc_row(&row, &gp_cluster);
 
         result |= titor_put_datum(row, name_idx, make_char("encoding"));
         result |= titor_put_datum(row, string_idx, make_char("UTF-8"));
@@ -196,7 +197,7 @@ init_cluster(const char *path) {
         user = pagecache_put_page(g_pagecache, gp_user.data);
         user = dtable_init(user, PAGESZ, GL_FIXED, GC_PURE, huser);
 
-        row = table_alloc_row(&gp_user);
+        table_alloc_row(&row, &gp_user);
         result |= titor_put_datum(row, name_idx, make_char("scroller"));
 
         pagecache_flush(g_pagecache, gp_user.data);
@@ -332,8 +333,9 @@ add_gid_pair(Grid *hcluster, const char *name, GidPair gidp) {
     uint16_t name_idx = htable_get_column_idx(hcluster, "name");
     uint16_t header_idx = htable_get_column_idx(hcluster, "header");
     uint16_t data_idx = htable_get_column_idx(hcluster, "data");
+    Titor row;
 
-    Titor row = table_alloc_row(&gp_cluster);
+    table_alloc_row(&row, &gp_cluster);
 
     assert(grid_idx_is_valid(name_idx));
     assert(grid_idx_is_valid(header_idx));
