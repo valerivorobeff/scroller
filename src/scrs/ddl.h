@@ -2,6 +2,7 @@
 #define _DDL_H_
 
 #include "scrc.h"
+#include "table.h"
 #include <stddef.h>
 
 typedef struct Session Session;
@@ -15,7 +16,7 @@ typedef struct Decl {
 ScrcStatus create_user(const char *user);
 ScrcStatus create_catalog(const char *catalog);
 ScrcStatus create_schema(Session *session, const char *schema);
-ScrcStatus create_table(Session *session, const char *schema, const char *tname, const Decl *decls);
+ScrcStatus create_table(Session *session, const char *schema, const char *tname, const Decl *decls, GridContent data_content);
 
 #endif /* _DDL_H_ */
 

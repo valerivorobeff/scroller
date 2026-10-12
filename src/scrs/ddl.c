@@ -1,8 +1,8 @@
 #include "ddl.h"
 #include "server.h"
 #include "session.h"
-#include "table.h"
 #include "type.h"
+#include "tran.h"
 #include "pagecache.h"
 #include "sequence.h"
 #include "array.h"
@@ -11,7 +11,7 @@
 ScrcStatus create_user(const char *user);
 ScrcStatus create_catalog(const char *catalog);
 ScrcStatus create_schema(Session *session, const char *schema);
-ScrcStatus create_table(Session *session, const char *schema, const char *tname, const Decl *decls);
+ScrcStatus create_table(Session *session, const char *schema, const char *tname, const Decl *decls, GridContent data_content);
 
 ScrcStatus
 create_user(const char *user) {
@@ -23,7 +23,7 @@ create_user(const char *user) {
 
     assert(header && grid_idx_is_valid(name_idx));
 
-    row = table_alloc_row(&gp_user);
+    table_alloc_row(&row, &gp_user);
 
     if (!titor_is_valid(row))
         return SCRS_SEQUENCE_OVERFLOW;
@@ -57,7 +57,7 @@ create_catalog(const char *catalog) {
         grid_idx_is_valid(name_idx) &&
         grid_idx_is_valid(tran_idx));
 
-    row = table_alloc_row(&gp_catalog);
+    table_alloc_row(&row, &gp_catalog);
 
     if (!titor_is_valid(row))
         return SCRS_SEQUENCE_OVERFLOW;
@@ -122,7 +122,7 @@ create_schema(Session *session, const char *schema) {
             grid_idx_is_valid(catalog_idx)
             && grid_idx_is_valid(schema_idx));
 
-    row = table_alloc_row(&gp_schema);
+    table_alloc_row(&row, &gp_schema);
 
     if (!titor_is_valid(row))
         return SCRS_SEQUENCE_OVERFLOW;
@@ -143,7 +143,7 @@ create_schema(Session *session, const char *schema) {
 }
 
 ScrcStatus
-create_table(Session *session, const char *schema, const char *tname, const Decl *decls) {
+create_table(Session *session, const char *schema, const char *tname, const Decl *decls, GridContent data_content) {
     int ret;
     int64_t currval;
     Gid new_gid;        /* Gid of the new table header */
@@ -176,7 +176,16 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     new_gid = (Gid) { .parts = { .file_id = currval, .page = 0 } };
 
     table = pagecache_put_page(g_pagecache, new_gid); /* Init header table */
-    table = htable_init(table, PAGESZ, GL_FIXED, GC_MVCC);
+    table = htable_init(table, PAGESZ, GL_FIXED, GC_PURE);
+
+    /* Adding mvcc columns */
+    if (data_content == GC_MVCC) {
+        if (htable_add_column(table, "*tmin", T_TRANID, 0) == NULL)
+            return SCRS_BAD_ALLOC;
+
+        if (htable_add_column(table, "*tmax", T_TRANID, 0) == NULL)
+            return SCRS_BAD_ALLOC;
+    }
 
     /* Add columns */
     for (int i = 0, ie = array_size(decls); i != ie; ++i) {
@@ -186,7 +195,7 @@ create_table(Session *session, const char *schema, const char *tname, const Decl
     }
 
     /* Add a new row of the new table into relation table */
-    row = table_alloc_row(&gp_relation);
+    table_alloc_row(&row, &gp_relation);
 
     if (!titor_is_valid(row))
         return SCRS_SEQUENCE_OVERFLOW;

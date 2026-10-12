@@ -102,11 +102,11 @@ cmd:
     }
     |
     CREATE TABLE STRING STRING ARRAY_BEGIN decls ARRAY_END {
-        session_send_status(session, create_table(session, $3, $4, (Decl *)cmd->current));
+        session_send_status(session, create_table(session, $3, $4, (Decl *)cmd->current, GC_MVCC));
     }
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { cmd->current = NULL; } ARRAY_BEGIN values ARRAY_END {
-        session_send_status(session, insert(session, $2, $3, (const char **)$5, $9));
+        session_send_status(session, insert(session, $2, $3, (const char **)$5, $9, GC_MVCC));
     }
     |
     DELETE STRING STRING {
@@ -114,11 +114,6 @@ cmd:
         ScrcStatus res = dml_delete(session, $2, $3, &row);
 
         if (res == SCRS_OK) {
-            /* Response header */
-            session_send_header_int(session, "Status", SCRC_OK);
-            session_finish_header(session);
-            flog("Delete response header sent");
-
             cmd->titor = row;
             cmd->bc.titor = row;
         } else
@@ -149,7 +144,7 @@ cmd:
             scrc_cmd = SCRC_CMD_ROW;
 
             for (size_t i = 0; ; ++i) {
-                Column *c = htable_get_column(row.header, i);
+                Column *c = htable_get_column(row.m.header, i);
 
                 if (c == NULL)
                     break;
@@ -193,15 +188,16 @@ delete_mb_where:
         Titor row = cmd->titor;
 
         if (titor_is_valid(row)) {
-            ScrcStatus status = dml_delete_row(session, cmd->titor);
-            if (status != SCRS_OK) {
-                session_send_status(session, status);
-                YYABORT;
+            for (; titor_is_valid(row); titor_next(&row)) {
+                ScrcStatus status = dml_delete_row(session, row);
+                if (status != SCRS_OK) {
+                    session_send_status(session, status);
+                    YYABORT;
+                }
             }
-        }
 
-        titor_next(&row);
-        cmd->titor = row;
+            cmd->titor = row;
+        }
     }
     |
     WHERE delete_where
@@ -219,7 +215,7 @@ delete_where_line:
 
         if (titor_is_valid(row)) {
             if ($1) {
-                ScrcStatus status = dml_delete_row(session, cmd->titor);
+                ScrcStatus status = dml_delete_row(session, row);
                 if (status != SCRS_OK) {
                     session_send_status(session, status);
                     YYABORT;
@@ -444,7 +440,7 @@ value:
                 goto fin;
             }
 
-            header = cmd->titor.header;
+            header = cmd->titor.m.header;
 
             for (size_t i = 0; ; ++i) {
                 Column *c = htable_get_column(header, i);

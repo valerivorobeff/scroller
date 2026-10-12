@@ -22,10 +22,11 @@
  * @return GidPair of relation, if relation not found returns grid with header.full = GID_UNDEF and data.full = GID_UNDEF
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef);
-ScrcStatus tran_put(Session *session, Tran **out);
+
+static ScrcStatus tran_put(Session *session, Tran **out);
 
 ScrcStatus
-insert(Session *session, const char *schema, const char *table, const char **names, Datum *values) {
+insert(Session *session, const char *schema, const char *table, const char **names, Datum *values, GridContent content) {
     GidPair gp_relation = find_relation(session, schema, table, true, true);
     Grid *header;
     Titor row;
@@ -47,19 +48,19 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     assert(header);
 
     /* Create transaction id if not present */
-    if (header->content == GC_MVCC) {
+    if (content == GC_MVCC) {
         if (session->tran == NULL) {
             ScrcStatus ret = tran_put(session, &session->tran);
             if (ret != SCRS_OK)
                 return ret;
         }
 
-        /* Put mvcc columns */
+        /* Put mvcc columns, they should open mvcc rows */
         array_put(names, "*tmin");
-        array_put(values, make_bigint(session->tran->key));  /* Transaction id */
+        array_put(values, make_tranid(session->tran->key));  /* Transaction id */
 
         array_put(names, "*tmax");
-        array_put(values, make_bigint(0));  /* Should be 0 */
+        array_put(values, make_tranid(TRAN_INVALID_ID));  /* Should be 0 */
     }
 
     /* Get indices of all the queried columns */
@@ -78,7 +79,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     }
 
     /* Allocate a new row in the table, note that table_alloc_row can update gp_relation */
-    row = table_alloc_row(&gp_relation);
+    table_alloc_row(&row, &gp_relation);
     if (!titor_is_valid(row))
         return SCRS_SEQUENCE_OVERFLOW;
 
@@ -111,21 +112,21 @@ dml_delete(Session *session, const char *schema, const char *table, Titor *out) 
 
     /* Check if table is empty */
     if (gp_relation.data.full == GID_UNDEF) {
-        *out = titor_init(gp_relation, header, NULL);
+        *out = titor_init_invalid();
         return SCRS_OK;
-    }
-
-    /* Create transaction id if not present */
-    if (header->content == GC_MVCC && session->tran == NULL) {
-        ScrcStatus ret = tran_put(session, &session->tran);
-        if (ret != SCRS_OK)
-            return ret;
     }
 
     /* Load table data */
     data = pagecache_put_page(g_pagecache, gp_relation.data);
 
-    *out = titor_init(gp_relation, header, data);
+    /* Create transaction id if not present */
+    if (data->content == GC_MVCC && session->tran == NULL) {
+        ScrcStatus ret = tran_put(session, &session->tran);
+        if (ret != SCRS_OK)
+            return ret;
+    }
+
+    *out = titor_init(session->tran, gp_relation, header, data);
 
     return SCRS_OK;
 }
@@ -134,19 +135,19 @@ ScrcStatus
 dml_delete_row(Session *session, Titor row) {
     ScrcStatus ret = SCRS_OK;
 
-    switch (row.data->content) {
+    switch (row.m.data->content) {
         case GC_PURE:
-            mitor_delete(&row);
+            mitor_delete(&row.m);
             break;
 
         case GC_MVCC:
             int tpd_ret;
-            const uint16_t tmax_idx = htable_get_column_idx(row.header, "*tmax");
+            (void)tpd_ret; /* Avoid warning in release build */
 
-            assert(grid_idx_is_valid(tmax_idx));
+            assert(htable_get_column_idx(row.m.header, "*tmax") == TMAX_IDX);
             assert(session->tran->key);
 
-            tpd_ret = titor_put_datum(row, tmax_idx, make_bigint(session->tran->key));
+            tpd_ret = titor_put_datum(row, TMAX_IDX, make_tranid(session->tran->key));
             assert(tpd_ret == 0);
 
             /* @todo We put GidPair gp into Mitor struct only because we need GidPair here
@@ -155,13 +156,16 @@ dml_delete_row(Session *session, Titor row) {
              * It is worth to find out another way how to find this Gid rather than store it
              * in Mitor
              */
-            pagecache_flush(g_pagecache, row.gp.data);
+            pagecache_flush(g_pagecache, row.m.gp.data);
             break;
     }
 
     return ret;
 }
 
+/*
+ * This function creates and prepares Titor for select but doesn't fetch rows
+ */
 ScrcStatus
 dml_select(Session *session, const char *schema, const char *table, const char **names, Titor *out) {
     GidPair gp_relation = find_relation(session, schema, table, false, false);
@@ -197,21 +201,21 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
     /* Check if table is empty */
     if (gp_relation.data.full == GID_UNDEF) {
-        *out = titor_init(gp_relation, header, NULL);
+        *out = titor_init_invalid();
         return SCRS_OK;
-    }
-
-    /* Create transaction id if not present */
-    if (header->content == GC_MVCC && session->tran == NULL) {
-        ScrcStatus ret = tran_put(session, &session->tran);
-        if (ret != SCRS_OK)
-            return ret;
     }
 
     /* Load table data */
     data = pagecache_put_page(g_pagecache, gp_relation.data);
 
-    *out = titor_init(gp_relation, header, data);
+    /* Create transaction id if not present */
+    if (data->content == GC_MVCC && session->tran == NULL) {
+        ScrcStatus ret = tran_put(session, &session->tran);
+        if (ret != SCRS_OK)
+            return ret;
+    }
+
+    *out = titor_init(session->tran, gp_relation, header, data);
 
     return SCRS_OK;
 }
@@ -235,7 +239,7 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
             grid_idx_is_valid(data_gid_idx) &&
             grid_idx_is_valid(tail_gid_idx));
 
-    for (Titor i = titor_init(g_server.system.relation, hrelation, drelation); titor_is_valid(i); titor_next(&i)) {
+    for (Titor i = titor_init(session->tran, g_server.system.relation, hrelation, drelation); mitor_is_valid(i.m); titor_next(&i)) {
         const Datum dcatalog = titor_get_datum(i, catalog_idx);
         const Datum dschema = titor_get_datum(i, schema_idx);
         const Datum drelation = titor_get_datum(i, relation_idx);
@@ -291,8 +295,7 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
     };
 }
 
-/* @todo it is better to move this function to tran.h and tran.c files */
-ScrcStatus
+static ScrcStatus
 tran_put(Session *session, Tran **out) {
     Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
     Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);
@@ -310,7 +313,7 @@ tran_put(Session *session, Tran **out) {
 
     /* Find catalog transaction sequence gid */
     /* @todo maybe it is better to load catalog transaction sequence gid during initialization */
-    for (Titor i = titor_init(g_server.system.catalog, hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
+    for (Titor i = titor_init(session->tran, g_server.system.catalog, hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
         const Datum dcatalog = titor_get_datum(i, name_idx);
 
         if (eq_character(dcatalog, make_char((char *)session->catalog))) {

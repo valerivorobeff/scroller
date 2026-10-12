@@ -3,17 +3,28 @@
 
 #include "mesh.h"
 
-typedef Mitor Titor;
+typedef struct Tran Tran;
 
-#define titor_init(g, h, d) mitor_init(g, h, d)
-#define titor_init_invalid() mitor_init_invalid()
-#define titor_is_valid(titor) mitor_is_valid(titor)
-#define titor_next(titor) mitor_next(titor)
-#define titor_get_row(m) mitor_get_row(m)
-#define titor_get_row_size(m) mitor_get_row_size(m)
-#define titor_get_cell(m, c) mitor_get_cell(m, c)
-#define titor_get_datum(m, c) mitor_get_datum(m, c)
-#define titor_put_datum(m, c, datum) mitor_put_datum(m, c, datum)
+typedef struct Titor {
+    Mitor m;
+    Tran *tran;
+} Titor;
+
+Titor titor_init(Tran *tran, GidPair gp, Grid *header, Grid *data);
+#define titor_init_invalid() (Titor){ .m = mitor_init_invalid(), .tran = NULL }
+#define titor_is_valid(t) (mitor_is_valid((t).m) && ((t).m.data->content == GC_PURE || (t).tran != NULL))
+void titor_next(Titor *titor);
+#define titor_get_row(t) mitor_get_row((t).m)
+#define titor_get_row_size(t) mitor_get_row_size((t).m)
+#define titor_get_cell(t, c) mitor_get_cell((t).m, c)
+#define titor_get_datum(t, c) mitor_get_datum((t).m, c)
+#define titor_put_datum(t, c, datum) mitor_put_datum((t).m, c, datum)
+
+/** @note The following constants can be calculated on the fly
+ *          but are intruduced here for performance issues, which means that
+ *          tmin and tmax should open mvcc tables */
+#define TMIN_IDX    0   /**< tmax clumn index in mvcc table */
+#define TMAX_IDX    1   /**< tmax clumn index in mvcc table */
 
 /**
  * @note We don't implement function table_init as we have to know if
@@ -23,12 +34,13 @@ typedef Mitor Titor;
 
  /* @brief Allocates a new row in the Mesh.
  *
+ * @param tran      Transaction
  * @param tail      pointer to tail gid of the Mesh. If row is allocated in
  *                  a new grid, tail data gid is changed to the new grid's
  *                  gid.
  * @return          Mitor of the new allocated row
  */
-Titor table_alloc_row(GidPair *tail);
+void table_alloc_row(Titor *titor, GidPair *tail);
 
 /**
  * @brief Adds a new column definition to a header grid.
