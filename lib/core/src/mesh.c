@@ -73,6 +73,8 @@ mitor_next(Mitor *mitor) {
 void
 mitor_delete(Mitor *mitor) {
     uint16_t ret = grid_delete_row(mitor->data, mitor->row);
+    (void) ret; /* Avoid warning in release build */
+
     assert(ret != GRID_INVALID_IDX);
 }
 

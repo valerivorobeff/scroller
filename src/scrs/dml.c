@@ -22,7 +22,8 @@
  * @return GidPair of relation, if relation not found returns grid with header.full = GID_UNDEF and data.full = GID_UNDEF
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef);
-ScrcStatus tran_put(Session *session, Tran **out);
+
+static ScrcStatus tran_put(Session *session, Tran **out);
 
 ScrcStatus
 insert(Session *session, const char *schema, const char *table, const char **names, Datum *values, GridContent content) {
@@ -141,6 +142,8 @@ dml_delete_row(Session *session, Titor row) {
 
         case GC_MVCC:
             int tpd_ret;
+            (void)tpd_ret; /* Avoid warning in release build */
+
             assert(htable_get_column_idx(row.m.header, "*tmax") == TMAX_IDX);
             assert(session->tran->key);
 
@@ -292,8 +295,7 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
     };
 }
 
-/* @todo it is better to move this function to tran.h and tran.c files */
-ScrcStatus
+static ScrcStatus
 tran_put(Session *session, Tran **out) {
     Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
     Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);

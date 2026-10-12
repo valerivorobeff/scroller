@@ -18,8 +18,8 @@ titor_init(Tran *tran, GidPair gp, Grid *header, Grid *data) {
             break;
 
         case GC_MVCC:
-            Datum tmin = titor_get_datum(ret, TMIN_IDX);
-            Datum tmax = titor_get_datum(ret, TMAX_IDX);
+            const Datum tmin = titor_get_datum(ret, TMIN_IDX);
+            const Datum tmax = titor_get_datum(ret, TMAX_IDX);
 
             assert(tran != NULL);
 
@@ -55,8 +55,8 @@ titor_next(Titor *titor) {
                 if (!mitor_is_valid(titor->m))
                     break;
 
-                Datum tmin = mitor_get_datum(titor->m, TMIN_IDX);
-                Datum tmax = mitor_get_datum(titor->m, TMAX_IDX);
+                const Datum tmin = mitor_get_datum(titor->m, TMIN_IDX);
+                const Datum tmax = mitor_get_datum(titor->m, TMAX_IDX);
 
                 if (tran_row_is_visible(titor->tran, (tran_t)tmin.value.integer, (tran_t)tmax.value.integer))
                     break;
@@ -91,7 +91,7 @@ dtable_init(Page page, uint16_t pagesz, GridLayout layout, GridContent content, 
 
 /* @todo check if parameter tail can be fetched from parameter titor and
  * should not be parameter of this function */
-/* @todo interfface of this function looks strange. It actually can return a ScrcStatus
+/* @todo interface of this function looks strange. It actually can return a ScrcStatus
  * basing on which mitor mesh_alloc_row returns */
 void
 table_alloc_row(Titor *titor, GidPair *tail) {
