@@ -21,8 +21,8 @@ typedef struct Tran {
 } Tran;
 
 typedef enum TranFlag {
-    TF_COMMITED = 0,
-    TF_ABORTED  = 1
+    TF_ABORTED  = 0,
+    TF_COMMITED = 1
 } TranFlag;
 
 /**
