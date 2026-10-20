@@ -168,6 +168,8 @@ server_init(int argc, char *argv[]) {
         } else if (eq_character(name, make_char("relation"))) {
             g_server.system.relation.header = (Gid){ .parts = { .file_id = header.value.bigint, .page = 0 }};
             g_server.system.relation.data = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
+        } else if (eq_character(name, make_char("tran"))) {
+            g_server.system.tran = (Gid){ .parts = { .file_id = data.value.bigint, .page = 0 }};
         } else {
             /* @todo: there is no way to show Datum as char *, I should make a function for it */
             ferr("Unknown parameter '%s' in cluster table", datum_sdup(name));

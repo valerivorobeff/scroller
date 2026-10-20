@@ -12,11 +12,14 @@ typedef struct Cmd Cmd;
 #include "array.h"
 #include "memory.h"
 #include "type.h"
+#include "pagecache.h"
+//#include "../../../../src/scrs/server.h"
 #include "../../../../src/scrs/session.h"
 #include "../../../../src/scrs/query.h"
 #include "../../../../src/scrs/cmd.h"
 #include "../../../../src/scrs/flog.h"
 #include <sys/socket.h>
+//#include <assert.h>
 static int execute_cmd(Session *session, Cmd *cmd);
 static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query *query, Cmd *cmd, char const *s);
 }
@@ -83,7 +86,40 @@ header_exprs:
 header_expr:
     USER ':' STRING '\n' { session->user = sdup($3); }
     |
-    CATALOG ':' STRING '\n' { session->catalog = sdup($3); }
+    CATALOG ':' STRING '\n' {
+        session->catalog = sdup($3);
+#if 0
+        Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
+        Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);
+        const uint16_t name_idx = htable_get_column_idx(hcatalog, "name");
+        const uint16_t tran_sequence_idx = htable_get_column_idx(hcatalog, "tran_sequence");
+        bool found = false;
+
+        assert(hcatalog && catalog &&
+                grid_idx_is_valid(name_idx) &&
+                grid_idx_is_valid(tran_sequence_idx));
+
+        /* Find catalog transaction sequence gid */
+        for (Titor i = titor_init(session->tran, g_server.system.catalog, hcatalog, catalog); titor_is_valid(i); titor_next(&i)) {
+            const Datum dcatalog = titor_get_datum(i, name_idx);
+
+            if (eq_character(dcatalog, make_char((char *)$3))) {
+                const Datum dsequence = titor_get_datum(i, tran_sequence_idx);
+                assert(dsequence.value.bigint != GID_UNDEF);
+                session->catalog = sdup($3);
+                session->catalog_tran_sequence_gid = (Gid) { .full = dsequence.value.bigint };
+                found = true;
+
+                break;
+            }
+        }
+
+        if (!found) {
+            flog("Unlnown catalog '%s'", $3);
+            session_send_status(session, SCRS_UNKNOWN_CATALOG);
+        }
+#endif
+    }
     ;
 
 queries:

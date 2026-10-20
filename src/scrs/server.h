@@ -58,6 +58,7 @@ typedef struct Server {
         GidPair catalog;        /**< Catalog table GidPair */
         GidPair schema;         /**< Schema table GidPair */
         GidPair relation;       /**< Relation table GidPair */
+        Gid     tran;           /**< Tran page Gid */
         const char *encoding;   /**< Encoding */
         size_t pagecachesz[2];  /**< PageCache size - [0]: buckets, [1]: chains */
         size_t fdcachesz[2];    /**< File descriptor cache size - [0]: buckets, [1]: chains */
@@ -66,7 +67,7 @@ typedef struct Server {
 } Server;
 
 /**
- * @brief Global server struct (not integprocess shared, just forked)
+ * @brief Global server struct (not interprocess shared, just forked)
  */
 extern Server g_server;
 

@@ -28,6 +28,7 @@ session_init(Session *session) {
     session->client_fd = -1;
     session->user = NULL;
     session->catalog = NULL;
+    session->catalog_tran_sequence_gid = (Gid) { .full = GID_UNDEF };
 
     /* @note We don't set transaction id here and create it later when necessary.
      * Because we actually need transaction id if only we update data

@@ -16,6 +16,7 @@ ssize_t get_block_size(const char *fname);
 
 PageCache *g_pagecache = NULL;
 Tran *g_tran = NULL;
+Server g_server;
 
 GidPair gp_cluster;
 GidPair g_sequence; /* Global sequence is used by Mesh */
@@ -51,6 +52,7 @@ init_cluster(const char *path) {
         GidPair gp_catalog;
         GidPair gp_schema;
         GidPair gp_relation;
+        Gid g_tran;
         int64_t sequence_start = calculate_sequence_start();
         Page hsequence;
         Page sequence;
@@ -64,6 +66,7 @@ init_cluster(const char *path) {
         Page schema;
         Page hrelation;
         Page relation;
+        Page tran;
         int64_t currval;
         uint16_t name_idx;
         uint16_t string_idx;
@@ -307,6 +310,30 @@ init_cluster(const char *path) {
 
         /* Add relation table GidPair to cluster table */
         add_gid_pair(hcluster, "relation", gp_relation);
+
+        /**********************************************************************
+         *
+         * Tran
+         *
+         *********************************************************************/
+
+        /*
+         * Init tran page
+         * @note tran is just a page not a grid. It has its own layout
+         * @todo maybe it is worth to make tran an ordinary grid with only one
+         *       row and one column of type variable bitset, note that the below
+         *       is not implemented
+         */
+        sequence_nextval(hsequence, sequence, &currval);
+        g_tran = (Gid){ .parts = { .file_id = currval, .page = 0 }};
+
+        tran = pagecache_put_page(g_pagecache, g_tran);
+        memset(tran , 0, PAGESZ);
+
+        pagecache_flush(g_pagecache, g_tran);
+
+        /* Add tran Gid to cluster table */
+        add_gid_pair(hcluster, "tran", (GidPair){ .header.full = GID_UNDEF, .data = g_tran });
 
         /**********************************************************************
          *

@@ -23,7 +23,7 @@
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef);
 
-static ScrcStatus tran_put(Session *session, Tran **out);
+static ScrcStatus tran_put(Session *session, bool autocommit, Tran **out);
 
 ScrcStatus
 insert(Session *session, const char *schema, const char *table, const char **names, Datum *values, GridContent content) {
@@ -50,7 +50,7 @@ insert(Session *session, const char *schema, const char *table, const char **nam
     /* Create transaction id if not present */
     if (content == GC_MVCC) {
         if (session->tran == NULL) {
-            ScrcStatus ret = tran_put(session, &session->tran);
+            ScrcStatus ret = tran_put(session, true, &session->tran);
             if (ret != SCRS_OK)
                 return ret;
         }
@@ -121,7 +121,7 @@ dml_delete(Session *session, const char *schema, const char *table, Titor *out) 
 
     /* Create transaction id if not present */
     if (data->content == GC_MVCC && session->tran == NULL) {
-        ScrcStatus ret = tran_put(session, &session->tran);
+        ScrcStatus ret = tran_put(session, true, &session->tran);
         if (ret != SCRS_OK)
             return ret;
     }
@@ -210,7 +210,7 @@ dml_select(Session *session, const char *schema, const char *table, const char *
 
     /* Create transaction id if not present */
     if (data->content == GC_MVCC && session->tran == NULL) {
-        ScrcStatus ret = tran_put(session, &session->tran);
+        ScrcStatus ret = tran_put(session, true, &session->tran);
         if (ret != SCRS_OK)
             return ret;
     }
@@ -296,7 +296,7 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
 }
 
 static ScrcStatus
-tran_put(Session *session, Tran **out) {
+tran_put(Session *session, bool autocommit, Tran **out) {
     Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
     Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);
     const uint16_t name_idx = htable_get_column_idx(hcatalog, "name");
@@ -332,9 +332,12 @@ tran_put(Session *session, Tran **out) {
     if (sequence_nextval(hsequence, catalog_sequence, &tranid)) /* Increment catalog transaction sequence */
         return SCRS_SEQUENCE_OVERFLOW;
 
-    ttmp = ihash_put_key(g_tran, tranid);  /* Put transaction into cache */
+    ttmp = ihash_put_struct(g_tran, &((Tran){ tranid, autocommit }));  /* Put transaction into cache */
     if (ttmp == NULL)
         return SCRS_TRANSACTION_CACHE_OVERFLOW;
+
+    if (autocommit)
+        tran_flag_put(tranid, TF_COMMITED);
 
     *out = ttmp;
 
