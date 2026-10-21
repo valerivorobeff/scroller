@@ -23,7 +23,7 @@
  */
 static GidPair find_relation(Session *session, const char *schema, const char *relation, bool return_tail, bool create_if_data_undef);
 
-static ScrcStatus tran_put(Session *session, bool autocommit, Tran **out);
+ScrcStatus tran_put(Session *session, bool autocommit, Tran **out);
 
 ScrcStatus
 insert(Session *session, const char *schema, const char *table, const char **names, Datum *values, GridContent content) {
@@ -295,7 +295,8 @@ find_relation(Session *session, const char *schema, const char *relation, bool r
     };
 }
 
-static ScrcStatus
+/* @todo it is better to move this function to tran.c */
+ScrcStatus
 tran_put(Session *session, bool autocommit, Tran **out) {
     Grid *hcatalog = pagecache_put_page(g_pagecache, g_server.system.catalog.header);
     Grid *catalog = pagecache_put_page(g_pagecache, g_server.system.catalog.data);

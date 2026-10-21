@@ -51,6 +51,7 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %token <str> ID
 %token CREATE
 %token SCHEMA TABLE
+%token START TRANSACTION COMMIT ROLLBACK
 %token INSERT INTO VALUES
 %token DELETE
 %token SELECT FROM WHERE
@@ -204,6 +205,18 @@ cmd:
             ferr("Parameter 'catalog' not found in query header");
         else
             bc_put(&cmd->bc, ((BcNode){ .token = BC_ARRAY_END }));
+    }
+    |
+    START TRANSACTION {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_START_TRAN }));
+    }
+    |
+    COMMIT {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_COMMIT }));
+    }
+    |
+    ROLLBACK {
+        bc_put(&cmd->bc, ((BcNode){ .token = BC_ROLLBACK }));
     }
     |
     INSERT INTO ID '.' ID {

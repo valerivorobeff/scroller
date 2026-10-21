@@ -79,6 +79,10 @@ QUOTED          \'(\\.|[^\'])*\'
     "select"            return SELECT;
     "from"              return FROM;
     "where"             return WHERE;
+    "start"             return START;
+    "transaction"       return TRANSACTION;
+    "commit"            return COMMIT;
+    "rollback"          return ROLLBACK;
     "smallint"          return SMALLINT;
     "integer"           return INTEGER;
     "int"               return INTEGER;
