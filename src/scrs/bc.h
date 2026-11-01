@@ -6,19 +6,26 @@
 #include <stddef.h>
 
 typedef struct Cmd Cmd;
+typedef struct Context Context;
 
 typedef struct BcNode {
     int token;
     Y2STYPE value;
 } BcNode;
 
+/**
+ * @brief Bytecode struct
+ * @note we just use cont pointer as a memory context initialized, reset and dropped
+ *      somewhwre outside bytecode functional, we don't manage it
+ */
 typedef struct Bc {
     size_t itor;        /**< Currect bytecode token */
     Titor titor;        /**< Special titor for bc inner row calculation */
     BcNode *tokens;     /**< Array of tokens */
+    Context *cont;      /**< Memory context for bytecode */
 } Bc;
 
-Bc *bc_init(Bc *bc);
+Bc *bc_init(Bc *bc, Context *cont);
 void bc_drop(Bc *bc);
 void bc_clear(Bc *bc);
 void bc_reset(Bc *bc);

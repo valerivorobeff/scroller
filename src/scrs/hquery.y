@@ -64,7 +64,11 @@ static void yyerror(YYLTYPE *location, yyscan_t scanner, Session *session, Query
 %%
 
 session:
-    header queries
+    header {
+        context_push(cmd->str_cont);    /* push str_cont context and make it default */
+    } queries {
+        context_pop();                  /* pop back to session context */
+    }
     ;
 
 header:

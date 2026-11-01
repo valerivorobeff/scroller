@@ -8,6 +8,7 @@ typedef struct Session Session;
 
 %code {
 #include "array.h"
+#include "memory.h"
 #include "../../../../src/scrs/cmd.h"
 #include "../../../../src/scrs/bc.h"
 #include "../../../../src/scrs/ddl.h"
@@ -120,7 +121,7 @@ cmd:
     }
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { cmd->current = NULL; } ARRAY_BEGIN values ARRAY_END {
-        session_send_status(session, insert(session, $2, $3, (const char **)$5, $9, GC_MVCC));
+        session_send_status(session, insert(session, cmd, $2, $3, (const char **)$5, $9, GC_MVCC));
     }
     |
     DELETE STRING STRING {
@@ -405,7 +406,7 @@ decls:
 decl:
     SIZE_T TYPE STRING {
         Decl *decl = cmd->current;
-        array_put(decl, ((Decl){ .name = $3, .size = $1, .type = $2 }));
+        cmd_current_put(cmd, decl, ((Decl){ .name = $3, .size = $1, .type = $2 }));
         cmd->current = decl;
     }
     ;
@@ -413,7 +414,7 @@ decl:
 strings:
     STRING {
         char **str = cmd->current;
-        array_put(str, $1);
+        cmd_current_put(cmd, str, $1);
         cmd->current = str;
         $$ = str;
         flog("y2: %s", $1);
@@ -421,7 +422,7 @@ strings:
     |
     strings STRING {
         char **str = cmd->current;
-        array_put(str, $2);
+        cmd_current_put(cmd, str, $2);
         cmd->current = str;
         $$ = str;
         flog("y2: %s", $2);
@@ -431,14 +432,14 @@ strings:
 values:
     value {
         Datum *d = cmd->current;
-        array_put(d, $1);
+        cmd_current_put(cmd, d, $1);
         cmd->current = d;
         $$ = d;
     }
     |
     values value {
         Datum *d = cmd->current;
-        array_put(d, $2);
+        cmd_current_put(cmd, d, $2);
         cmd->current = d;
         $$ = d;
     }

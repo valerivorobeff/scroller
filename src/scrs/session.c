@@ -50,7 +50,7 @@ session_run(Session *session) {
     int ret = 0;
     const int client_fd = session->client_fd;
     FILE *fstream;
-    Context *session_context = linear_context_create(MEMORY_PAGESZ * 256 * 256);
+    Context *session_context = linear_context_create(MEMORY_PAGESZ * 256);
     Context *flex_context = bump_context_create(MEMORY_PAGESZ * 16);
 
     yyscan_t scanner;
@@ -60,7 +60,8 @@ session_run(Session *session) {
     context_add_child(session_context, flex_context);
 
     context_add_child(context_get_current(), session_context);
-    context_push(session_context);
+
+    context_push(session_context);  /* push session_context context and make it default */
 
     query_init(&query);
     cmd_init(&cmd);
@@ -114,7 +115,7 @@ session_run(Session *session) {
 
     cmd_drop(&cmd);
     query_drop(&query);
-    context_pop();
+    context_pop();                  /* pop back to global context */
     context_drop(session_context);
 
     return ret;

@@ -5,9 +5,10 @@
 #include "scrc.h"
 
 typedef struct Session Session;
+typedef struct Cmd Cmd;
 typedef struct Datum Datum;
 
-ScrcStatus insert(Session *session, const char *schema, const char *table, const char **names, Datum *values, GridContent content);
+ScrcStatus insert(Session *session, Cmd *cmd, const char *schema, const char *table, const char **names, Datum *values, GridContent content);
 ScrcStatus dml_delete(Session *session, const char *schema, const char *table, Titor *out);
 ScrcStatus dml_delete_row(Session *session, Titor row);
 ScrcStatus dml_select(Session *session, const char *schema, const char *table, const char **names, Titor *out);

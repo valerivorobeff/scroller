@@ -2,6 +2,7 @@
 #include "table.h"
 #include "server.h"
 #include "session.h"
+#include "cmd.h"
 #include "type.h"
 #include "pagecache.h"
 #include "sequence.h"
@@ -26,7 +27,7 @@ static GidPair find_relation(Session *session, const char *schema, const char *r
 ScrcStatus tran_put(Session *session, bool autocommit, Tran **out);
 
 ScrcStatus
-insert(Session *session, const char *schema, const char *table, const char **names, Datum *values, GridContent content) {
+insert(Session *session, Cmd *cmd, const char *schema, const char *table, const char **names, Datum *values, GridContent content) {
     GidPair gp_relation = find_relation(session, schema, table, true, true);
     Grid *header;
     Titor row;
@@ -56,11 +57,11 @@ insert(Session *session, const char *schema, const char *table, const char **nam
         }
 
         /* Put mvcc columns, they should open mvcc rows */
-        array_put(names, "*tmin");
-        array_put(values, make_tranid(session->tran->key));  /* Transaction id */
+        cmd_current_put(cmd, names, "*tmin");
+        cmd_current_put(cmd, names, "*tmax");
 
-        array_put(names, "*tmax");
-        array_put(values, make_tranid(TRAN_INVALID_ID));  /* Should be 0 */
+        cmd_current_put(cmd, values, make_tranid(session->tran->key));  /* Transaction id */
+        cmd_current_put(cmd, values, make_tranid(TRAN_INVALID_ID));  /* Should be 0 */
     }
 
     /* Get indices of all the queried columns */
