@@ -108,6 +108,7 @@ start_server() {
 # === Run single test ===
 run_test() {
     local sql_file="$1"
+    local test_catalog="$2"
     local name
     name=$(basename "$sql_file" .sql)
 
@@ -118,7 +119,7 @@ run_test() {
 
     # Run SQL through client
     if ! "$SCRC" -h localhost -p "$SERVER_PORT" \
-                 -u "$TEST_USER" -c "$TEST_CATALOG" \
+                 -u "$TEST_USER" -c "$test_catalog" \
                  -f "$sql_file" > "$result_file" 2>&1; then
         echo -e "${RED}FAILED (client error)${NC}"
         return 1
@@ -165,15 +166,28 @@ main() {
     local failed=0
     local skipped=0
 
-    # Run all SQL files in numeric order
-    mapfile -t sql_files < <(printf '%s\n' "$SQL_DIR"/*.sql | sort -V)
+    # Run initialization SQL file
+    if [ -f "$SQL_DIR/init.sql" ]; then
+        if run_test "$SQL_DIR/init.sql" ""; then
+            passed=$((passed + 1))
+        else
+            failed=$((failed + 1))
+        fi
+    fi
 
-    for sql_file in "$SQL_DIR"/*.sql; do
+    # Run all SQL files in numeric order (excluding init.sql)
+    mapfile -t sql_files < <(
+        printf '%s\n' "$SQL_DIR"/*.sql \
+            | grep -vxF "$SQL_DIR/init.sql" \
+            | sort -V
+    )
+
+    for sql_file in "${sql_files[@]}"; do
         if [ ! -f "$sql_file" ]; then
             continue
         fi
 
-        if run_test "$sql_file"; then
+        if run_test "$sql_file" "$TEST_CATALOG"; then
             passed=$((passed + 1))
         else
             failed=$((failed + 1))
@@ -193,6 +207,7 @@ main() {
 
     if [ $failed -gt 0 ]; then
         echo -e "${RED}Some tests failed!${NC}"
+        echo -e "Use 'test/integration/update_expected.sh -a' to update expected results"
         echo "Results: $RESULTS_DIR"
         exit 1
     fi
