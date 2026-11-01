@@ -6,30 +6,25 @@
 
 Cmd *
 cmd_init(Cmd *cmd) {
-    Context *prev;
-
     assert(cmd);
 
                                             /* Create separate context for bytecode */
-    cmd->bc_cont = linear_context_create(sizeof(BcNode) * BCSZ * 2); /* @todo: calculate size of
+    cmd->bc_cont = bump_context_create(sizeof(BcNode) * BCSZ * 2); /* @todo: calculate size of
                                                                         memory contexts depending on
                                                                         size of bc array */
     assert(cmd->bc_cont);
     context_add_child(context_get_current(), cmd->bc_cont); /* Child it to session context */
 
                                             /* Create separate context for string values */
-    cmd->str_cont = linear_context_create(sizeof(const char *) * BCSZ * 2);
+    cmd->str_cont = bump_context_create(MEMORY_PAGESZ * 256 * 256);
     assert(cmd->str_cont);
     context_add_child(context_get_current(), cmd->str_cont); /* Child it to session context */
 
-    prev = context_switch(cmd->bc_cont);    /* switch to bytecode context */
-    bc_init(&cmd->bc);                      /* Initialize bytecode */
+    bc_init(&cmd->bc, cmd->bc_cont);        /* Initialize bytecode */
 
     cmd->titor = titor_init_invalid();      /* Initialize titor */
 
     cmd->current = NULL;
-
-    context_switch(prev);                   /* Switch back */
 
     return cmd;
 }

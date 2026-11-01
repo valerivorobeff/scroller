@@ -209,7 +209,7 @@ void context_push(Context *context);
  * @brief Pop previuosly pushed context and makes it globalt
  * @return Previous context
  */
-void context_pop();
+void context_pop(void);
 
 /**
  * @brief Allocate from context

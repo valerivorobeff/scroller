@@ -7,7 +7,7 @@
 typedef struct Context Context;
 
 typedef struct Cmd {
-    Context *bc_cont;       /**< COntext for bytecode */
+    Context *bc_cont;       /**< Context for bytecode */
     Context *str_cont;      /**< Context for strings */
     Bc bc;                  /**< Bytecode */
     Titor titor;            /**< Titor of current row in where expressions */

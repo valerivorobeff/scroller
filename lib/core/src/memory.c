@@ -52,7 +52,7 @@ static void *linear_context_realloc(Context *context, void *p, size_t sz);
 static void linear_context_free(Context *context, void *p);
 
 void context_push(Context *context);
-void context_pop();
+void context_pop(void);
 char *sdup(const char *src);
 
 /*
@@ -504,10 +504,10 @@ context_push(Context *context) {
 }
 
 void
-context_pop() {
+context_pop(void) {
     assert(context_stack_i != 0);
 
-    g_context = context_stack[context_stack_i--];
+    g_context = context_stack[--context_stack_i];
 }
 
 char *

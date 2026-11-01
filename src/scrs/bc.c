@@ -1,8 +1,9 @@
 #include "bc.h"
 #include "cmd.h"
 #include "array.h"
+#include "memory.h"
 
-Bc *bc_init(Bc *bc);
+Bc *bc_init(Bc *bc, Context *cont);
 void bc_drop(Bc *bc);
 void bc_clear(Bc *bc);
 void bc_reset(Bc *bc);
@@ -11,10 +12,11 @@ int bc_prepare(Bc *bc);
 int y2lex(Y2STYPE *yylval, Cmd *cmd);
 
 Bc *
-bc_init(Bc *bc) {
+bc_init(Bc *bc, Context *cont) {
     bc->itor = 0;
     bc->titor = titor_init_invalid();
     bc->tokens = NULL;
+    bc->cont = cont;
 
     return bc;
 }
@@ -41,7 +43,9 @@ bc_reset(Bc *bc) {
 
 void
 bc_put(Bc *bc, BcNode node) {
+    context_push(bc->cont);
     array_put(bc->tokens, node);
+    context_pop();
 }
 
 int
