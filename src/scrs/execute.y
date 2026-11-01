@@ -12,6 +12,7 @@ typedef struct Session Session;
 #include "../../../../src/scrs/bc.h"
 #include "../../../../src/scrs/ddl.h"
 #include "../../../../src/scrs/dml.h"
+#include "../../../../src/scrs/tcl.h"
 #include "../../../../src/scrs/session.h"
 #include "../../../../src/scrs/flog.h"
 
@@ -68,6 +69,7 @@ static void yyerror(Session *session, Cmd *cmd, char const *s);
 }
 
 %token CREATE USER CATALOG SCHEMA TABLE
+%token START_TRAN COMMIT ROLLBACK
 %token INSERT DELETE SELECT
 %token WHERE
 /* @todo I think I could use '(', ')' or '[]', ']' token pairs instead of the below */
@@ -103,6 +105,18 @@ cmd:
     |
     CREATE TABLE STRING STRING ARRAY_BEGIN decls ARRAY_END {
         session_send_status(session, create_table(session, $3, $4, (Decl *)cmd->current, GC_MVCC));
+    }
+    |
+    START_TRAN {
+        session_send_status(session, tcl_start(session));
+    }
+    |
+    COMMIT {
+        session_send_status(session, tcl_commit(session));
+    }
+    |
+    ROLLBACK {
+        session_send_status(session, tcl_rollback(session));
     }
     |
     INSERT STRING STRING ARRAY_BEGIN strings ARRAY_END { cmd->current = NULL; } ARRAY_BEGIN values ARRAY_END {

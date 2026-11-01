@@ -32,7 +32,7 @@ titor_init(Tran *tran, GidPair gp, Grid *header, Grid *data) {
             if (!titor_is_valid(ret))
                 break;
 
-            if (!tran_row_is_visible(tran, (tran_t)tmin.value.integer, (tran_t)tmax.value.integer))
+            if (!tran_row_is_visible(tran, (tran_t)tmin.value.bigint, (tran_t)tmax.value.bigint))
                 titor_next(&ret);
 
             break;
@@ -58,7 +58,7 @@ titor_next(Titor *titor) {
                 const Datum tmin = mitor_get_datum(titor->m, TMIN_IDX);
                 const Datum tmax = mitor_get_datum(titor->m, TMAX_IDX);
 
-                if (tran_row_is_visible(titor->tran, (tran_t)tmin.value.integer, (tran_t)tmax.value.integer))
+                if (tran_row_is_visible(titor->tran, (tran_t)tmin.value.bigint, (tran_t)tmax.value.bigint))
                     break;
             }
             break;

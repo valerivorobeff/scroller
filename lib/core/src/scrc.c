@@ -219,6 +219,7 @@ scrc_error(ScrcConnection *conn) {
         case SCRS_UNKNOWN_PARSER_ERROR:     return "Unknown parser error";
         case SCRS_SEND_ERROR:               return "Server send error";
         case SCRS_SESSION_CLOSED:           return "Client closed connection";
+        case SCRS_UNKNOWN_CATALOG:          return "Unknown catalog";
         case SCRS_UNKNOWN_RELATION:         return "Unknown relation";
         case SCRS_UNKNOWN_COLUMN:           return "Unknown column";
         case SCRS_BAD_ALLOC:                return "Server bad alloc";
@@ -228,6 +229,8 @@ scrc_error(ScrcConnection *conn) {
         case SCRS_BYTECODE_UNBALANCED_STACK:return "Bytecode unbalanced stack";
         case SCRS_BYTECODE_UNKNOWN_ERROR:   return "Bytecode unknown error";
         case SCRS_TRANSACTION_CACHE_OVERFLOW: return "Transaction cache overflow";
+        case SCRS_TRANSACTION_START_ERROR:  return "Transaction start error";
+        case SCRS_NO_TRANSACTION:           return "No Transaction";
         case SCRS_UNKNOWN_SERVER_ERROR:     return "Unknown server error";
     }
 
