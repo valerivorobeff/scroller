@@ -20,6 +20,12 @@ cmd_init(Cmd *cmd) {
     assert(cmd->str_cont);
     context_add_child(context_get_current(), cmd->str_cont); /* Child it to session context */
 
+                                            /* Create separate context for current values,
+                                             * to use it in execute.y for different dynamic operations */
+    cmd->current_cont = bump_context_create(MEMORY_PAGESZ * 256 * 256);
+    assert(cmd->current_cont);
+    context_add_child(context_get_current(), cmd->current_cont); /* Child it to session context */
+
     bc_init(&cmd->bc, cmd->bc_cont);        /* Initialize bytecode */
 
     cmd->titor = titor_init_invalid();      /* Initialize titor */
@@ -29,13 +35,15 @@ cmd_init(Cmd *cmd) {
     return cmd;
 }
 
-void cmd_drop(Cmd *cmd) {
+void
+cmd_drop(Cmd *cmd) {
     /* We don't free cmd->bc here as it will be freed together with its memory context */
     context_drop(cmd->str_cont);
     context_drop(cmd->bc_cont);
 }
 
-void cmd_reset(Cmd *cmd) {
+void
+cmd_reset(Cmd *cmd) {
     context_reset(cmd->bc_cont);
     context_reset(cmd->str_cont);
     bc_clear(&cmd->bc);
