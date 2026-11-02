@@ -10,6 +10,7 @@
 #include "gid.h"
 #include "grid.h"
 #include "fdcache.h"
+#include <pthread.h>
 
 extern Page g_pages;
 extern FdCache *g_fdcache;
@@ -31,7 +32,13 @@ typedef ssize_t pagecache_idx_t;
 typedef struct PageCache {
     Gid key;
     size_t page_idx;
+    pthread_mutex_t mtx;         /*<< Page mutex (PROCESS_SHARED | ROBUST) */
 } PageCache;
+
+typedef struct PageCacheExtra {
+    pthread_mutex_t lru_mtx;            /**< lru ilist2 mutex (PROCESS_SHARED | ROBUST) */
+    pagecache_idx_t page_idx_stack[];   /**< Page index stack */
+} PageCacheExtra;
 
 #define pagecache_create(bucketsz_, chainsz_, hash_fn_) \
     pagecache_create_fn(bucketsz_, chainsz_, hash_fn_)
@@ -52,10 +59,11 @@ typedef struct PageCache {
     })
 
 #define pagecache_get_required_memory_size(bucketsz, chainsz) \
-        icache_get_required_memory_size(bucketsz, chainsz, sizeof(Page), \
+        icache_get_required_memory_size(bucketsz, chainsz, sizeof(PageCache), \
         pagecache_get_extra_size(bucketsz + chainsz))
 
 #define pagecache_get_extra_size(pagenum) \
+        sizeof(PageCacheExtra) + \
         ilist2_get_required_memory_size(pagenum, sizeof(pagecache_idx_t))
 
 PageCache *pagecache_create_fn(size_t bucketsz, size_t chainsz, ihash_hash_fn hash_fn);
